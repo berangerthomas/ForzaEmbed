@@ -234,6 +234,8 @@ def run_test(
                     all_labels.append(labels)
                     total_processing_time += processing_time
                 print(f"[{i}/{len(rows)}] {result}")
+                print("Pause de 30 secondes...")
+                time.sleep(30)
             except Exception as exc:
                 print(
                     f"[{i}/{len(rows)}] An error occurred while processing {item[0]}: {exc}"
