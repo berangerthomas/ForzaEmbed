@@ -86,6 +86,11 @@ def main():
         print("No evaluation results to plot.")
 
     if model_embeddings_for_variance:
+        # Sauvegarde des embeddings pour l'analyse de variance
+        with open(
+            os.path.join(OUTPUT_DIR, "model_embeddings_for_variance.pkl"), "wb"
+        ) as f:
+            pickle.dump(model_embeddings_for_variance, f)
         analyze_and_visualize_variance(model_embeddings_for_variance, OUTPUT_DIR)
     else:
         print("\nNo embeddings were generated. Skipping variance analysis.")
