@@ -27,6 +27,8 @@ class ProductionEmbeddingClient:
         # Détermine la clé API à utiliser en fonction du nom du modèle
         if "mistral" in model.lower():
             api_key = os.environ.get("API_KEY_MISTRAL")
+        elif "voyage" in model.lower():
+            api_key = os.environ.get("API_KEY_VOYAGEAI")
         else:
             api_key = os.environ.get("API_KEY_OPENAI")
 

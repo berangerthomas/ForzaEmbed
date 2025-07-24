@@ -140,6 +140,12 @@ MODELS_TO_TEST = [
         "base_url": "https://api.mistral.ai/v1",
         "function": lambda client: client.get_embeddings,
     },
+    {
+        "type": "api",
+        "name": "voyage-3-large",
+        "base_url": "https://api.voyageai.com/v1",
+        "function": lambda client: client.get_embeddings,
+    },
 ]
 # MODELS_TO_TEST = [
 #     {
