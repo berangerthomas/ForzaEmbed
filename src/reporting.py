@@ -2,6 +2,8 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 from sklearn.metrics.pairwise import cosine_similarity
@@ -111,6 +113,104 @@ def generate_filtered_markdown(
     return filename
 
 
+# Génère un graphique radar pour comparer les modèles sur plusieurs métriques.
+def generate_radar_chart(
+    evaluation_results: dict[str, dict[str, float]], output_dir: str
+) -> None:
+    """
+    Génère un graphique radar pour une comparaison globale des modèles.
+
+    Args:
+        evaluation_results (dict): Dictionnaire des résultats d'évaluation.
+        output_dir (str): Dossier de sortie pour la visualisation.
+    """
+    model_names = list(evaluation_results.keys())
+    if len(model_names) < 1:
+        print("Not enough models to generate a radar chart.")
+        return
+
+    # Utiliser les mêmes métriques que les graphiques à barres
+    metrics = [
+        "cohesion",
+        "separation",
+        "discriminant_score",
+        "silhouette",
+        "calinski_harabasz",
+        "davies_bouldin",
+    ]
+    df = pd.DataFrame(evaluation_results).T[metrics]
+
+    # Métriques où une valeur plus faible est meilleure
+    lower_is_better = ["separation", "davies_bouldin"]
+
+    # Normalisation des données
+    normalized_df = df.copy()
+    for metric in metrics:
+        min_val = df[metric].min()
+        max_val = df[metric].max()
+        if max_val == min_val:
+            normalized_df[metric] = 1.0  # Tous les modèles sont équivalents
+        else:
+            if metric in lower_is_better:
+                # Inverser la normalisation : (max - x) / (max - min)
+                normalized_df[metric] = (max_val - df[metric]) / (max_val - min_val)
+            else:
+                # Normalisation standard : (x - min) / (max - min)
+                normalized_df[metric] = (df[metric] - min_val) / (max_val - min_val)
+
+    # Création du graphique radar
+    fig = go.Figure()
+    for model_name in normalized_df.index:
+        values = normalized_df.loc[model_name].tolist()
+        # Fermer la boucle du radar
+        values += values[:1]
+        metric_labels = metrics + [metrics[0]]
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=values,
+                theta=metric_labels,
+                fill="toself",
+                name=model_name,
+                hovertemplate=f"<b>{model_name}</b><br>"
+                + "Métrique: %{theta}<br>"
+                + "Score Normalisé: %{r:.3f}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1], showticklabels=False)),
+        title={
+            "text": "<b>Comparaison Globale des Modèles (Score Normalisé)</b>",
+            "y": 0.95,
+            "x": 0.5,
+            "xanchor": "center",
+            "yanchor": "top",
+            "font": {"size": 20, "family": "Arial, sans-serif"},
+        },
+        legend=dict(
+            title="Modèles",
+            orientation="h",
+            yanchor="bottom",
+            y=-0.2,
+            xanchor="center",
+            x=0.5,
+        ),
+        margin=dict(t=100, b=100),
+    )
+
+    # Sauvegarder le graphique
+    plot_filename = os.path.join(output_dir, "global_model_comparison_radar.png")
+    try:
+        fig.write_image(plot_filename, width=1200, height=800, scale=2)
+        print(f"📊 Radar chart saved to: {plot_filename}")
+    except Exception as e:
+        print(f"❌ Could not save radar chart. Error: {e}")
+        print(
+            "Please ensure 'kaleido' is installed (`pip install kaleido`) for static image export."
+        )
+
+
 # Analyse et visualise les métriques de clustering pour différents modèles.
 def analyze_and_visualize_clustering_metrics(
     evaluation_results: dict[str, dict[str, float]], output_dir: str
@@ -126,6 +226,9 @@ def analyze_and_visualize_clustering_metrics(
         print("No evaluation results to visualize.")
         return
 
+    # Générer le graphique radar en premier
+    generate_radar_chart(evaluation_results, output_dir)
+
     metrics = [
         "cohesion",
         "separation",
@@ -133,6 +236,7 @@ def analyze_and_visualize_clustering_metrics(
         "silhouette",
         "calinski_harabasz",
         "davies_bouldin",
+        "processing_time",
     ]
     titles = {
         "cohesion": "Cluster Cohesion (Higher is Better)",
@@ -141,14 +245,21 @@ def analyze_and_visualize_clustering_metrics(
         "silhouette": "Silhouette Score (Higher is Better)",
         "calinski_harabasz": "Calinski-Harabasz Index (Higher is Better)",
         "davies_bouldin": "Davies-Bouldin Index (Lower is Better)",
+        "processing_time": "Processing Time (s) (Lower is Better)",
     }
 
     for metric in metrics:
+        if metric not in evaluation_results[list(evaluation_results.keys())[0]]:
+            continue
         model_names = list(evaluation_results.keys())
         values = [evaluation_results[model][metric] for model in model_names]
 
         # Sort models by metric value
-        descending = metric not in ["separation", "davies_bouldin"]
+        descending = metric not in [
+            "separation",
+            "davies_bouldin",
+            "processing_time",
+        ]
         sorted_indices = np.argsort(values)
         if descending:
             sorted_indices = sorted_indices[::-1]

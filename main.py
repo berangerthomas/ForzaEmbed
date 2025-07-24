@@ -1,4 +1,5 @@
 import os
+import pickle
 
 import numpy as np
 
@@ -27,10 +28,14 @@ def main():
     # --- Run Processing ---
     model_embeddings_for_variance = {}
     evaluation_results = {}
+    model_processing_times = {}
 
     for config in MODELS_TO_TEST:
         model_name = config["name"]
-        embeddings_list, labels_list = run_test(test_rows, config, OUTPUT_DIR)
+        embeddings_list, labels_list, processing_time = run_test(
+            test_rows, config, OUTPUT_DIR
+        )
+        model_processing_times[model_name] = processing_time
 
         if embeddings_list and labels_list:
             model_embeddings_for_variance[model_name] = embeddings_list
@@ -53,6 +58,7 @@ def main():
                 evaluation_results[model_name] = {
                     **cohesion_sep_metrics,
                     **clustering_metrics,
+                    "processing_time": processing_time,
                 }
                 print(f"  - Results: {evaluation_results[model_name]}")
             else:
@@ -63,6 +69,18 @@ def main():
     # --- Generate Comparison Plots ---
     print("\n--- Generating Final Comparison Plots ---")
     if evaluation_results:
+        # Sauvegarde des résultats d'évaluation dans un fichier Markdown
+        with open(os.path.join(OUTPUT_DIR, "evaluation_results.md"), "w") as f:
+            f.write("# Evaluation Results\n\n")
+            for model, metrics in evaluation_results.items():
+                f.write(f"## {model}\n")
+                for metric, value in metrics.items():
+                    f.write(f"- **{metric}**: {value}\n")
+                f.write("\n")
+        # Sauvegarde des résultats evaluation_results dans un fichier pickle
+
+        with open(os.path.join(OUTPUT_DIR, "evaluation_results.pkl"), "wb") as f:
+            pickle.dump(evaluation_results, f)
         analyze_and_visualize_clustering_metrics(evaluation_results, OUTPUT_DIR)
     else:
         print("No evaluation results to plot.")

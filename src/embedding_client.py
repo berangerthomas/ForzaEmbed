@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List
 
 import requests
@@ -33,7 +34,7 @@ class ProductionEmbeddingClient:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
 
     # Récupère les embeddings pour une liste de textes via l'API.
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def get_embeddings(self, texts: List[str]) -> tuple[List[List[float]], float]:
         """
         Récupère les embeddings pour une liste de textes via l'API.
 
@@ -41,20 +42,23 @@ class ProductionEmbeddingClient:
             texts (List[str]): Liste de textes.
 
         Returns:
-            List[List[float]]: Liste des vecteurs d'embedding.
+            tuple[List[List[float]], float]: Liste des vecteurs d'embedding et temps de réponse.
         """
         if not texts:
-            return []
+            return [], 0.0
         url = f"{self.base_url}/embeddings"
         payload = {"model": self.model, "input": texts}
+        start_time = time.time()
         try:
             response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
             result = response.json()
-            return [data["embedding"] for data in result["data"]]
+            embeddings = [data["embedding"] for data in result["data"]]
+            end_time = time.time()
+            return embeddings, end_time - start_time
         except requests.exceptions.RequestException as e:
             print(f"❌ API Error: {e}")
-            return []
+            return [], 0.0
         except (KeyError, IndexError) as e:
             print(f"❌ API Response Parsing Error: {e}")
-            return []
+            return [], 0.0
