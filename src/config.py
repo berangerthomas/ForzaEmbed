@@ -147,6 +147,19 @@ MODELS_TO_TEST = [
         "function": lambda client: client.get_embeddings,
     },
 ]
+MODELS_TO_TEST = [
+    {
+        "type": "local",
+        "name": "paraphrase-multilingual-mpnet-base-v2",
+        "function": lambda model_name: SentenceTransformer(model_name).encode,
+    },
+    {
+        "type": "api",
+        "name": "nomic-embed-text",
+        "base_url": "https://api.erasme.homes/v1",
+        "function": lambda client: client.get_embeddings,
+    },
+]
 # MODELS_TO_TEST = [
 #     {
 #         "type": "local",
