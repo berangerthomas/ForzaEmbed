@@ -8,7 +8,6 @@ from sentence_transformers import SentenceTransformer
 # récupérer les variables d'environnement
 load_dotenv()
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.6))
-CONTEXT_SIZE = int(os.getenv("CONTEXT_SIZE", 2))
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 100))
 
@@ -29,8 +28,9 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
     Returns:
         tuple: (liste des thèmes, dictionnaire des mots-clés pour les regex)
     """
+    lieux = ["bibliothèque", "médiathèque", "mairie", "piscine"]
     jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
-    actions = ["ouvert", "fermé", "ouverture", "fermeture", "accueil"]
+    actions = ["ouverte", "fermée", "ouverture", "fermeture", "accueil", "horaires"]
     concepts_generaux = [
         "horaires d'ouverture",
         "heures d'ouverture",
@@ -40,6 +40,8 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
         "périodes d'ouverture",
         "période scolaire",
         "vacances scolaires",
+        "fermeture exceptionnelle",
+        "fermeture annuelle",
         "jours fériés",
         "jours spéciaux",
         "horaires spéciaux",
@@ -53,13 +55,20 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
         "de 9h à 12h",
         "de 14h à 18h",
         "de 10h00 à 19h00",
+        "9h 12h",
+        "14h 18h",
     ]
 
     # Generate themes by combining actions and days
     themes_jours = [f"{action} le {jour}" for action in actions[:2] for jour in jours]
 
+    # generate themes for each type of place
+    themes_lieux = [f"{lieu} {action}" for lieu in lieux for action in actions]
+
     # Combine all themes into a single list
-    base_themes = concepts_generaux + expressions_temporelles + themes_jours
+    base_themes = (
+        concepts_generaux + expressions_temporelles + themes_jours + themes_lieux
+    )
     base_themes.append("autre")
 
     # Create a dictionary of keywords for the regex

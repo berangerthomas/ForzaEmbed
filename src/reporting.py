@@ -66,7 +66,6 @@ def generate_filtered_markdown(
     phrases: list[str],
     similarites_norm: np.ndarray,
     threshold: float,
-    context_size: int,
     output_dir: str,
     suffix: str,
     model_name: str,
@@ -92,16 +91,13 @@ def generate_filtered_markdown(
     relevant_indices = set()
     for i, score in enumerate(similarites_norm):
         if score >= threshold:
-            start_idx = max(0, i - context_size)
-            end_idx = min(len(phrases), i + context_size + 1)
-            relevant_indices.update(range(start_idx, end_idx))
+            relevant_indices.add(i)
 
     relevant_phrases = [phrases[i] for i in sorted(list(relevant_indices))]
 
     content = f"# Résultat Filtré - {nom} ({type_lieu})\n\n"
     content += f"**Modèle:** {model_name}\n"
     content += f"**Seuil:** {threshold}\n"
-    content += f"**Contexte:** {context_size}\n"
     content += f"**Phrases sélectionnées:** {len(relevant_phrases)}/{len(phrases)}\n\n"
     content += "## Contenu Filtré Brut\n\n"
     if relevant_phrases:
@@ -420,7 +416,6 @@ def generate_explanatory_markdown(
     similarites_norm: np.ndarray,
     themes: list[str],
     threshold: float,
-    context_window: int,
     output_dir: str,
     suffix: str,
     model_name: str,
@@ -455,8 +450,7 @@ def generate_explanatory_markdown(
     markdown_content += f"**Identifiant:** {identifiant}\n"
     markdown_content += f"**Modèle:** {model_name}\n"
     markdown_content += f"**Thèmes recherchés:** {', '.join(themes)}\n"
-    markdown_content += f"**Seuil de similarité:** {threshold}\n"
-    markdown_content += f"**Fenêtre de contexte:** ±{context_window} phrases\n\n"
+    markdown_content += f"**Seuil de similarité:** {threshold}\n\n"
 
     if hot_zones:
         markdown_content += (
@@ -464,7 +458,7 @@ def generate_explanatory_markdown(
         )
         for i, (phrase_idx, phrase, score) in enumerate(hot_zones, 1):
             markdown_content += f"### Zone {i} (Score: {score:.3f})\n\n"
-            context = extract_context_around_phrase(phrases, phrase_idx, context_window)
+            context = extract_context_around_phrase(phrases, phrase_idx)
             markdown_content += "**Contexte complet:**\n"
             markdown_content += f"> {context}\n\n"
             markdown_content += "**Phrase clé identifiée:**\n"

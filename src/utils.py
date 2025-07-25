@@ -59,20 +59,18 @@ def contains_horaire_pattern(text: str, keywords: dict) -> bool:
 
 
 # Extrait le contexte autour d'une phrase cible dans une liste de phrases.
-def extract_context_around_phrase(
-    phrases: list[str], phrase_index: int, context_window: int = 2
-) -> str:
+def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
     """
     Extrait et met en valeur le contexte autour d'une phrase cible.
 
     Args:
         phrases (list[str]): Liste des phrases.
         phrase_index (int): Index de la phrase cible.
-        context_window (int): Nombre de phrases de contexte à inclure.
 
     Returns:
         str: Contexte avec la phrase cible mise en évidence.
     """
+    context_window = 0
     start_idx = max(0, phrase_index - context_window)
     end_idx = min(len(phrases), phrase_index + context_window + 1)
     context_phrases = phrases[start_idx:end_idx]

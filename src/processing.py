@@ -8,7 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from src.config import (
     BASE_THEMES,
     CMAP,
-    CONTEXT_SIZE,
     SIMILARITY_THRESHOLD,
 )
 from src.embedding_client import ProductionEmbeddingClient
@@ -114,7 +113,6 @@ def process_item(
         phrases,
         similarites_norm,  # Use similarity scores for filtering
         SIMILARITY_THRESHOLD,
-        CONTEXT_SIZE,
         output_dir,
         suffix,
         model_name,
@@ -127,7 +125,6 @@ def process_item(
         similarites_norm,  # Use similarity scores for explanation
         themes,
         SIMILARITY_THRESHOLD,
-        CONTEXT_SIZE,
         output_dir,
         suffix,
         model_name,
@@ -244,8 +241,8 @@ def run_test(
                     all_labels.append(labels)
                     total_processing_time += processing_time
                 print(f"[{i}/{len(rows)}] {result}")
-                print("Pause de 30 secondes...")
-                time.sleep(30)
+                print("Pause de 45 secondes...")
+                time.sleep(45)
             except Exception as exc:
                 print(
                     f"[{i}/{len(rows)}] An error occurred while processing {item[0]}: {exc}"
