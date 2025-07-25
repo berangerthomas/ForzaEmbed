@@ -3,7 +3,7 @@ import pickle
 
 import numpy as np
 
-from src.config import MODELS_TO_TEST, OUTPUT_DIR
+from src.config import BASE_THEMES, MODELS_TO_TEST, OUTPUT_DIR
 from src.data_loader import load_markdown_files
 from src.evaluation_metrics import (
     calculate_clustering_metrics,
@@ -13,6 +13,7 @@ from src.processing import run_test
 from src.reporting import (
     analyze_and_visualize_clustering_metrics,
     analyze_and_visualize_variance,
+    generate_tsne_visualization,
 )
 
 
@@ -29,6 +30,8 @@ def main():
     model_embeddings_for_variance = {}
     evaluation_results = {}
     model_processing_times = {}
+    all_labels_for_tsne = []
+    first_run = True
 
     for config in MODELS_TO_TEST:
         model_name = config["name"]
@@ -39,6 +42,19 @@ def main():
 
         if embeddings_list and labels_list:
             model_embeddings_for_variance[model_name] = embeddings_list
+
+            # Collect labels for t-SNE visualization (only on the first run)
+            if first_run:
+                # Ensure labels are collected as a flat list of integers
+                all_labels_for_tsne.extend(
+                    [
+                        item
+                        for sublist in labels_list
+                        if sublist is not None
+                        for item in sublist
+                    ]
+                )
+                first_run = False
 
             all_embeddings = np.vstack(
                 [e for e in embeddings_list if e is not None and e.size > 0]
@@ -92,6 +108,17 @@ def main():
         ) as f:
             pickle.dump(model_embeddings_for_variance, f)
         analyze_and_visualize_variance(model_embeddings_for_variance, OUTPUT_DIR)
+
+        # --- Generate t-SNE Visualization ---
+        if all_labels_for_tsne:
+            generate_tsne_visualization(
+                model_embeddings_for_variance,
+                all_labels_for_tsne,
+                BASE_THEMES,
+                OUTPUT_DIR,
+            )
+        else:
+            print("\nNo labels were generated. Skipping t-SNE visualization.")
     else:
         print("\nNo embeddings were generated. Skipping variance analysis.")
 

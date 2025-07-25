@@ -15,6 +15,13 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 100))
 
 # --- Theme and Keyword Generation ---
 # Fonction pour générer les thèmes et mots-clés associés aux horaires d'ouverture.
+def get_horaires_themes() -> list[str]:
+    """
+    Retourne une liste de thèmes consolidés pour les horaires.
+    """
+    return ["horaires", "autre"]
+
+
 def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
     """
     Génère une liste de thèmes et un dictionnaire de mots-clés pour la détection des horaires d'ouverture.
@@ -36,6 +43,9 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
         "jours fériés",
         "jours spéciaux",
         "horaires spéciaux",
+        "quand venir",
+        "nous sommes ouverts",
+        "nous sommes fermés",
     ]
     expressions_temporelles = [
         "le matin",
@@ -50,6 +60,7 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
 
     # Combine all themes into a single list
     base_themes = concepts_generaux + expressions_temporelles + themes_jours
+    base_themes.append("autre")
 
     # Create a dictionary of keywords for the regex
     keywords = {
@@ -147,19 +158,54 @@ MODELS_TO_TEST = [
         "function": lambda client: client.get_embeddings,
     },
 ]
-MODELS_TO_TEST = [
-    {
-        "type": "local",
-        "name": "paraphrase-multilingual-mpnet-base-v2",
-        "function": lambda model_name: SentenceTransformer(model_name).encode,
-    },
-    {
-        "type": "api",
-        "name": "nomic-embed-text",
-        "base_url": "https://api.erasme.homes/v1",
-        "function": lambda client: client.get_embeddings,
-    },
-]
+# MODELS_TO_TEST = [
+#     {
+#         "type": "local",
+#         "name": "paraphrase-multilingual-mpnet-base-v2",
+#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#     },
+#     {
+#         "type": "api",
+#         "name": "nomic-embed-text",
+#         "base_url": "https://api.erasme.homes/v1",
+#         "function": lambda client: client.get_embeddings,
+#     },
+#     {
+#         "type": "api",
+#         "name": "mistral-embed",
+#         "base_url": "https://api.mistral.ai/v1",
+#         "function": lambda client: client.get_embeddings,
+#     },
+#     {
+#         "type": "api",
+#         "name": "voyage-3-large",
+#         "base_url": "https://api.voyageai.com/v1",
+#         "function": lambda client: client.get_embeddings,
+#     },
+#     {
+#         "type": "local",
+#         "name": "distiluse-base-multilingual-cased-v1",
+#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#     },
+#     {
+#         "type": "local",
+#         "name": "distiluse-base-multilingual-cased-v2",
+#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#     },
+# ]
+# MODELS_TO_TEST = [
+#     {
+#         "type": "local",
+#         "name": "paraphrase-multilingual-mpnet-base-v2",
+#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#     },
+#     {
+#         "type": "api",
+#         "name": "nomic-embed-text",
+#         "base_url": "https://api.erasme.homes/v1",
+#         "function": lambda client: client.get_embeddings,
+#     },
+# ]
 # MODELS_TO_TEST = [
 #     {
 #         "type": "local",

@@ -79,8 +79,18 @@ def process_item(
         )
     similarites = cosine_similarity(embed_themes, embed_phrases)
     similarites_max = similarites.max(axis=0)
-    # Assign each phrase to the theme with the highest similarity score
+
+    # Assign each phrase to a theme based on the similarity threshold
     labels = np.argmax(similarites, axis=0)
+
+    # Find the index for the "autre" theme, if it exists
+    try:
+        autre_theme_index = themes.index("autre")
+        # If similarity is below threshold, classify as "autre"
+        labels[similarites_max < SIMILARITY_THRESHOLD] = autre_theme_index
+    except ValueError:
+        # If "autre" is not in themes, just use the highest similarity
+        pass
 
     # We clip the similarity scores to the [0, 1] range for normalization
     similarites_norm = np.clip(similarites_max, 0, 1)
