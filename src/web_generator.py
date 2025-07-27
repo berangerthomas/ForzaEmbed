@@ -36,7 +36,19 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             color: #2c3e50;
             margin-bottom: 20px;
         }}
-        .controls, .metrics, .visualization {{
+        .controls {{
+            border: 1px solid #d1d9e0;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            position: sticky;
+            top: 20px;
+            z-index: 1000;
+        }}
+        .metrics, .visualization {{
             border: 1px solid #d1d9e0;
             border-radius: 8px;
             padding: 20px;
@@ -51,20 +63,20 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding-bottom: 10px;
         }}
         .control-group {{
+            margin-bottom: 20px;
+        }}
+        .label-group {{
             display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 15px;
+            justify-content: space-between;
+            margin-top: 8px;
         }}
         .control-group label {{
             font-weight: bold;
-            min-width: 150px;
         }}
         .slider-container {{
             flex-grow: 1;
             display: flex;
             align-items: center;
-            gap: 15px;
         }}
         input[type="range"] {{
             flex-grow: 1;
@@ -99,11 +111,10 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         #file-name, #embedding-name {{
             font-weight: bold;
             color: #2980b9;
-            width: 350px; /* Largeur fixe */
-            min-width: 350px; /* Assure que la largeur ne diminue pas */
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-align: right;
         }}
         .metrics {{
             flex-shrink: 0;
@@ -140,6 +151,8 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding: 2px 1px;
             border-radius: 3px;
             cursor: pointer;
+            font-size: 0.85em;
+            line-height: 1.2;
         }}
     </style>
 </head>
@@ -151,16 +164,20 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         <div class="controls">
             <h2>Contrôles</h2>
             <div class="control-group">
-                <label for="file-slider">Fichier Markdown :</label>
                 <div class="slider-container">
                     <input type="range" id="file-slider" min="0" max="0" value="0">
+                </div>
+                <div class="label-group">
+                    <label for="file-slider">Fichier Markdown :</label>
                     <span id="file-name"></span>
                 </div>
             </div>
             <div class="control-group">
-                <label for="embedding-slider">Paramétrage d'Embedding :</label>
                 <div class="slider-container">
                     <input type="range" id="embedding-slider" min="0" max="0" value="0">
+                </div>
+                <div class="label-group">
+                    <label for="embedding-slider">Paramétrage d'Embedding :</label>
                     <span id="embedding-name"></span>
                 </div>
             </div>
@@ -192,9 +209,41 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         let fileKeys = [];
         let embeddingKeys = [];
 
+        const createCmap = (colorSet) => (score) => {{
+            if (typeof score !== 'number' || isNaN(score)) score = 0.5;
+            const i = Math.min(Math.floor(score * (colorSet.length - 1)), colorSet.length - 2);
+            const t = (score * (colorSet.length - 1)) % 1;
+            const r = Math.round(colorSet[i].r * (1 - t) + colorSet[i+1].r * t);
+            const g = Math.round(colorSet[i].g * (1 - t) + colorSet[i+1].g * t);
+            const b = Math.round(colorSet[i].b * (1 - t) + colorSet[i+1].b * t);
+            return {{
+                rgb: `rgb(${{r}},${{g}},${{b}})`,
+                isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
+            }};
+        }};
+
+        const cmap_metrics = createCmap([
+            {{ r: 215, g: 25, b: 28 }},    // Bad
+            {{ r: 253, g: 174, b: 97 }},
+            {{ r: 255, g: 255, b: 191 }}, // Neutral
+            {{ r: 171, g: 221, b: 164 }},
+            {{ r: 43, g: 131, b: 186 }}  // Good
+        ]);
+
+        const cmap_heatmap = createCmap([
+            {{ r: 43, g: 131, b: 186 }}, // Low similarity
+            {{ r: 171, g: 221, b: 164 }},
+            {{ r: 255, g: 255, b: 191 }}, // Neutral
+            {{ r: 253, g: 174, b: 97 }},
+            {{ r: 215, g: 25, b: 28 }}    // High similarity
+        ]);
+
         function initialize() {{
-            fileKeys = Object.keys(processedData.files);
-            if (fileKeys.length === 0) return;
+            fileKeys = Object.keys(processedData.files || {{}});
+            if (fileKeys.length === 0) {{
+                console.error("No files found in processed data.");
+                return;
+            }}
 
             fileSlider.max = fileKeys.length - 1;
             fileSlider.addEventListener('input', updateInterface);
@@ -208,38 +257,94 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             const fileKey = fileKeys[fileIndex];
             const fileData = processedData.files[fileKey];
             
-            fileNameSpan.textContent = fileKey;
-
-            embeddingKeys = Object.keys(fileData.embeddings);
-            embeddingSlider.max = embeddingKeys.length - 1;
-            
-            const embeddingIndex = parseInt(embeddingSlider.value, 10);
-            if (embeddingIndex >= embeddingKeys.length) {{
-                embeddingSlider.value = embeddingKeys.length - 1;
-                updateInterface(); // Re-trigger update
+            if (!fileData) {{
+                fileNameSpan.textContent = 'No data for this file.';
+                embeddingNameSpan.textContent = '';
+                metricsGrid.innerHTML = '';
+                heatmapContainer.innerHTML = '';
                 return;
             }}
+
+            fileNameSpan.textContent = fileKey;
+
+            embeddingKeys = Object.keys(fileData.embeddings || {{}}).sort((a, b) => {{
+                const metricA = fileData.embeddings[a]?.metrics?.separation ?? Infinity;
+                const metricB = fileData.embeddings[b]?.metrics?.separation ?? Infinity;
+                return metricA - metricB;
+            }});
+
+            embeddingSlider.max = Math.max(0, embeddingKeys.length - 1);
+            
+            let embeddingIndex = parseInt(embeddingSlider.value, 10);
+            if (embeddingIndex >= embeddingKeys.length) {{
+                embeddingIndex = Math.max(0, embeddingKeys.length - 1);
+                embeddingSlider.value = embeddingIndex;
+            }}
+
+            if (embeddingKeys.length === 0) {{
+                embeddingNameSpan.textContent = 'No embeddings available.';
+                metricsGrid.innerHTML = '';
+                heatmapContainer.innerHTML = '';
+                return;
+            }}
+
             const embeddingKey = embeddingKeys[embeddingIndex];
             const embeddingData = fileData.embeddings[embeddingKey];
 
-            embeddingNameSpan.textContent = embeddingKey;
+            if (!embeddingData) {{
+                embeddingNameSpan.textContent = 'Error: No data for this embedding.';
+                metricsGrid.innerHTML = '';
+                heatmapContainer.innerHTML = '';
+                return;
+            }}
 
-            updateMetrics(embeddingData.metrics);
-            updateHeatmap(fileData.phrases, embeddingData.similarities, embeddingData.themes);
+            embeddingNameSpan.textContent = embeddingKey;
+            updateMetrics(embeddingData.metrics, fileKey);
+            updateHeatmap(fileData.phrases, embeddingData.similarities);
         }}
 
-        function updateMetrics(metrics) {{
+        function updateMetrics(metrics, fileKey) {{
             metricsGrid.innerHTML = '';
+            if (!metrics) return;
+
+            const lowerIsBetter = ["separation", "davies_bouldin", "processing_time"];
+            
+            const normalized = {{}};
+            for (const key of Object.keys(metrics)) {{
+                const allValues = embeddingKeys
+                    .map(ek => processedData.files[fileKey]?.embeddings[ek]?.metrics?.[key])
+                    .filter(v => typeof v === 'number' && isFinite(v));
+                
+                if (allValues.length === 0) {{
+                    normalized[key] = 0.5;
+                    continue;
+                }}
+
+                const min = Math.min(...allValues);
+                const max = Math.max(...allValues);
+                let score = (metrics[key] - min) / (max - min || 1);
+                if (lowerIsBetter.includes(key)) {{
+                    score = 1 - score;
+                }}
+                normalized[key] = isNaN(score) ? 0.5 : score;
+            }}
+
             for (const [key, value] of Object.entries(metrics)) {{
                 const metricItem = document.createElement('div');
                 metricItem.className = 'metric-item';
                 
+                const normValue = normalized[key];
+                const colorInfo = cmap_metrics(normValue);
+                metricItem.style.backgroundColor = colorInfo.rgb;
+                
                 const valueSpan = document.createElement('div');
                 valueSpan.className = 'value';
+                valueSpan.style.color = colorInfo.isDark ? '#fff' : '#2c3e50';
                 valueSpan.textContent = typeof value === 'number' ? value.toFixed(4) : value;
                 
                 const labelSpan = document.createElement('div');
                 labelSpan.className = 'label';
+                labelSpan.style.color = colorInfo.isDark ? '#ecf0f1' : '#7f8c8d';
                 labelSpan.textContent = key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
 
                 metricItem.appendChild(valueSpan);
@@ -248,35 +353,19 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             }}
         }}
 
-        function updateHeatmap(phrases, similarities, themes) {{
-            heatmapContainer.innerHTML = `<h3>Thèmes: ${{themes.join(', ')}}</h3>`;
+        function updateHeatmap(phrases, similarities) {{
+            heatmapContainer.innerHTML = '';
+            if (!phrases || !similarities) return;
+
             const content = document.createElement('p');
 
-            const cmap = (score) => {{
-                const colors = [
-                    {{ r: 43, g: 131, b: 186 }}, // #2b83ba
-                    {{ r: 171, g: 221, b: 164 }}, // #abdda4
-                    {{ r: 255, g: 255, b: 191 }}, // #ffffbf
-                    {{ r: 253, g: 174, b: 97 }},  // #fdae61
-                    {{ r: 215, g: 25, b: 28 }}    // #d7191c
-                ];
-                
-                const i = Math.min(Math.floor(score * (colors.length - 1)), colors.length - 2);
-                const t = (score * (colors.length - 1)) % 1;
-                
-                const r = Math.round(colors[i].r * (1 - t) + colors[i+1].r * t);
-                const g = Math.round(colors[i].g * (1 - t) + colors[i+1].g * t);
-                const b = Math.round(colors[i].b * (1 - t) + colors[i+1].b * t);
-                
-                return `rgb(${{r}},${{g}},${{b}})`;
-            }};
-
             phrases.forEach((phrase, index) => {{
-                const score = similarities[index];
-                const color = cmap(score);
+                const score = similarities[index] || 0;
+                const colorInfo = cmap_heatmap(score);
                 
                 const span = document.createElement('span');
-                span.style.backgroundColor = color;
+                span.style.backgroundColor = colorInfo.rgb;
+                span.style.color = colorInfo.isDark ? '#fff' : '#333';
                 span.textContent = phrase + '. ';
                 span.title = `Similarité: ${{score.toFixed(3)}}`;
                 

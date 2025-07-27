@@ -89,6 +89,15 @@ def generate_all_reports(db: EmbeddingDatabase):
             all_models_metrics[model_name] = avg_metrics
             db.add_evaluation_metrics(model_name, avg_metrics)
 
+    # --- Génération des pages web ---
+    print("\n--- Generating Web Pages ---")
+    final_data_structure = {"files": processed_data_for_interactive_page}
+    generate_main_page(final_data_structure, OUTPUT_DIR)
+
+    for model_name, metrics in all_models_metrics.items():
+        model_page_data = {"name": model_name, **metrics}
+        generate_model_page(model_page_data, OUTPUT_DIR)
+
     # --- Génération des rapports statiques ---
     print("\n--- Generating Static Comparison Plots ---")
     if all_models_metrics:
@@ -105,15 +114,6 @@ def generate_all_reports(db: EmbeddingDatabase):
             )
             for model_name, path in tsne_plots.items():
                 db.add_generated_file(model_name, "tsne_visualization", path)
-
-    # --- Génération des pages web ---
-    print("\n--- Generating Web Pages ---")
-    final_data_structure = {"files": processed_data_for_interactive_page}
-    generate_main_page(final_data_structure, OUTPUT_DIR)
-
-    for model_name, metrics in all_models_metrics.items():
-        model_page_data = {"name": model_name, **metrics}
-        generate_model_page(model_page_data, OUTPUT_DIR)
 
     print(f"\n✅ All reports generated. Outputs are in the '{OUTPUT_DIR}' directory.")
     print(f"   Please open '{os.path.join(OUTPUT_DIR, 'index.html')}' to view the results.")
