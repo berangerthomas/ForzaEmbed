@@ -15,4 +15,5 @@ dependencies = [
     "plotly>=5.22.0",
     "kaleido>=0.2.1",
     "nltk>=3.9.1",
+    "langchain>=0.2.11",
 ]

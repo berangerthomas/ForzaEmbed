@@ -37,6 +37,9 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             margin-bottom: 20px;
         }}
         .controls {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             border: 1px solid #d1d9e0;
             border-radius: 8px;
             padding: 20px;
@@ -162,24 +165,29 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
 
         <!-- Zone de contrôles -->
         <div class="controls">
-            <h2>Contrôles</h2>
             <div class="control-group">
-                <div class="slider-container">
-                    <input type="range" id="file-slider" min="0" max="0" value="0">
-                </div>
-                <div class="label-group">
-                    <label for="file-slider">Fichier Markdown :</label>
-                    <span id="file-name"></span>
-                </div>
+                <label for="file-slider">Fichier Markdown : <span id="file-name" class="label-value"></span></label>
+                <input type="range" id="file-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <div class="slider-container">
-                    <input type="range" id="embedding-slider" min="0" max="0" value="0">
-                </div>
-                <div class="label-group">
-                    <label for="embedding-slider">Paramétrage d'Embedding :</label>
-                    <span id="embedding-name"></span>
-                </div>
+                <label for="model-slider">Modèle : <span id="model-name"></span></label>
+                <input type="range" id="model-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunk-size-slider">Taille des Chunks : <span id="chunk-size-value"></span></label>
+                <input type="range" id="chunk-size-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunk-overlap-slider">Chevauchement : <span id="chunk-overlap-value"></span></label>
+                <input type="range" id="chunk-overlap-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="theme-slider">Jeu de Thèmes : <span id="theme-name"></span></label>
+                <input type="range" id="theme-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunking-strategy-slider">Stratégie de Chunking : <span id="chunking-strategy-name"></span></label>
+                <input type="range" id="chunking-strategy-slider" min="0" max="0" value="0">
             </div>
         </div>
 
@@ -197,17 +205,33 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
     </div>
 
     <script>
-        const processedData = {json.dumps(processed_data, indent=4)};
+        const processedData = {data_json};
 
         const fileSlider = document.getElementById('file-slider');
-        const embeddingSlider = document.getElementById('embedding-slider');
         const fileNameSpan = document.getElementById('file-name');
-        const embeddingNameSpan = document.getElementById('embedding-name');
+        const modelSlider = document.getElementById('model-slider');
+        const modelNameSpan = document.getElementById('model-name');
+        const chunkSizeSlider = document.getElementById('chunk-size-slider');
+        const chunkSizeValueSpan = document.getElementById('chunk-size-value');
+        const chunkOverlapSlider = document.getElementById('chunk-overlap-slider');
+        const chunkOverlapValueSpan = document.getElementById('chunk-overlap-value');
+        const themeSlider = document.getElementById('theme-slider');
+        const themeNameSpan = document.getElementById('theme-name');
+        const chunkingStrategySlider = document.getElementById('chunking-strategy-slider');
+        const chunkingStrategyNameSpan = document.getElementById('chunking-strategy-name');
         const metricsGrid = document.getElementById('metrics-grid');
         const heatmapContainer = document.getElementById('heatmap-container');
 
         let fileKeys = [];
-        let embeddingKeys = [];
+        let allEmbeddingKeys = [];
+        let filteredEmbeddingKeys = [];
+        const params = {{
+            model: [],
+            cs: [],
+            co: [],
+            t: [],
+            s: []
+        }};
 
         const createCmap = (colorSet) => (score) => {{
             if (typeof score !== 'number' || isNaN(score)) score = 0.5;
@@ -238,6 +262,61 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             {{ r: 215, g: 25, b: 28 }}    // High similarity
         ]);
 
+        function parseEmbeddingKey(key) {{
+            const s_part_index = key.lastIndexOf('_s');
+            const s = key.slice(s_part_index + 2);
+            const key_without_s = key.slice(0, s_part_index);
+
+            const t_part_index = key_without_s.lastIndexOf('_t');
+            const t = key_without_s.slice(t_part_index + 2);
+            const key_without_t = key_without_s.slice(0, t_part_index);
+
+            const co_part_index = key_without_t.lastIndexOf('_co');
+            const co = key_without_t.slice(co_part_index + 3);
+            const key_without_co = key_without_t.slice(0, co_part_index);
+
+            const cs_part_index = key_without_co.lastIndexOf('_cs');
+            const cs = key_without_co.slice(cs_part_index + 3);
+            const model = key_without_co.slice(0, cs_part_index);
+            
+            return {{ model, cs, co, t, s }};
+        }}
+
+        function populateFilters() {{
+            const firstFileKey = fileKeys[0];
+            if (!firstFileKey) return;
+
+            const paramSets = {{
+                model: new Set(),
+                cs: new Set(),
+                co: new Set(),
+                t: new Set(),
+                s: new Set()
+            }};
+
+            allEmbeddingKeys = Object.keys(processedData.files[firstFileKey].embeddings);
+            allEmbeddingKeys.forEach(key => {{
+                const p = parseEmbeddingKey(key);
+                paramSets.model.add(p.model);
+                paramSets.cs.add(p.cs);
+                paramSets.co.add(p.co);
+                paramSets.t.add(p.t);
+                paramSets.s.add(p.s);
+            }});
+
+            params.model = [...paramSets.model].sort();
+            params.cs = [...paramSets.cs].sort((a, b) => a - b);
+            params.co = [...paramSets.co].sort((a, b) => a - b);
+            params.t = [...paramSets.t].sort();
+            params.s = [...paramSets.s].sort();
+
+            modelSlider.max = params.model.length - 1;
+            chunkSizeSlider.max = params.cs.length - 1;
+            chunkOverlapSlider.max = params.co.length - 1;
+            themeSlider.max = params.t.length - 1;
+            chunkingStrategySlider.max = params.s.length - 1;
+        }}
+
         function initialize() {{
             fileKeys = Object.keys(processedData.files || {{}});
             if (fileKeys.length === 0) {{
@@ -246,10 +325,39 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             }}
 
             fileSlider.max = fileKeys.length - 1;
+            populateFilters();
+
             fileSlider.addEventListener('input', updateInterface);
-            embeddingSlider.addEventListener('input', updateInterface);
+            modelSlider.addEventListener('input', updateInterface);
+            chunkSizeSlider.addEventListener('input', updateInterface);
+            chunkOverlapSlider.addEventListener('input', updateInterface);
+            themeSlider.addEventListener('input', updateInterface);
+            chunkingStrategySlider.addEventListener('input', updateInterface);
 
             updateInterface();
+        }}
+
+        function filterEmbeddings() {{
+            const selectedModel = params.model[modelSlider.value];
+            const selectedCS = params.cs[chunkSizeSlider.value];
+            const selectedCO = params.co[chunkOverlapSlider.value];
+            const selectedT = params.t[themeSlider.value];
+            const selectedS = params.s[chunkingStrategySlider.value];
+
+            modelNameSpan.textContent = selectedModel;
+            chunkSizeValueSpan.textContent = selectedCS;
+            chunkOverlapValueSpan.textContent = selectedCO;
+            themeNameSpan.textContent = selectedT;
+            chunkingStrategyNameSpan.textContent = selectedS;
+
+            filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {{
+                const p = parseEmbeddingKey(key);
+                return p.model === selectedModel &&
+                       p.cs === selectedCS &&
+                       p.co === selectedCO &&
+                       p.t === selectedT &&
+                       p.s === selectedS;
+            }});
         }}
 
         function updateInterface() {{
@@ -259,48 +367,33 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             
             if (!fileData) {{
                 fileNameSpan.textContent = 'No data for this file.';
-                embeddingNameSpan.textContent = '';
                 metricsGrid.innerHTML = '';
                 heatmapContainer.innerHTML = '';
                 return;
             }}
 
             fileNameSpan.textContent = fileKey;
+            filterEmbeddings();
 
-            embeddingKeys = Object.keys(fileData.embeddings || {{}}).sort((a, b) => {{
-                const metricA = fileData.embeddings[a]?.metrics?.separation ?? Infinity;
-                const metricB = fileData.embeddings[b]?.metrics?.separation ?? Infinity;
-                return metricA - metricB;
-            }});
-
-            embeddingSlider.max = Math.max(0, embeddingKeys.length - 1);
-            
-            let embeddingIndex = parseInt(embeddingSlider.value, 10);
-            if (embeddingIndex >= embeddingKeys.length) {{
-                embeddingIndex = Math.max(0, embeddingKeys.length - 1);
-                embeddingSlider.value = embeddingIndex;
-            }}
-
-            if (embeddingKeys.length === 0) {{
-                embeddingNameSpan.textContent = 'No embeddings available.';
-                metricsGrid.innerHTML = '';
+            if (filteredEmbeddingKeys.length === 0) {{
+                metricsGrid.innerHTML = 'Aucune donnée pour cette sélection.';
                 heatmapContainer.innerHTML = '';
                 return;
             }}
 
-            const embeddingKey = embeddingKeys[embeddingIndex];
+            // For simplicity, we display the first result of the filtered list.
+            // A slider for filtered results could be added here.
+            const embeddingKey = filteredEmbeddingKeys[0];
             const embeddingData = fileData.embeddings[embeddingKey];
 
             if (!embeddingData) {{
-                embeddingNameSpan.textContent = 'Error: No data for this embedding.';
-                metricsGrid.innerHTML = '';
+                metricsGrid.innerHTML = 'Erreur: Données non trouvées.';
                 heatmapContainer.innerHTML = '';
                 return;
             }}
 
-            embeddingNameSpan.textContent = embeddingKey;
             updateMetrics(embeddingData.metrics, fileKey);
-            updateHeatmap(fileData.phrases, embeddingData.similarities);
+            updateHeatmap(embeddingData.phrases, embeddingData.similarities);
         }}
 
         function updateMetrics(metrics, fileKey) {{
@@ -311,7 +404,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             
             const normalized = {{}};
             for (const key of Object.keys(metrics)) {{
-                const allValues = embeddingKeys
+                const allValues = filteredEmbeddingKeys
                     .map(ek => processedData.files[fileKey]?.embeddings[ek]?.metrics?.[key])
                     .filter(v => typeof v === 'number' && isFinite(v));
                 

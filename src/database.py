@@ -23,7 +23,12 @@ class EmbeddingDatabase:
                 CREATE TABLE IF NOT EXISTS models (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
+                    base_model_name TEXT NOT NULL,
                     type TEXT NOT NULL,
+                    chunk_size INTEGER NOT NULL,
+                    chunk_overlap INTEGER NOT NULL,
+                    theme_name TEXT NOT NULL,
+                    chunking_strategy TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -81,13 +86,34 @@ class EmbeddingDatabase:
             
             conn.commit()
     
-    def add_model(self, name: str, model_type: str):
+    def add_model(
+        self,
+        name: str,
+        base_model_name: str,
+        model_type: str,
+        chunk_size: int,
+        chunk_overlap: int,
+        theme_name: str,
+        chunking_strategy: str,
+    ):
         """Ajoute un modèle à la base de données."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT OR IGNORE INTO models (name, type) VALUES (?, ?)
-            """, (name, model_type))
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO models (name, base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    name,
+                    base_model_name,
+                    model_type,
+                    chunk_size,
+                    chunk_overlap,
+                    theme_name,
+                    chunking_strategy,
+                ),
+            )
             conn.commit()
     
     def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
@@ -174,30 +200,39 @@ class EmbeddingDatabase:
         """Récupère tous les modèles avec leurs métriques."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT m.name, m.type, 
+            cursor.execute(
+                """
+                SELECT m.name, m.base_model_name, m.type, m.chunk_size, m.chunk_overlap, m.theme_name, m.chunking_strategy,
                        e.cohesion, e.separation, e.discriminant_score,
                        e.silhouette, e.calinski_harabasz, e.davies_bouldin,
                        e.processing_time
                 FROM models m
                 LEFT JOIN evaluation_metrics e ON m.name = e.model_name
                 ORDER BY m.name
-            """)
-            
+            """
+            )
+
             models = []
             for row in cursor.fetchall():
-                models.append({
-                    'name': row[0],
-                    'type': row[1],
-                    'cohesion': row[2],
-                    'separation': row[3],
-                    'discriminant_score': row[4],
-                    'silhouette': row[5],
-                    'calinski_harabasz': row[6],
-                    'davies_bouldin': row[7],
-                    'processing_time': row[8]
-                })
-            
+                models.append(
+                    {
+                        "name": row[0],
+                        "base_model_name": row[1],
+                        "type": row[2],
+                        "chunk_size": row[3],
+                        "chunk_overlap": row[4],
+                        "theme_name": row[5],
+                        "chunking_strategy": row[6],
+                        "cohesion": row[7],
+                        "separation": row[8],
+                        "discriminant_score": row[9],
+                        "silhouette": row[10],
+                        "calinski_harabasz": row[11],
+                        "davies_bouldin": row[12],
+                        "processing_time": row[13],
+                    }
+                )
+
             return models
     
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:

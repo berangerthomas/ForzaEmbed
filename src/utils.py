@@ -1,31 +1,37 @@
 import re
 from typing import List
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
 # Découpe un texte en phrases ou segments courts.
-def chunk_text(text: str) -> List[str]:
+def chunk_text(
+    text: str, chunk_size: int, chunk_overlap: int, strategy: str = "langchain"
+) -> List[str]:
     """
-    Découpe le texte en segments selon la ponctuation de fin de phrase et les retours à la ligne.
+    Découpe le texte en segments de taille et de chevauchement définis.
 
     Args:
         text (str): Texte à découper.
+        chunk_size (int): Taille des chunks.
+        chunk_overlap (int): Chevauchement des chunks.
+        strategy (str): 'langchain' pour un découpage intelligent, 'raw' pour un découpage brut.
 
     Returns:
         List[str]: Liste des segments extraits.
     """
-    # First, split by sentence-ending punctuation.
-    sentences = re.split(r"(?<=[.!?])\s+", text)
+    if strategy == "langchain":
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            length_function=len,
+        )
+        chunks = text_splitter.split_text(text)
+    else:  # raw strategy
+        chunks = []
+        for i in range(0, len(text), chunk_size - chunk_overlap):
+            chunks.append(text[i : i + chunk_size])
 
-    # Then, further split each "sentence" by newlines to handle lists
-    final_chunks = []
-    for sentence in sentences:
-        lines = sentence.split("\n")
-        for line in lines:
-            stripped_line = line.strip()
-            if stripped_line:  # Only add non-empty lines
-                final_chunks.append(stripped_line)
-
-    return final_chunks
+    return [chunk.strip() for chunk in chunks if chunk.strip()]
 
 
 # Vérifie si un texte contient un motif lié aux horaires d'ouverture.

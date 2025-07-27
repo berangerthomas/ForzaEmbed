@@ -1,8 +1,9 @@
 import argparse
 import os
 import numpy as np
+import itertools
 
-from src.config import BASE_THEMES, MODELS_TO_TEST, OUTPUT_DIR
+from src.config import GRID_SEARCH_PARAMS, MODELS_TO_TEST, OUTPUT_DIR
 from src.data_loader import load_markdown_files
 from src.database import EmbeddingDatabase
 from src.processing import run_test
@@ -18,19 +19,60 @@ def run_processing(db: EmbeddingDatabase):
     """Exécute le traitement des données et sauvegarde les résultats dans la base de données."""
     print("--- Starting Data Processing ---")
     db.clear_database()
-    
+
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
     all_rows = load_markdown_files(markdown_directory)
 
-    for config in MODELS_TO_TEST:
-        model_name = config["name"]
-        db.add_model(model_name, config["type"])
-        
-        model_results = run_test(all_rows, config, OUTPUT_DIR)
+    param_grid = {
+        "model_config": MODELS_TO_TEST,
+        "chunk_size": GRID_SEARCH_PARAMS["chunk_size"],
+        "chunk_overlap": GRID_SEARCH_PARAMS["chunk_overlap"],
+        "theme_name": list(GRID_SEARCH_PARAMS["themes"].keys()),
+        "chunking_strategy": GRID_SEARCH_PARAMS["chunking_strategy"],
+    }
+
+    param_combinations = list(itertools.product(*param_grid.values()))
+
+    for i, params in enumerate(param_combinations, 1):
+        (
+            model_config,
+            chunk_size,
+            chunk_overlap,
+            theme_name,
+            chunking_strategy,
+        ) = params
+
+        model_name = model_config["name"]
+        theme_func = GRID_SEARCH_PARAMS["themes"][theme_name]
+        themes = theme_func()
+
+        run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
+        print(f"\n--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
+
+        db.add_model(
+            run_name,
+            model_name,
+            model_config["type"],
+            chunk_size,
+            chunk_overlap,
+            theme_name,
+            chunking_strategy,
+        )
+
+        model_results = run_test(
+            all_rows,
+            model_config,
+            chunk_size,
+            chunk_overlap,
+            themes,
+            OUTPUT_DIR,
+            theme_name,
+            chunking_strategy,
+        )
 
         for file_id, file_data in model_results.get("files", {}).items():
             if file_data:
-                db.save_processing_result(model_name, file_id, file_data)
+                db.save_processing_result(run_name, file_id, file_data)
 
 
 def generate_all_reports(db: EmbeddingDatabase):
@@ -53,10 +95,11 @@ def generate_all_reports(db: EmbeddingDatabase):
     for model_name, model_results in all_results.items():
         # Pour la page interactive
         for file_id, file_data in model_results.get("files", {}).items():
-            file_entry = processed_data_for_interactive_page.setdefault(file_id, {"phrases": None, "embeddings": {}})
-            if file_entry.get("phrases") is None:
-                file_entry["phrases"] = file_data.get("phrases", [])
+            file_entry = processed_data_for_interactive_page.setdefault(
+                file_id, {"embeddings": {}}
+            )
             file_entry["embeddings"][model_name] = {
+                "phrases": file_data.get("phrases", []),
                 "similarities": file_data.get("similarities", []),
                 "metrics": file_data.get("metrics", {}),
                 "themes": file_data.get("themes", []),
@@ -76,7 +119,7 @@ def generate_all_reports(db: EmbeddingDatabase):
 
         if current_model_embeddings:
             model_embeddings_for_variance[model_name] = current_model_embeddings
-            if first_run and current_model_labels:
+        if first_run and current_model_labels:
                 all_labels_for_tsne.extend(np.concatenate(current_model_labels))
                 first_run = False
         
@@ -108,12 +151,15 @@ def generate_all_reports(db: EmbeddingDatabase):
         plot_path = analyze_and_visualize_variance(model_embeddings_for_variance, OUTPUT_DIR)
         if plot_path: db.add_global_chart("variance_analysis", plot_path)
         
-        if all_labels_for_tsne:
-            tsne_plots = generate_tsne_visualization(
-                model_embeddings_for_variance, all_labels_for_tsne, BASE_THEMES, OUTPUT_DIR
-            )
-            for model_name, path in tsne_plots.items():
-                db.add_generated_file(model_name, "tsne_visualization", path)
+        # Since themes can change, we can't reliably generate a single t-SNE for all runs.
+        # This part could be adapted to generate a t-SNE per theme set if needed.
+        # For now, we disable it to avoid errors.
+        # if all_labels_for_tsne:
+        #     tsne_plots = generate_tsne_visualization(
+        #         model_embeddings_for_variance, all_labels_for_tsne, list(GRID_SEARCH_PARAMS["themes"].keys())[0], OUTPUT_DIR
+        #     )
+        #     for model_name, path in tsne_plots.items():
+        #         db.add_generated_file(model_name, "tsne_visualization", path)
 
     print(f"\n✅ All reports generated. Outputs are in the '{OUTPUT_DIR}' directory.")
     print(f"   Please open '{os.path.join(OUTPUT_DIR, 'index.html')}' to view the results.")

@@ -6,7 +6,6 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from src.config import (
-    BASE_THEMES,
     CMAP,
     SIMILARITY_THRESHOLD,
 )
@@ -32,6 +31,10 @@ def process_item(
         [List[str]], Tuple[Optional[List[List[float]]], float]
     ],
     output_dir: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    theme_name: str,
+    chunking_strategy: str,
 ) -> Tuple[str, Optional[Dict[str, Any]]]:
     """
     Traite un item, génère les rapports statiques, et retourne un dictionnaire de résultats.
@@ -42,7 +45,7 @@ def process_item(
     if not texte or not texte.strip():
         return f"Skipped {identifiant}: empty text", None
 
-    phrases = chunk_text(texte)
+    phrases = chunk_text(texte, chunk_size, chunk_overlap, chunking_strategy)
     if not phrases:
         return f"Skipped {identifiant}: no phrases after chunking.", None
 
@@ -63,24 +66,46 @@ def process_item(
         pass
 
     # Générer les rapports statiques
-    suffix = f"_{model_name.replace('/', '_')}"
+    suffix = f"_{model_name.replace('/', '_')}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
     generate_heatmap_html(
-        identifiant, nom, type_lieu, themes, phrases, similarites_norm,
-        CMAP, output_dir, suffix
+        identifiant,
+        nom,
+        type_lieu,
+        themes,
+        phrases,
+        similarites_norm,
+        CMAP,
+        output_dir,
+        suffix,
     )
     generate_filtered_markdown(
-        identifiant, nom, type_lieu, phrases, similarites_norm,
-        SIMILARITY_THRESHOLD, output_dir, suffix, model_name
+        identifiant,
+        nom,
+        type_lieu,
+        phrases,
+        similarites_norm,
+        SIMILARITY_THRESHOLD,
+        output_dir,
+        suffix,
+        model_name,
     )
     generate_explanatory_markdown(
-        identifiant, nom, type_lieu, phrases, similarites_norm, themes,
-        SIMILARITY_THRESHOLD, output_dir, suffix, model_name
+        identifiant,
+        nom,
+        type_lieu,
+        phrases,
+        similarites_norm,
+        themes,
+        SIMILARITY_THRESHOLD,
+        output_dir,
+        suffix,
+        model_name,
     )
 
     # Calculer les métriques pour ce fichier spécifique
     cohesion_sep = calculate_cohesion_separation(embed_phrases, labels)
     clustering_metrics = calculate_clustering_metrics(embed_phrases, labels)
-    
+
     metrics = {
         **cohesion_sep,
         **clustering_metrics,
@@ -96,21 +121,28 @@ def process_item(
         "embeddings_data": {
             "embeddings": embed_phrases,
             "labels": labels,
-        }
+        },
     }
 
 
 def run_test(
-    rows: List[Tuple[str, str, str, str]], model_config: Dict[str, Any], output_dir: str
+    rows: List[Tuple[str, str, str, str]],
+    model_config: Dict[str, Any],
+    chunk_size: int,
+    chunk_overlap: int,
+    themes: List[str],
+    output_dir: str,
+    theme_name: str,
+    chunking_strategy: str,
 ) -> Dict[str, Any]:
     """
     Exécute les tests et retourne les données structurées pour la page web.
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
-    print(f"\n--- Starting {model_type.upper()} Processing ({model_name}) ---")
+    run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
+    print(f"\n--- Starting {model_type.upper()} Processing ({run_name}) ---")
 
-    themes = BASE_THEMES.copy()
     results = {"files": {}}
 
     embedding_function: Callable
@@ -124,7 +156,8 @@ def run_test(
             try:
                 embeddings = model.encode(texts)
                 return embeddings.tolist(), time.time() - start
-            except Exception:
+            except Exception as e:
+                print(f"❌ Error during local embedding: {e}")
                 return None, time.time() - start
 
         embedding_function = local_embed_func
@@ -145,13 +178,22 @@ def run_test(
         identifiant = item[0]
         try:
             message, file_data = process_item(
-                item, themes, embed_themes, model_name, embedding_function, output_dir
+                item,
+                themes,
+                embed_themes,
+                model_name,
+                embedding_function,
+                output_dir,
+                chunk_size,
+                chunk_overlap,
+                theme_name,
+                chunking_strategy,
             )
             if file_data:
                 results["files"][identifiant] = file_data
             print(f"[{i}/{len(rows)}] {message}")
             if model_type == "api":
-                time.sleep(45)
+                time.sleep(5)
         except Exception as e:
             print(f"[{i}/{len(rows)}] Error processing {identifiant}: {e}")
 
