@@ -25,15 +25,11 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding: 20px;
             background-color: #f4f7f9;
             color: #333;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
         }}
         .container {{
             display: flex;
             flex-direction: column;
-            flex-grow: 1;
-            overflow: hidden;
+            width: 100%;
         }}
         h1 {{
             text-align: center;
@@ -136,10 +132,9 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             color: #7f8c8d;
         }}
         .visualization {{
-            flex-grow: 1;
             overflow-y: auto;
             line-height: 1.8;
-            min-height: 600vh; /* Hauteur minimale augmentée */
+            min-height: 60vh; /* Hauteur minimale augmentée */
         }}
         .heatmap-content span {{
             padding: 2px 1px;
