@@ -114,7 +114,7 @@ def generate_filtered_markdown(
 # Génère un graphique radar pour comparer les modèles sur plusieurs métriques.
 def generate_radar_chart(
     evaluation_results: dict[str, dict[str, float]], output_dir: str
-) -> None:
+) -> str | None:
     """
     Génère un graphique radar pour une comparaison globale des modèles.
 
@@ -202,17 +202,19 @@ def generate_radar_chart(
     try:
         fig.write_image(plot_filename, width=1200, height=800, scale=2)
         print(f"📊 Radar chart saved to: {plot_filename}")
+        return plot_filename
     except Exception as e:
         print(f"❌ Could not save radar chart. Error: {e}")
         print(
             "Please ensure 'kaleido' is installed (`pip install kaleido`) for static image export."
         )
+        return None
 
 
 # Analyse et visualise les métriques de clustering pour différents modèles.
 def analyze_and_visualize_clustering_metrics(
     evaluation_results: dict[str, dict[str, float]], output_dir: str
-) -> None:
+) -> str | None:
     """
     Analyse et visualise les métriques de clustering pour chaque modèle.
 
@@ -222,10 +224,10 @@ def analyze_and_visualize_clustering_metrics(
     """
     if not evaluation_results:
         print("No evaluation results to visualize.")
-        return
+        return None
 
     # Générer le graphique radar en premier
-    generate_radar_chart(evaluation_results, output_dir)
+    radar_chart_path = generate_radar_chart(evaluation_results, output_dir)
 
     metrics = [
         "cohesion",
@@ -294,12 +296,13 @@ def analyze_and_visualize_clustering_metrics(
             plt.close(fig)
         except Exception as e:
             print(f"❌ Could not generate plot for metric {metric}. Error: {e}")
+    return radar_chart_path
 
 
 # Analyse et visualise la variance des similarités d'embeddings pour différents modèles.
 def analyze_and_visualize_variance(
     model_embeddings: dict[str, list[np.ndarray]], output_dir: str
-) -> None:
+) -> str | None:
     """
     Analyse et visualise la variance des similarités cosinus des embeddings pour chaque modèle.
 
@@ -353,7 +356,7 @@ def analyze_and_visualize_variance(
 
     if not variances:
         print("No variances calculated. Cannot generate plot.")
-        return
+        return None
 
     # Identify the model with the highest variance (most contrast)
     best_model = max(variances, key=lambda k: variances[k])
@@ -403,8 +406,10 @@ def analyze_and_visualize_variance(
         plt.savefig(plot_filename)
         print(f"\n📊 Variance comparison plot saved to: {plot_filename}")
         plt.close(fig)  # Close the figure to free memory
+        return plot_filename
     except Exception as e:
         print(f"❌ Could not generate plot. Error: {e}")
+        return None
 
 
 # Génère un rapport explicatif markdown basé sur les scores de similarité.
@@ -483,7 +488,7 @@ def generate_tsne_visualization(
     output_dir: str,
     perplexity: int = 30,
     consolidate_themes: bool = True,
-) -> None:
+) -> dict[str, str]:
     """
     Génère une visualisation t-SNE pour chaque modèle.
 
@@ -496,6 +501,8 @@ def generate_tsne_visualization(
         consolidate_themes (bool): Si True, regroupe tous les thèmes en 'horaires'.
     """
     print("\n--- Generating t-SNE Visualizations ---")
+    
+    plot_paths = {}
 
     # Flatten the list of label arrays into a single list of integers
     if isinstance(labels[0], np.ndarray):
@@ -583,7 +590,9 @@ def generate_tsne_visualization(
         try:
             plt.savefig(plot_filename)
             print(f"📊 t-SNE plot for {model_name} saved to: {plot_filename}")
+            plot_paths[model_name] = plot_filename
         except Exception as e:
             print(f"❌ Could not save t-SNE plot for {model_name}. Error: {e}")
         finally:
             plt.close(fig)
+    return plot_paths
