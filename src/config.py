@@ -3,7 +3,8 @@ import os
 from dotenv import load_dotenv
 from matplotlib.colors import LinearSegmentedColormap
 
-from src.local_embedding_client import LocalEmbeddingClient
+# Import LocalEmbeddingClient from its module
+from .local_embedding_client import LocalEmbeddingClient
 
 # --- Configuration ---
 # récupérer les variables d'environnement
@@ -80,7 +81,7 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [100, 250, 500],
+    "chunk_size": [50, 100, 250],
     "chunk_overlap": [10, 25, 50],
     "themes": {
         "horaires": lambda: generate_themes_and_keywords()[0],
@@ -90,21 +91,88 @@ GRID_SEARCH_PARAMS = {
 }
 
 # --- Model Configuration ---
+# MODELS_TO_TEST = [
+#     {
+#         "type": "local",
+#         "name": "paraphrase-multilingual-mpnet-base-v2",
+#         "function": LocalEmbeddingClient.get_embeddings,
+#     },
+#     {
+#         "type": "api",
+#         "name": "nomic-embed-text",
+#         "base_url": "https://api.erasme.homes/v1",
+#         "function": lambda client: client.get_embeddings,
+#     },
+#     {
+#         "type": "local",
+#         "name": "paraphrase-multilingual-MiniLM-L12-v2",
+#         "function": LocalEmbeddingClient.get_embeddings,
+#     },
+#     {
+#         "type": "local",
+#         "name": "distiluse-base-multilingual-cased-v1",
+#         "function": LocalEmbeddingClient.get_embeddings,
+#     },
+#     {
+#         "type": "local",
+#         "name": "distiluse-base-multilingual-cased-v2",
+#         "function": LocalEmbeddingClient.get_embeddings,
+#     },
+# ]
 MODELS_TO_TEST = [
+    {
+        "type": "local",
+        "name": "all-mpnet-base-v2",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "multi-qa-mpnet-base-dot-v1",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "all-distilroberta-v1",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "all-MiniLM-L12-v2",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "multi-qa-distilbert-cos-v1",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "all-MiniLM-L6-v2",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "multi-qa-MiniLM-L6-cos-v1",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
     {
         "type": "local",
         "name": "paraphrase-multilingual-mpnet-base-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
     {
-        "type": "api",
-        "name": "nomic-embed-text",
-        "base_url": "https://api.erasme.homes/v1",
-        "function": lambda client: client.get_embeddings,
+        "type": "local",
+        "name": "paraphrase-albert-small-v2",
+        "function": LocalEmbeddingClient.get_embeddings,
     },
     {
         "type": "local",
         "name": "paraphrase-multilingual-MiniLM-L12-v2",
+        "function": LocalEmbeddingClient.get_embeddings,
+    },
+    {
+        "type": "local",
+        "name": "paraphrase-MiniLM-L3-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
     {
@@ -117,97 +185,30 @@ MODELS_TO_TEST = [
         "name": "distiluse-base-multilingual-cased-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
+    {
+        "type": "api",
+        "name": "nomic-embed-text",
+        "base_url": "https://api.erasme.homes/v1",
+        "function": lambda client: client.get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "mistral-embed",
+        "base_url": "https://api.mistral.ai/v1",
+        "function": lambda client: client.get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "voyage-3-large",
+        "base_url": "https://api.voyageai.com/v1",
+        "function": lambda client: client.get_embeddings,
+    },
 ]
 # MODELS_TO_TEST = [
 #     {
 #         "type": "local",
-#         "name": "all-mpnet-base-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "multi-qa-mpnet-base-dot-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "all-distilroberta-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "all-MiniLM-L12-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "multi-qa-distilbert-cos-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "all-MiniLM-L6-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "multi-qa-MiniLM-L6-cos-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
 #         "name": "paraphrase-multilingual-mpnet-base-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "paraphrase-albert-small-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "paraphrase-multilingual-MiniLM-L12-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "paraphrase-MiniLM-L3-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "distiluse-base-multilingual-cased-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "local",
-#         "name": "distiluse-base-multilingual-cased-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
-#     },
-#     {
-#         "type": "api",
-#         "name": "nomic-embed-text",
-#         "base_url": "https://api.erasme.homes/v1",
-#         "function": lambda client: client.get_embeddings,
-#     },
-#     {
-#         "type": "api",
-#         "name": "mistral-embed",
-#         "base_url": "https://api.mistral.ai/v1",
-#         "function": lambda client: client.get_embeddings,
-#     },
-#     {
-#         "type": "api",
-#         "name": "voyage-3-large",
-#         "base_url": "https://api.voyageai.com/v1",
-#         "function": lambda client: client.get_embeddings,
-#     },
-# ]
-# MODELS_TO_TEST = [
-#     {
-#         "type": "local",
-#         "name": "paraphrase-multilingual-mpnet-base-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "api",
@@ -230,19 +231,19 @@ MODELS_TO_TEST = [
 #     {
 #         "type": "local",
 #         "name": "distiluse-base-multilingual-cased-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "local",
 #         "name": "distiluse-base-multilingual-cased-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 # ]
 # MODELS_TO_TEST = [
 #     {
 #         "type": "local",
 #         "name": "paraphrase-multilingual-mpnet-base-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "api",
@@ -255,22 +256,22 @@ MODELS_TO_TEST = [
 #     {
 #         "type": "local",
 #         "name": "paraphrase-multilingual-mpnet-base-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "local",
 #         "name": "paraphrase-multilingual-MiniLM-L12-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "local",
 #         "name": "distiluse-base-multilingual-cased-v1",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "local",
 #         "name": "distiluse-base-multilingual-cased-v2",
-#         "function": lambda model_name: SentenceTransformer(model_name).encode,
+#         "function": LocalEmbeddingClient.get_embeddings,
 #     },
 #     {
 #         "type": "api",

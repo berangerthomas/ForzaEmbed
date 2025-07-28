@@ -1,16 +1,17 @@
 import argparse
-import os
-import numpy as np
 import itertools
+import os
 
-from src.config import GRID_SEARCH_PARAMS, MODELS_TO_TEST, OUTPUT_DIR
+import numpy as np
+
+from src.config import CMAP, GRID_SEARCH_PARAMS, MODELS_TO_TEST, OUTPUT_DIR
 from src.data_loader import load_markdown_files
 from src.database import EmbeddingDatabase
 from src.processing import run_test
 from src.reporting import (
     analyze_and_visualize_clustering_metrics,
     analyze_and_visualize_variance,
-    generate_tsne_visualization,
+    generate_heatmap_html,
 )
 from src.web_generator import generate_main_page, generate_model_page
 
@@ -78,7 +79,12 @@ def run_processing(db: EmbeddingDatabase):
 def generate_all_reports(db: EmbeddingDatabase):
     """Génère tous les rapports à partir des données de la base de données."""
     print("--- Generating All Reports ---")
-    
+
+    # Load file metadata to get 'nom' and 'type_lieu'
+    markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
+    all_rows = load_markdown_files(markdown_directory)
+    file_metadata = {row[0]: {"nom": row[1], "type_lieu": row[2]} for row in all_rows}
+
     all_results = db.get_all_processing_results()
     if not all_results:
         print("No processing results found in the database. Run processing first.")
@@ -107,23 +113,25 @@ def generate_all_reports(db: EmbeddingDatabase):
 
         # Pour les rapports statiques
         current_model_embeddings = [
-            res["embeddings_data"]["embeddings"] 
-            for res in model_results.get("files", {}).values() 
+            res["embeddings_data"]["embeddings"]
+            for res in model_results.get("files", {}).values()
             if res and "embeddings_data" in res
         ]
         current_model_labels = [
-            res["embeddings_data"]["labels"] 
-            for res in model_results.get("files", {}).values() 
+            res["embeddings_data"]["labels"]
+            for res in model_results.get("files", {}).values()
             if res and "embeddings_data" in res
         ]
 
         if current_model_embeddings:
             model_embeddings_for_variance[model_name] = current_model_embeddings
         if first_run and current_model_labels:
-                all_labels_for_tsne.extend(np.concatenate(current_model_labels))
-                first_run = False
-        
-        metrics_list = [res["metrics"] for res in model_results.get("files", {}).values() if res]
+            all_labels_for_tsne.extend(np.concatenate(current_model_labels))
+            first_run = False
+
+        metrics_list = [
+            res["metrics"] for res in model_results.get("files", {}).values() if res
+        ]
         if metrics_list:
             avg_metrics = {
                 key: float(np.mean([m[key] for m in metrics_list if key in m]))
@@ -141,16 +149,50 @@ def generate_all_reports(db: EmbeddingDatabase):
         model_page_data = {"name": model_name, **metrics}
         generate_model_page(model_page_data, OUTPUT_DIR)
 
+    # --- Re-génération des heatmaps HTML avec des noms de fichiers plus descriptifs ---
+    print("\n--- Regenerating HTML Heatmaps with Descriptive Filenames ---")
+    for file_id, file_data in processed_data_for_interactive_page.items():
+        # Extraire les informations de base du fichier (nom, type_lieu)
+        metadata = file_metadata.get(file_id, {"nom": file_id, "type_lieu": "Unknown"})
+        nom = metadata["nom"]
+        type_lieu = metadata["type_lieu"]
+
+        for model_run_name, run_data in file_data["embeddings"].items():
+            if "phrases" in run_data and "similarities" in run_data:
+                # Le suffixe inclut maintenant le nom du fichier pour le rendre unique
+                descriptive_suffix = f"_{model_run_name}_{file_id}"
+
+                # Assurez-vous que les données de similarité sont des np.ndarray
+                similarities_np = np.array(run_data["similarities"])
+
+                generate_heatmap_html(
+                    identifiant=file_id,
+                    nom=nom,
+                    type_lieu=type_lieu,
+                    themes=run_data.get("themes", []),
+                    phrases=run_data["phrases"],
+                    similarites_norm=similarities_np,
+                    cmap=CMAP,  # Assurez-vous que CMAP est importé
+                    output_dir=OUTPUT_DIR,
+                    suffix=descriptive_suffix,
+                )
+
     # --- Génération des rapports statiques ---
     print("\n--- Generating Static Comparison Plots ---")
     if all_models_metrics:
-        plot_path = analyze_and_visualize_clustering_metrics(all_models_metrics, OUTPUT_DIR)
-        if plot_path: db.add_global_chart("clustering_metrics", plot_path)
-    
+        plot_path = analyze_and_visualize_clustering_metrics(
+            all_models_metrics, OUTPUT_DIR
+        )
+        if plot_path:
+            db.add_global_chart("clustering_metrics", plot_path)
+
     if model_embeddings_for_variance:
-        plot_path = analyze_and_visualize_variance(model_embeddings_for_variance, OUTPUT_DIR)
-        if plot_path: db.add_global_chart("variance_analysis", plot_path)
-        
+        plot_path = analyze_and_visualize_variance(
+            model_embeddings_for_variance, OUTPUT_DIR
+        )
+        if plot_path:
+            db.add_global_chart("variance_analysis", plot_path)
+
         # Since themes can change, we can't reliably generate a single t-SNE for all runs.
         # This part could be adapted to generate a t-SNE per theme set if needed.
         # For now, we disable it to avoid errors.
@@ -162,12 +204,16 @@ def generate_all_reports(db: EmbeddingDatabase):
         #         db.add_generated_file(model_name, "tsne_visualization", path)
 
     print(f"\n✅ All reports generated. Outputs are in the '{OUTPUT_DIR}' directory.")
-    print(f"   Please open '{os.path.join(OUTPUT_DIR, 'index.html')}' to view the results.")
+    print(
+        f"   Please open '{os.path.join(OUTPUT_DIR, 'index.html')}' to view the results."
+    )
 
 
 def main():
     """Fonction principale pour gérer le pipeline."""
-    parser = argparse.ArgumentParser(description="Run embedding analysis and reporting.")
+    parser = argparse.ArgumentParser(
+        description="Run embedding analysis and reporting."
+    )
     parser.add_argument(
         "--run-all",
         action="store_true",

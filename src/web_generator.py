@@ -529,7 +529,7 @@ def generate_model_page(model: Dict[str, Any], output_dir: str):
 </html>
 """
 
-    output_path = os.path.join(output_dir, f"{model_name}.html")
+    output_path = os.path.join(output_dir, f"{model_name}_legacy_report.html")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     print(f"Generated legacy model page at: {output_path}")

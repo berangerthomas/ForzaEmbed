@@ -182,7 +182,7 @@ def run_test(
                 results["files"][identifiant] = file_data
             print(f"[{i}/{len(rows)}] {message}")
             if model_type == "api":
-                time.sleep(5)
+                time.sleep(60)
         except Exception as e:
             print(f"[{i}/{len(rows)}] Error processing {identifiant}: {e}")
 
