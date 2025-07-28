@@ -200,7 +200,7 @@ def generate_radar_chart(
     # Sauvegarder le graphique
     plot_filename = os.path.join(output_dir, "global_model_comparison_radar.png")
     try:
-        fig.write_image(plot_filename, width=1200, height=800, scale=2)
+        fig.write_image(plot_filename, width=4800, height=3200, scale=2)
         print(f"📊 Radar chart saved to: {plot_filename}")
         return plot_filename
     except Exception as e:
@@ -269,7 +269,7 @@ def analyze_and_visualize_clustering_metrics(
 
         try:
             plt.style.use("seaborn-v0_8-whitegrid")
-            fig, ax = plt.subplots(figsize=(12, 7))
+            fig, ax = plt.subplots(figsize=(48, 28))
             palette = sns.color_palette("viridis", len(sorted_models))
             bars = ax.bar(sorted_models, sorted_values, color=palette)
 
@@ -367,7 +367,7 @@ def analyze_and_visualize_variance(
     # --- Visualization ---
     try:
         plt.style.use("seaborn-v0_8-whitegrid")
-        fig, ax = plt.subplots(figsize=(12, 7))
+        fig, ax = plt.subplots(figsize=(48, 28))
 
         # Sort models by variance in descending order for the plot
         sorted_models = sorted(
@@ -501,7 +501,7 @@ def generate_tsne_visualization(
         consolidate_themes (bool): Si True, regroupe tous les thèmes en 'horaires'.
     """
     print("\n--- Generating t-SNE Visualizations ---")
-    
+
     plot_paths = {}
 
     # Flatten the list of label arrays into a single list of integers
@@ -564,7 +564,7 @@ def generate_tsne_visualization(
         )
 
         plt.style.use("seaborn-v0_8-whitegrid")
-        fig, ax = plt.subplots(figsize=(16, 12))
+        fig, ax = plt.subplots(figsize=(64, 48))
         sns.scatterplot(
             x="tsne-2d-one",
             y="tsne-2d-two",

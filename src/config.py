@@ -80,8 +80,8 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [500, 1000, 1500],
-    "chunk_overlap": [50, 100, 200],
+    "chunk_size": [100, 250, 500],
+    "chunk_overlap": [10, 25, 50],
     "themes": {
         "horaires": lambda: generate_themes_and_keywords()[0],
         "horaires_simple": get_horaires_themes,
