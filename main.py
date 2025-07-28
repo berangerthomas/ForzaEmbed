@@ -8,9 +8,12 @@ from src.config import CMAP, GRID_SEARCH_PARAMS, MODELS_TO_TEST, OUTPUT_DIR
 from src.data_loader import load_markdown_files
 from src.database import EmbeddingDatabase
 from src.processing import run_test
+from src.config import SIMILARITY_THRESHOLD
 from src.reporting import (
     analyze_and_visualize_clustering_metrics,
     analyze_and_visualize_variance,
+    generate_explanatory_markdown,
+    generate_filtered_markdown,
     generate_heatmap_html,
 )
 from src.web_generator import generate_main_page, generate_model_page
@@ -149,32 +152,64 @@ def generate_all_reports(db: EmbeddingDatabase):
         model_page_data = {"name": model_name, **metrics}
         generate_model_page(model_page_data, OUTPUT_DIR)
 
-    # --- Re-génération des heatmaps HTML avec des noms de fichiers plus descriptifs ---
-    print("\n--- Regenerating HTML Heatmaps with Descriptive Filenames ---")
-    for file_id, file_data in processed_data_for_interactive_page.items():
-        # Extraire les informations de base du fichier (nom, type_lieu)
-        metadata = file_metadata.get(file_id, {"nom": file_id, "type_lieu": "Unknown"})
-        nom = metadata["nom"]
-        type_lieu = metadata["type_lieu"]
+    # --- Génération des rapports individuels (HTML et Markdown) ---
+    print("\n--- Generating Individual Reports (HTML & Markdown) ---")
+    for run_name, model_results in all_results.items():
+        model_info = db.get_model_info(run_name)
+        if not model_info:
+            continue
+        base_model_name = model_info["model_name"]
 
-        for model_run_name, run_data in file_data["embeddings"].items():
-            if "phrases" in run_data and "similarities" in run_data:
-                # Le suffixe inclut maintenant le nom du fichier pour le rendre unique
-                descriptive_suffix = f"_{model_run_name}_{file_id}"
+        for file_id, file_data in model_results.get("files", {}).items():
+            metadata = file_metadata.get(
+                file_id, {"nom": file_id, "type_lieu": "Unknown"}
+            )
+            nom = metadata["nom"]
+            type_lieu = metadata["type_lieu"]
 
-                # Assurez-vous que les données de similarité sont des np.ndarray
-                similarities_np = np.array(run_data["similarities"])
+            if "phrases" in file_data and "similarities" in file_data:
+                similarities_np = np.array(file_data["similarities"])
+                themes = file_data.get("themes", [])
 
+                # Générer le heatmap HTML
                 generate_heatmap_html(
                     identifiant=file_id,
                     nom=nom,
                     type_lieu=type_lieu,
-                    themes=run_data.get("themes", []),
-                    phrases=run_data["phrases"],
+                    themes=themes,
+                    phrases=file_data["phrases"],
                     similarites_norm=similarities_np,
-                    cmap=CMAP,  # Assurez-vous que CMAP est importé
+                    cmap=CMAP,
                     output_dir=OUTPUT_DIR,
-                    suffix=descriptive_suffix,
+                    model_name=base_model_name,
+                    run_name=run_name,
+                )
+
+                # Générer le markdown filtré
+                generate_filtered_markdown(
+                    identifiant=file_id,
+                    nom=nom,
+                    type_lieu=type_lieu,
+                    phrases=file_data["phrases"],
+                    similarites_norm=similarities_np,
+                    threshold=SIMILARITY_THRESHOLD,
+                    output_dir=OUTPUT_DIR,
+                    model_name=base_model_name,
+                    run_name=run_name,
+                )
+
+                # Générer le markdown explicatif
+                generate_explanatory_markdown(
+                    identifiant=file_id,
+                    nom=nom,
+                    type_lieu=type_lieu,
+                    phrases=file_data["phrases"],
+                    similarites_norm=similarities_np,
+                    themes=themes,
+                    threshold=SIMILARITY_THRESHOLD,
+                    output_dir=OUTPUT_DIR,
+                    model_name=base_model_name,
+                    run_name=run_name,
                 )
 
     # --- Génération des rapports statiques ---

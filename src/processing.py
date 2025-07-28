@@ -64,42 +64,7 @@ def process_item(
     except ValueError:
         pass
 
-    # Générer les rapports statiques
-    suffix = f"_{model_name.replace('/', '_')}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
-    generate_heatmap_html(
-        identifiant,
-        nom,
-        type_lieu,
-        themes,
-        phrases,
-        similarites_norm,
-        CMAP,
-        output_dir,
-        suffix,
-    )
-    generate_filtered_markdown(
-        identifiant,
-        nom,
-        type_lieu,
-        phrases,
-        similarites_norm,
-        SIMILARITY_THRESHOLD,
-        output_dir,
-        suffix,
-        model_name,
-    )
-    generate_explanatory_markdown(
-        identifiant,
-        nom,
-        type_lieu,
-        phrases,
-        similarites_norm,
-        themes,
-        SIMILARITY_THRESHOLD,
-        output_dir,
-        suffix,
-        model_name,
-    )
+    # Les rapports statiques sont maintenant générés à la fin via --generate-reports
 
     # Calculer les métriques pour ce fichier spécifique
     cohesion_sep = calculate_cohesion_separation(embed_phrases, labels)

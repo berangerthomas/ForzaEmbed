@@ -23,7 +23,8 @@ def generate_heatmap_html(
     similarites_norm: np.ndarray,
     cmap: LinearSegmentedColormap,
     output_dir: str,
-    suffix: str,
+    model_name: str,
+    run_name: str,
 ) -> str:
     """
     Génère un fichier HTML de heatmap basé sur les scores de similarité.
@@ -37,14 +38,17 @@ def generate_heatmap_html(
         similarites_norm (np.ndarray): Scores de similarité normalisés.
         cmap (LinearSegmentedColormap): Colormap pour la heatmap.
         output_dir (str): Dossier de sortie.
-        suffix (str): Suffixe pour le nom de fichier.
+        model_name (str): Nom du modèle de base.
+        run_name (str): Nom complet du run pour le nom de fichier.
 
     Returns:
         str: Chemin du fichier HTML généré.
     """
     couleurs = [cmap(score) for score in similarites_norm]
-    html_output = f"<h2>{nom} ({type_lieu}) - Suffix: {suffix}</h2>\n"
-    html_output += f"<p><strong>Thèmes utilisés:</strong> {', '.join(themes)}</p>\n"
+    html_output = f"<h2>{nom} ({type_lieu})</h2>\n"
+    html_output += f"<p><strong>Run:</strong> {run_name}<br>"
+    html_output += f"<strong>Modèle de base:</strong> {model_name}<br>"
+    html_output += f"<strong>Thèmes utilisés:</strong> {', '.join(themes)}</p>\n"
 
     for phrase, score, couleur in zip(phrases, similarites_norm, couleurs):
         r, g, b, _ = [int(255 * x) for x in couleur]
@@ -52,7 +56,8 @@ def generate_heatmap_html(
         tooltip_text = f"Similarité: {score:.3f}"
         html_output += f'<span style="background-color: rgb({r},{g},{b}); margin: 5px;" title="{tooltip_text}">{phrase_html}.</span> '
 
-    filename = os.path.join(output_dir, f"{identifiant}{suffix}_heatmap.html")
+    safe_run_name = run_name.replace("/", "_")
+    filename = os.path.join(output_dir, f"{identifiant}_{safe_run_name}_heatmap.html")
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html_output)
     return filename
@@ -67,8 +72,8 @@ def generate_filtered_markdown(
     similarites_norm: np.ndarray,
     threshold: float,
     output_dir: str,
-    suffix: str,
     model_name: str,
+    run_name: str,
 ) -> str:
     """
     Génère un fichier markdown filtré selon les scores de similarité.
@@ -80,10 +85,9 @@ def generate_filtered_markdown(
         phrases (list[str]): Liste des phrases.
         similarites_norm (np.ndarray): Scores de similarité normalisés.
         threshold (float): Seuil de filtrage.
-        context_size (int): Taille de la fenêtre de contexte.
         output_dir (str): Dossier de sortie.
-        suffix (str): Suffixe pour le nom de fichier.
-        model_name (str): Nom du modèle utilisé.
+        model_name (str): Nom du modèle de base.
+        run_name (str): Nom complet du run pour le nom de fichier.
 
     Returns:
         str: Chemin du fichier markdown généré.
@@ -96,7 +100,8 @@ def generate_filtered_markdown(
     relevant_phrases = [phrases[i] for i in sorted(list(relevant_indices))]
 
     content = f"# Résultat Filtré - {nom} ({type_lieu})\n\n"
-    content += f"**Modèle:** {model_name}\n"
+    content += f"**Run:** {run_name}\n"
+    content += f"**Modèle de base:** {model_name}\n"
     content += f"**Seuil:** {threshold}\n"
     content += f"**Phrases sélectionnées:** {len(relevant_phrases)}/{len(phrases)}\n\n"
     content += "## Contenu Filtré Brut\n\n"
@@ -105,7 +110,8 @@ def generate_filtered_markdown(
     else:
         content += "Aucune phrase pertinente trouvée."
 
-    filename = os.path.join(output_dir, f"{identifiant}{suffix}_filtered.md")
+    safe_run_name = run_name.replace("/", "_")
+    filename = os.path.join(output_dir, f"{identifiant}_{safe_run_name}_filtered.md")
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
     return filename
@@ -422,8 +428,8 @@ def generate_explanatory_markdown(
     themes: list[str],
     threshold: float,
     output_dir: str,
-    suffix: str,
     model_name: str,
+    run_name: str,
 ) -> str:
     """
     Génère un fichier markdown explicatif sur les zones à forte similarité.
@@ -436,10 +442,9 @@ def generate_explanatory_markdown(
         similarites_norm (np.ndarray): Scores de similarité normalisés.
         themes (list[str]): Thèmes utilisés.
         threshold (float): Seuil de similarité.
-        context_window (int): Fenêtre de contexte.
         output_dir (str): Dossier de sortie.
-        suffix (str): Suffixe pour le nom de fichier.
-        model_name (str): Nom du modèle utilisé.
+        model_name (str): Nom du modèle de base.
+        run_name (str): Nom complet du run pour le nom de fichier.
 
     Returns:
         str: Chemin du fichier markdown généré.
@@ -453,7 +458,8 @@ def generate_explanatory_markdown(
 
     markdown_content = f"# Rapport de Similarité - {nom} ({type_lieu})\n\n"
     markdown_content += f"**Identifiant:** {identifiant}\n"
-    markdown_content += f"**Modèle:** {model_name}\n"
+    markdown_content += f"**Run:** {run_name}\n"
+    markdown_content += f"**Modèle de base:** {model_name}\n"
     markdown_content += f"**Thèmes recherchés:** {', '.join(themes)}\n"
     markdown_content += f"**Seuil de similarité:** {threshold}\n\n"
 
@@ -474,7 +480,10 @@ def generate_explanatory_markdown(
             f"Aucun segment n'a atteint le seuil de similarité de {threshold}.\n"
         )
 
-    filename = os.path.join(output_dir, f"{identifiant}{suffix}_explanatory.md")
+    safe_run_name = run_name.replace("/", "_")
+    filename = os.path.join(
+        output_dir, f"{identifiant}_{safe_run_name}_explanatory.md"
+    )
     with open(filename, "w", encoding="utf-8") as f:
         f.write(markdown_content)
     return filename

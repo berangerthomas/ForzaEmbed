@@ -176,6 +176,30 @@ class EmbeddingDatabase:
             """, (model_name, file_id, results_json))
             conn.commit()
 
+    def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
+        """Récupère les informations d'un modèle par son nom de run."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy
+                FROM models
+                WHERE name = ?
+            """,
+                (run_name,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "model_name": row[0],
+                    "type": row[1],
+                    "chunk_size": row[2],
+                    "chunk_overlap": row[3],
+                    "theme_name": row[4],
+                    "chunking_strategy": row[5],
+                }
+            return None
+
     def get_all_processing_results(self) -> Dict[str, Any]:
         """Récupère tous les résultats de traitement depuis la base de données."""
         all_results = {}

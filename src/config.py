@@ -81,8 +81,8 @@ def generate_themes_and_keywords() -> tuple[list[str], dict[str, list[str]]]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [50, 100, 250],
-    "chunk_overlap": [10, 25, 50],
+    "chunk_size": [10, 20, 50, 100, 250],
+    "chunk_overlap": [5, 10, 25, 50],
     "themes": {
         "horaires": lambda: generate_themes_and_keywords()[0],
         "horaires_simple": get_horaires_themes,
@@ -125,56 +125,56 @@ MODELS_TO_TEST = [
         "name": "all-mpnet-base-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
-    {
-        "type": "local",
-        "name": "multi-qa-mpnet-base-dot-v1",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
-    {
-        "type": "local",
-        "name": "all-distilroberta-v1",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
+    # {
+    #     "type": "local",
+    #     "name": "multi-qa-mpnet-base-dot-v1",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
+    # {
+    #     "type": "local",
+    #     "name": "all-distilroberta-v1",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
     {
         "type": "local",
         "name": "all-MiniLM-L12-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
-    {
-        "type": "local",
-        "name": "multi-qa-distilbert-cos-v1",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
-    {
-        "type": "local",
-        "name": "all-MiniLM-L6-v2",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
-    {
-        "type": "local",
-        "name": "multi-qa-MiniLM-L6-cos-v1",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
+    # {
+    #     "type": "local",
+    #     "name": "multi-qa-distilbert-cos-v1",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
+    # {
+    #     "type": "local",
+    #     "name": "all-MiniLM-L6-v2",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
+    # {
+    #     "type": "local",
+    #     "name": "multi-qa-MiniLM-L6-cos-v1",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
     {
         "type": "local",
         "name": "paraphrase-multilingual-mpnet-base-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
-    {
-        "type": "local",
-        "name": "paraphrase-albert-small-v2",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
+    # {
+    #     "type": "local",
+    #     "name": "paraphrase-albert-small-v2",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
     {
         "type": "local",
         "name": "paraphrase-multilingual-MiniLM-L12-v2",
         "function": LocalEmbeddingClient.get_embeddings,
     },
-    {
-        "type": "local",
-        "name": "paraphrase-MiniLM-L3-v2",
-        "function": LocalEmbeddingClient.get_embeddings,
-    },
+    # {
+    #     "type": "local",
+    #     "name": "paraphrase-MiniLM-L3-v2",
+    #     "function": LocalEmbeddingClient.get_embeddings,
+    # },
     {
         "type": "local",
         "name": "distiluse-base-multilingual-cased-v1",
@@ -191,12 +191,12 @@ MODELS_TO_TEST = [
         "base_url": "https://api.erasme.homes/v1",
         "function": lambda client: client.get_embeddings,
     },
-    {
-        "type": "api",
-        "name": "mistral-embed",
-        "base_url": "https://api.mistral.ai/v1",
-        "function": lambda client: client.get_embeddings,
-    },
+    # {
+    #     "type": "api",
+    #     "name": "mistral-embed",
+    #     "base_url": "https://api.mistral.ai/v1",
+    #     "function": lambda client: client.get_embeddings,
+    # },
     {
         "type": "api",
         "name": "voyage-3-large",
