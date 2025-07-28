@@ -8,12 +8,13 @@ import numpy as np
 import torch
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 from transformers import pipeline
+
+from src.local_embedding_client import LocalEmbeddingClient
 
 warnings.filterwarnings("ignore")
 
@@ -39,7 +40,7 @@ class TextClusterAnalyzer:
         Initialise l'analyseur avec un modèle de sentence transformers et un petit LLM
         """
         print(f"Chargement du modèle d'embeddings {model_name}...")
-        self.model = SentenceTransformer(model_name)
+        self.model = LocalEmbeddingClient.get_instance(model_name)
 
         # Initialiser un petit modèle de langage pour la génération de thèmes
         print(f"Chargement du modèle de langage {llm_model}...")

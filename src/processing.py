@@ -2,7 +2,6 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from src.config import (
@@ -147,20 +146,10 @@ def run_test(
 
     embedding_function: Callable
     if model_type == "local":
-        model = SentenceTransformer(model_name)
-
-        def local_embed_func(
-            texts: List[str],
-        ) -> Tuple[Optional[List[List[float]]], float]:
-            start = time.time()
-            try:
-                embeddings = model.encode(texts)
-                return embeddings.tolist(), time.time() - start
-            except Exception as e:
-                print(f"❌ Error during local embedding: {e}")
-                return None, time.time() - start
-
-        embedding_function = local_embed_func
+        # Utilise le client local qui gère les modèles en singletons
+        embedding_function = lambda texts: model_config["function"](
+            texts, model_name=model_name
+        )
     elif model_type == "api":
         client = ProductionEmbeddingClient(model_config["base_url"], model_name)
         embedding_function = client.get_embeddings

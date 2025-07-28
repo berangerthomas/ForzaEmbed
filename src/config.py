@@ -2,7 +2,8 @@ import os
 
 from dotenv import load_dotenv
 from matplotlib.colors import LinearSegmentedColormap
-from sentence_transformers import SentenceTransformer
+
+from src.local_embedding_client import LocalEmbeddingClient
 
 # --- Configuration ---
 # récupérer les variables d'environnement
@@ -93,7 +94,7 @@ MODELS_TO_TEST = [
     {
         "type": "local",
         "name": "paraphrase-multilingual-mpnet-base-v2",
-        "function": lambda model_name: SentenceTransformer(model_name).encode,
+        "function": LocalEmbeddingClient.get_embeddings,
     },
     {
         "type": "api",
@@ -104,17 +105,17 @@ MODELS_TO_TEST = [
     {
         "type": "local",
         "name": "paraphrase-multilingual-MiniLM-L12-v2",
-        "function": lambda model_name: SentenceTransformer(model_name).encode,
+        "function": LocalEmbeddingClient.get_embeddings,
     },
     {
         "type": "local",
         "name": "distiluse-base-multilingual-cased-v1",
-        "function": lambda model_name: SentenceTransformer(model_name).encode,
+        "function": LocalEmbeddingClient.get_embeddings,
     },
     {
         "type": "local",
         "name": "distiluse-base-multilingual-cased-v2",
-        "function": lambda model_name: SentenceTransformer(model_name).encode,
+        "function": LocalEmbeddingClient.get_embeddings,
     },
 ]
 # MODELS_TO_TEST = [
