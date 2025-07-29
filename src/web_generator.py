@@ -38,12 +38,12 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         }}
         .controls {{
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
             border: 1px solid #d1d9e0;
             border-radius: 8px;
-            padding: 20px;
-            background-color: rgba(255, 255, 255, 0.85);
+            padding: 5px 10px;
+            background-color: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             margin-bottom: 20px;
@@ -66,7 +66,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding-bottom: 10px;
         }}
         .control-group {{
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }}
         .label-group {{
             display: flex;
@@ -75,6 +75,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         }}
         .control-group label {{
             font-weight: bold;
+            font-size: 0.9em;
         }}
         .slider-container {{
             flex-grow: 1;
