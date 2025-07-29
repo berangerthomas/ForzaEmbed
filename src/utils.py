@@ -1,5 +1,7 @@
 import re
 from typing import List
+
+import numpy as np
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
@@ -27,8 +29,17 @@ def chunk_text(
         )
         chunks = text_splitter.split_text(text)
     else:  # raw strategy
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be > 0")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be >= 0")
+        if chunk_size == chunk_overlap:
+            raise ValueError(
+                "chunk_size and chunk_overlap must not be equal for raw chunking (step would be zero)."
+            )
+        step = chunk_size - chunk_overlap
         chunks = []
-        for i in range(0, len(text), chunk_size - chunk_overlap):
+        for i in range(0, len(text), step):
             chunks.append(text[i : i + chunk_size])
 
     return [chunk.strip() for chunk in chunks if chunk.strip()]
@@ -89,3 +100,22 @@ def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
         else:
             context_with_highlight.append(phrase.strip())
     return " ".join(context_with_highlight)
+
+
+def to_python_type(obj):
+    """
+    Convertit récursivement les objets numpy (float32, int64, ndarray, etc.)
+    en types natifs Python pour la sérialisation JSON.
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, dict):
+        return {k: to_python_type(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_python_type(v) for v in obj]
+    else:
+        return obj

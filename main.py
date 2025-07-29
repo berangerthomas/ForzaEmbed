@@ -3,6 +3,7 @@ import itertools
 import os
 
 import numpy as np
+from tqdm import tqdm
 
 from src.config import (
     CMAP,
@@ -42,7 +43,10 @@ def run_processing(db: EmbeddingDatabase):
 
     param_combinations = list(itertools.product(*param_grid.values()))
 
-    for i, params in enumerate(param_combinations, 1):
+    # Barre de progression globale sur toutes les combinaisons
+    for i, params in enumerate(
+        tqdm(param_combinations, desc="Total runs", unit="run"), 1
+    ):
         (
             model_config,
             chunk_size,
@@ -52,11 +56,10 @@ def run_processing(db: EmbeddingDatabase):
         ) = params
 
         model_name = model_config["name"]
-        theme_func = GRID_SEARCH_PARAMS["themes"][theme_name]
-        themes = theme_func()
-
+        themes = GRID_SEARCH_PARAMS["themes"][theme_name]
         run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
-        print(f"\n--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
+
+        # tqdm.write(f"--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
 
         db.add_model(
             run_name,
@@ -77,6 +80,7 @@ def run_processing(db: EmbeddingDatabase):
             OUTPUT_DIR,
             theme_name,
             chunking_strategy,
+            show_progress=False,  # Ajoutez ce paramètre dans run_test
         )
 
         for file_id, file_data in model_results.get("files", {}).items():

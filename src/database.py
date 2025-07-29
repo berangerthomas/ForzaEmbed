@@ -1,23 +1,26 @@
-import sqlite3
 import json
 import os
-from typing import Dict, List, Any, Optional
+import sqlite3
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+
+from src.utils import to_python_type
 
 
 class EmbeddingDatabase:
     """Gestionnaire de base de données pour stocker les résultats d'embedding."""
-    
+
     def __init__(self, db_path: str = "data/heatmaps/embedding_results.db"):
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.init_database()
-    
+
     def init_database(self):
         """Initialise la base de données avec les tables nécessaires."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            
+
             # Table des modèles
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS models (
@@ -32,7 +35,7 @@ class EmbeddingDatabase:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # Table des métriques d'évaluation
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS evaluation_metrics (
@@ -49,7 +52,7 @@ class EmbeddingDatabase:
                     FOREIGN KEY (model_name) REFERENCES models (name)
                 )
             """)
-            
+
             # Table des fichiers générés
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS generated_files (
@@ -61,7 +64,7 @@ class EmbeddingDatabase:
                     FOREIGN KEY (model_name) REFERENCES models (name)
                 )
             """)
-            
+
             # Table des graphiques de comparaison globaux
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS global_charts (
@@ -83,9 +86,9 @@ class EmbeddingDatabase:
                     UNIQUE(model_name, file_id)
                 )
             """)
-            
+
             conn.commit()
-    
+
     def add_model(
         self,
         name: str,
@@ -115,65 +118,83 @@ class EmbeddingDatabase:
                 ),
             )
             conn.commit()
-    
+
     def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
         """Ajoute les métriques d'évaluation pour un modèle."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO evaluation_metrics 
                 (model_name, cohesion, separation, discriminant_score, 
                  silhouette, calinski_harabasz, davies_bouldin, processing_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                model_name,
-                metrics.get('cohesion'),
-                metrics.get('separation'),
-                metrics.get('discriminant_score'),
-                metrics.get('silhouette'),
-                metrics.get('calinski_harabasz'),
-                metrics.get('davies_bouldin'),
-                metrics.get('processing_time')
-            ))
+            """,
+                (
+                    model_name,
+                    metrics.get("cohesion"),
+                    metrics.get("separation"),
+                    metrics.get("discriminant_score"),
+                    metrics.get("silhouette"),
+                    metrics.get("calinski_harabasz"),
+                    metrics.get("davies_bouldin"),
+                    metrics.get("processing_time"),
+                ),
+            )
             conn.commit()
-    
+
     def add_generated_file(self, model_name: str, file_type: str, file_path: str):
         """Ajoute un fichier généré à la base de données."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO generated_files (model_name, file_type, file_path)
                 VALUES (?, ?, ?)
-            """, (model_name, file_type, file_path))
+            """,
+                (model_name, file_type, file_path),
+            )
             conn.commit()
-    
+
     def add_global_chart(self, chart_type: str, file_path: str):
         """Ajoute un graphique global à la base de données."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO global_charts (chart_type, file_path)
                 VALUES (?, ?)
-            """, (chart_type, file_path))
+            """,
+                (chart_type, file_path),
+            )
             conn.commit()
 
-    def save_processing_result(self, model_name: str, file_id: str, results: Dict[str, Any]):
+    def save_processing_result(
+        self, model_name: str, file_id: str, results: Dict[str, Any]
+    ):
         """Sauvegarde le résultat de traitement détaillé pour un fichier et un modèle."""
         # Convertir les arrays numpy en listes pour la sérialisation JSON
-        if 'embeddings_data' in results and 'embeddings' in results['embeddings_data']:
-            if isinstance(results['embeddings_data'].get('embeddings'), np.ndarray):
-                results['embeddings_data']['embeddings'] = results['embeddings_data']['embeddings'].tolist()
-            if isinstance(results['embeddings_data'].get('labels'), np.ndarray):
-                results['embeddings_data']['labels'] = results['embeddings_data']['labels'].tolist()
-        
-        results_json = json.dumps(results)
-        
+        if "embeddings_data" in results and "embeddings" in results["embeddings_data"]:
+            if isinstance(results["embeddings_data"].get("embeddings"), np.ndarray):
+                results["embeddings_data"]["embeddings"] = results["embeddings_data"][
+                    "embeddings"
+                ].tolist()
+            if isinstance(results["embeddings_data"].get("labels"), np.ndarray):
+                results["embeddings_data"]["labels"] = results["embeddings_data"][
+                    "labels"
+                ].tolist()
+
+        results_json = json.dumps(to_python_type(results))
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO processing_results (model_name, file_id, results_json)
                 VALUES (?, ?, ?)
-            """, (model_name, file_id, results_json))
+            """,
+                (model_name, file_id, results_json),
+            )
             conn.commit()
 
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
@@ -205,21 +226,28 @@ class EmbeddingDatabase:
         all_results = {}
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT model_name, file_id, results_json FROM processing_results")
-            
+            cursor.execute(
+                "SELECT model_name, file_id, results_json FROM processing_results"
+            )
+
             for row in cursor.fetchall():
                 model_name, file_id, results_json = row
                 results = json.loads(results_json)
-                
+
                 # Reconvertir les listes en arrays numpy si nécessaire
-                if 'embeddings_data' in results and 'embeddings' in results['embeddings_data']:
-                    results['embeddings_data']['embeddings'] = np.array(results['embeddings_data']['embeddings'])
+                if (
+                    "embeddings_data" in results
+                    and "embeddings" in results["embeddings_data"]
+                ):
+                    results["embeddings_data"]["embeddings"] = np.array(
+                        results["embeddings_data"]["embeddings"]
+                    )
 
                 if model_name not in all_results:
                     all_results[model_name] = {"files": {}}
                 all_results[model_name]["files"][file_id] = results
         return all_results
-    
+
     def get_all_models(self) -> List[Dict[str, Any]]:
         """Récupère tous les modèles avec leurs métriques."""
         with sqlite3.connect(self.db_path) as conn:
@@ -258,19 +286,22 @@ class EmbeddingDatabase:
                 )
 
             return models
-    
+
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:
         """Récupère tous les fichiers générés pour un modèle."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT file_type, file_path FROM generated_files
                 WHERE model_name = ?
                 ORDER BY file_type
-            """, (model_name,))
-            
-            return [{'type': row[0], 'path': row[1]} for row in cursor.fetchall()]
-    
+            """,
+                (model_name,),
+            )
+
+            return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
+
     def get_global_charts(self) -> List[Dict[str, str]]:
         """Récupère tous les graphiques globaux."""
         with sqlite3.connect(self.db_path) as conn:
@@ -279,9 +310,9 @@ class EmbeddingDatabase:
                 SELECT chart_type, file_path FROM global_charts
                 ORDER BY chart_type
             """)
-            
-            return [{'type': row[0], 'path': row[1]} for row in cursor.fetchall()]
-    
+
+            return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
+
     def clear_database(self):
         """Vide toutes les tables de la base de données."""
         with sqlite3.connect(self.db_path) as conn:

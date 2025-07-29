@@ -14,7 +14,7 @@ from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 from transformers import pipeline
 
-from src.local_embedding_client import LocalEmbeddingClient
+from sentencetransformers_client import SentenceTransformersClient
 
 warnings.filterwarnings("ignore")
 
@@ -39,11 +39,11 @@ class TextClusterAnalyzer:
         """
         Initialise l'analyseur avec un modèle de sentence transformers et un petit LLM
         """
-        print(f"Chargement du modèle d'embeddings {model_name}...")
-        self.model = LocalEmbeddingClient.get_instance(model_name)
+        # print(f"Chargement du modèle d'embeddings {model_name}...")
+        self.model = SentenceTransformersClient.get_instance(model_name)
 
         # Initialiser un petit modèle de langage pour la génération de thèmes
-        print(f"Chargement du modèle de langage {llm_model}...")
+        # print(f"Chargement du modèle de langage {llm_model}...")
         try:
             # Utiliser un modèle plus petit et efficace pour la génération
             self.theme_generator = pipeline(

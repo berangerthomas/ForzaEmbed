@@ -9,7 +9,6 @@ from matplotlib.colors import LinearSegmentedColormap
 from sklearn.manifold import TSNE
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.config import get_horaires_themes
 from src.utils import extract_context_around_phrase
 
 
@@ -481,9 +480,7 @@ def generate_explanatory_markdown(
         )
 
     safe_run_name = run_name.replace("/", "_")
-    filename = os.path.join(
-        output_dir, f"{identifiant}_{safe_run_name}_explanatory.md"
-    )
+    filename = os.path.join(output_dir, f"{identifiant}_{safe_run_name}_explanatory.md")
     with open(filename, "w", encoding="utf-8") as f:
         f.write(markdown_content)
     return filename
@@ -520,8 +517,6 @@ def generate_tsne_visualization(
         flat_labels = np.array(labels)
 
     if consolidate_themes:
-        # Consolidate themes into "horaires" and "autre"
-        horaires_themes = get_horaires_themes()
         display_labels = []
         for label_index in flat_labels:
             if themes[label_index] == "autre":

@@ -3,20 +3,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 
 from src.config import (
-    CMAP,
     SIMILARITY_THRESHOLD,
 )
 from src.embedding_client import ProductionEmbeddingClient
 from src.evaluation_metrics import (
     calculate_clustering_metrics,
     calculate_cohesion_separation,
-)
-from src.reporting import (
-    generate_explanatory_markdown,
-    generate_filtered_markdown,
-    generate_heatmap_html,
 )
 from src.utils import chunk_text
 
@@ -39,7 +34,7 @@ def process_item(
     Traite un item, génère les rapports statiques, et retourne un dictionnaire de résultats.
     """
     identifiant, nom, type_lieu, texte = item
-    print(f"Processing {identifiant} ({nom}) with model {model_name}...")
+    # print(f"Processing {identifiant} ({nom}) with model {model_name}...")
 
     if not texte or not texte.strip():
         return f"Skipped {identifiant}: empty text", None
@@ -98,6 +93,7 @@ def run_test(
     output_dir: str,
     theme_name: str,
     chunking_strategy: str,
+    show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
     Exécute les tests et retourne les données structurées pour la page web.
@@ -105,13 +101,16 @@ def run_test(
     model_type = model_config["type"]
     model_name = model_config["name"]
     run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
-    print(f"\n--- Starting {model_type.upper()} Processing ({run_name}) ---")
+    # print(f"\n--- Starting {model_type.upper()} Processing ({run_name}) ---")
 
     results = {"files": {}}
 
     embedding_function: Callable
-    if model_type == "local":
-        # Utilise le client local qui gère les modèles en singletons
+    if model_type == "sentence_transformers":
+        embedding_function = lambda texts: model_config["function"](
+            texts, model_name=model_name
+        )
+    elif model_type == "fastembed":
         embedding_function = lambda texts: model_config["function"](
             texts, model_name=model_name
         )
@@ -128,7 +127,12 @@ def run_test(
         return results
     embed_themes = np.array(embed_themes_list)
 
-    for i, item in enumerate(rows, 1):
+    iterable = (
+        tqdm(rows, desc=f"Processing files ({model_name})", unit="file")
+        if show_progress
+        else rows
+    )
+    for item in iterable:
         identifiant = item[0]
         try:
             message, file_data = process_item(
@@ -145,10 +149,11 @@ def run_test(
             )
             if file_data:
                 results["files"][identifiant] = file_data
-            print(f"[{i}/{len(rows)}] {message}")
+            # Optionnel : affichez les erreurs ou messages importants seulement
+            # tqdm.write(message)  # Pour afficher sans casser la barre
             if model_type == "api":
                 time.sleep(60)
         except Exception as e:
-            print(f"[{i}/{len(rows)}] Error processing {identifiant}: {e}")
+            tqdm.write(f"Error processing {identifiant}: {e}")
 
     return results

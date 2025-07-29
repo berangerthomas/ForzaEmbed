@@ -3,7 +3,7 @@ from typing import Dict
 from sentence_transformers import SentenceTransformer
 
 
-class LocalEmbeddingClient:
+class SentenceTransformersClient:
     """
     Client pour gérer les modèles d'embedding locaux en tant que singletons.
     """
@@ -17,7 +17,7 @@ class LocalEmbeddingClient:
         Si l'instance n'existe pas, elle est créée.
         """
         if model_name not in cls._instances:
-            print(f"🚀 Chargement du modèle local : {model_name}")
+            # print(f"🚀 Chargement du modèle local : {model_name}")
             cls._instances[model_name] = SentenceTransformer(model_name)
         return cls._instances[model_name]
 
