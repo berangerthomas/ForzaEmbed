@@ -38,12 +38,12 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         }}
         .controls {{
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
             border: 1px solid #d1d9e0;
             border-radius: 8px;
             padding: 5px 10px;
-            background-color: rgba(255, 255, 255, 0.7);
+            background-color: rgba(255, 255, 255, 0.5);
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             margin-bottom: 20px;
@@ -67,6 +67,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         }}
         .control-group {{
             margin-bottom: 0;
+            overflow: hidden;
         }}
         .label-group {{
             display: flex;
@@ -76,6 +77,12 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         .control-group label {{
             font-weight: bold;
             font-size: 0.9em;
+            display: flex;
+            align-items: center;
+        }}
+        .label-text {{
+            white-space: nowrap;
+            margin-right: 0.5em;
         }}
         .slider-container {{
             flex-grow: 1;
@@ -112,13 +119,15 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             border-radius: 50%;
             border: 2px solid #fff;
         }}
-        #file-name, #embedding-name {{
+        .label-value {{
             font-weight: bold;
             color: #2980b9;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             text-align: right;
+            flex-grow: 1;
+            min-width: 0;
         }}
         .metrics {{
             flex-shrink: 0;
@@ -158,6 +167,29 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             font-size: 0.85em;
             line-height: 1.2;
         }}
+        .links {{
+            border: 1px solid #d1d9e0;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }}
+        .links h2 {{
+            margin-top: 0;
+            color: #34495e;
+            border-bottom: 2px solid #e0e6ed;
+            padding-bottom: 10px;
+        }}
+        #file-links-container a {{
+            display: block;
+            margin-bottom: 10px;
+            color: #3498db;
+            text-decoration: none;
+        }}
+        #file-links-container a:hover {{
+            text-decoration: underline;
+        }}
     </style>
 </head>
 <body>
@@ -167,27 +199,27 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         <!-- Zone de contrôles -->
         <div class="controls">
             <div class="control-group">
-                <label for="file-slider">Fichier Markdown : <span id="file-name" class="label-value"></span></label>
+                <label for="file-slider"><span class="label-text">Fichier Markdown :</span><span id="file-name" class="label-value"></span></label>
                 <input type="range" id="file-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="model-slider">Modèle : <span id="model-name"></span></label>
+                <label for="model-slider"><span class="label-text">Modèle :</span><span id="model-name" class="label-value"></span></label>
                 <input type="range" id="model-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="chunk-size-slider">Taille des Chunks : <span id="chunk-size-value"></span></label>
-                <input type="range" id="chunk-size-slider" min="0" max="0" value="0">
-            </div>
-            <div class="control-group">
-                <label for="chunk-overlap-slider">Chevauchement : <span id="chunk-overlap-value"></span></label>
-                <input type="range" id="chunk-overlap-slider" min="0" max="0" value="0">
-            </div>
-            <div class="control-group">
-                <label for="theme-slider">Jeu de Thèmes : <span id="theme-name"></span></label>
+                <label for="theme-slider"><span class="label-text">Jeu de Thèmes :</span><span id="theme-name" class="label-value"></span></label>
                 <input type="range" id="theme-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="chunking-strategy-slider">Stratégie de Chunking : <span id="chunking-strategy-name"></span></label>
+                <label for="chunk-size-slider"><span class="label-text">Taille des Chunks :</span><span id="chunk-size-value" class="label-value"></span></label>
+                <input type="range" id="chunk-size-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunk-overlap-slider"><span class="label-text">Chevauchement :</span><span id="chunk-overlap-value" class="label-value"></span></label>
+                <input type="range" id="chunk-overlap-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunking-strategy-slider"><span class="label-text">Stratégie de Chunking :</span><span id="chunking-strategy-name" class="label-value"></span></label>
                 <input type="range" id="chunking-strategy-slider" min="0" max="0" value="0">
             </div>
         </div>
@@ -202,6 +234,12 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         <div class="visualization">
             <h2>Heatmap Textuelle</h2>
             <div id="heatmap-container" class="heatmap-content"></div>
+        </div>
+
+        <!-- Zone des liens -->
+        <div class="links">
+            <h2>Fichiers Générés</h2>
+            <div id="file-links-container"></div>
         </div>
     </div>
 
@@ -222,6 +260,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         const chunkingStrategyNameSpan = document.getElementById('chunking-strategy-name');
         const metricsGrid = document.getElementById('metrics-grid');
         const heatmapContainer = document.getElementById('heatmap-container');
+        const fileLinksContainer = document.getElementById('file-links-container');
 
         let fileKeys = [];
         let allEmbeddingKeys = [];
@@ -370,6 +409,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                 fileNameSpan.textContent = 'No data for this file.';
                 metricsGrid.innerHTML = '';
                 heatmapContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
                 return;
             }}
 
@@ -379,6 +419,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             if (filteredEmbeddingKeys.length === 0) {{
                 metricsGrid.innerHTML = 'Aucune donnée pour cette sélection.';
                 heatmapContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
                 return;
             }}
 
@@ -390,11 +431,33 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             if (!embeddingData) {{
                 metricsGrid.innerHTML = 'Erreur: Données non trouvées.';
                 heatmapContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
                 return;
             }}
 
             updateMetrics(embeddingData.metrics, fileKey);
             updateHeatmap(embeddingData.phrases, embeddingData.similarities);
+            updateFileLinks(embeddingKey, fileKey);
+        }}
+
+        function updateFileLinks(embeddingKey, fileKey) {{
+            fileLinksContainer.innerHTML = '';
+
+            const filteredFileName = `${{embeddingKey}}_${{fileKey}}_filtered.md`;
+            const explanatoryFileName = `${{embeddingKey}}_${{fileKey}}_explanatory.md`;
+
+            const filteredLink = document.createElement('a');
+            filteredLink.href = filteredFileName;
+            filteredLink.textContent = `Rapport Filtré (filtered.md)`;
+            filteredLink.title = filteredFileName;
+
+            const explanatoryLink = document.createElement('a');
+            explanatoryLink.href = explanatoryFileName;
+            explanatoryLink.textContent = `Rapport Explicatif (explanatory.md)`;
+            explanatoryLink.title = explanatoryFileName;
+
+            fileLinksContainer.appendChild(filteredLink);
+            fileLinksContainer.appendChild(explanatoryLink);
         }}
 
         function updateMetrics(metrics, fileKey) {{
@@ -478,59 +541,3 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     print(f"Generated main page at: {output_path}")
-
-
-def generate_model_page(model: Dict[str, Any], output_dir: str):
-    """
-    Génère une page HTML individuelle pour un modèle (potentiellement obsolète avec la nouvelle interface).
-    Cette fonction est conservée pour la compatibilité mais pourrait être retirée.
-    """
-
-    model_name = model.get("name", "Unknown Model")
-    html_content = f"""
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Résultats pour {model_name}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        h1, h2 {{ color: #333; }}
-        .chart {{ margin-bottom: 30px; }}
-        img {{ max-width: 100%; height: auto; }}
-        a {{ color: #3498db; }}
-    </style>
-</head>
-<body>
-    <h1>Résultats pour le modèle : {model_name}</h1>
-    <p><a href="index.html">Retour à la nouvelle page principale interactive</a></p>
-    
-    <h2>Métriques d'évaluation</h2>
-    <ul>
-"""
-    for key, value in model.items():
-        if key not in ["name", "type", "files", "embeddings_data"]:
-            html_content += f"<li><strong>{key.replace('_', ' ').capitalize()}:</strong> {value:.4f}</li>"
-    html_content += "</ul>"
-
-    html_content += "<h2>Visualisations Graphiques</h2>"
-    for file_info in model.get("files", []):
-        if "path" in file_info and file_info["path"].endswith(".png"):
-            file_path = os.path.basename(file_info["path"])
-            html_content += f"""
-            <div class="chart">
-                <h3>{file_info.get("type", "Graphique")}</h3>
-                <img src="{file_path}" alt="{file_info.get("type", "Graphique")}">
-            </div>
-            """
-
-    html_content += """
-</body>
-</html>
-"""
-
-    output_path = os.path.join(output_dir, f"{model_name}_legacy_report.html")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print(f"Generated legacy model page at: {output_path}")

@@ -4,11 +4,16 @@ import os
 
 import numpy as np
 
-from src.config import CMAP, GRID_SEARCH_PARAMS, MODELS_TO_TEST, OUTPUT_DIR
+from src.config import (
+    CMAP,
+    GRID_SEARCH_PARAMS,
+    MODELS_TO_TEST,
+    OUTPUT_DIR,
+    SIMILARITY_THRESHOLD,
+)
 from src.data_loader import load_markdown_files
 from src.database import EmbeddingDatabase
 from src.processing import run_test
-from src.config import SIMILARITY_THRESHOLD
 from src.reporting import (
     analyze_and_visualize_clustering_metrics,
     analyze_and_visualize_variance,
@@ -16,7 +21,7 @@ from src.reporting import (
     generate_filtered_markdown,
     generate_heatmap_html,
 )
-from src.web_generator import generate_main_page, generate_model_page
+from src.web_generator import generate_main_page
 
 
 def run_processing(db: EmbeddingDatabase):
@@ -147,10 +152,6 @@ def generate_all_reports(db: EmbeddingDatabase):
     print("\n--- Generating Web Pages ---")
     final_data_structure = {"files": processed_data_for_interactive_page}
     generate_main_page(final_data_structure, OUTPUT_DIR)
-
-    for model_name, metrics in all_models_metrics.items():
-        model_page_data = {"name": model_name, **metrics}
-        generate_model_page(model_page_data, OUTPUT_DIR)
 
     # --- Génération des rapports individuels (HTML et Markdown) ---
     print("\n--- Generating Individual Reports (HTML & Markdown) ---")
