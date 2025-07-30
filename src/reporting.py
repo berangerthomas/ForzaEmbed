@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from src.utils import extract_context_around_phrase
 
 
-# Génère un fichier HTML représentant une heatmap de similarité.
+# Generates an HTML file representing a similarity heatmap.
 def generate_heatmap_html(
     identifiant: str,
     nom: str,
@@ -26,33 +26,33 @@ def generate_heatmap_html(
     run_name: str,
 ) -> str:
     """
-    Génère un fichier HTML de heatmap basé sur les scores de similarité.
+    Generates an HTML heatmap file based on similarity scores.
 
     Args:
-        identifiant (str): Identifiant du lieu.
-        nom (str): Nom du lieu.
-        type_lieu (str): Type de lieu.
-        themes (list[str]): Thèmes utilisés.
-        phrases (list[str]): Liste des phrases.
-        similarites_norm (np.ndarray): Scores de similarité normalisés.
-        cmap (LinearSegmentedColormap): Colormap pour la heatmap.
-        output_dir (str): Dossier de sortie.
-        model_name (str): Nom du modèle de base.
-        run_name (str): Nom complet du run pour le nom de fichier.
+        identifiant (str): Location identifier.
+        nom (str): Location name.
+        type_lieu (str): Location type.
+        themes (list[str]): Used themes.
+        phrases (list[str]): List of sentences.
+        similarites_norm (np.ndarray): Normalized similarity scores.
+        cmap (LinearSegmentedColormap): Colormap for the heatmap.
+        output_dir (str): Output directory.
+        model_name (str): Base model name.
+        run_name (str): Full run name for the filename.
 
     Returns:
-        str: Chemin du fichier HTML généré.
+        str: Path to the generated HTML file.
     """
     couleurs = [cmap(score) for score in similarites_norm]
     html_output = f"<h2>{nom} ({type_lieu})</h2>\n"
     html_output += f"<p><strong>Run:</strong> {run_name}<br>"
-    html_output += f"<strong>Modèle de base:</strong> {model_name}<br>"
-    html_output += f"<strong>Thèmes utilisés:</strong> {', '.join(themes)}</p>\n"
+    html_output += f"<strong>Base model:</strong> {model_name}<br>"
+    html_output += f"<strong>Used themes:</strong> {', '.join(themes)}</p>\n"
 
     for phrase, score, couleur in zip(phrases, similarites_norm, couleurs):
         r, g, b, _ = [int(255 * x) for x in couleur]
         phrase_html = phrase.replace("\n", "<br>")
-        tooltip_text = f"Similarité: {score:.3f}"
+        tooltip_text = f"Similarity: {score:.3f}"
         html_output += f'<span style="background-color: rgb({r},{g},{b}); margin: 5px;" title="{tooltip_text}">{phrase_html}.</span> '
 
     safe_run_name = run_name.replace("/", "_")
@@ -62,7 +62,7 @@ def generate_heatmap_html(
     return filename
 
 
-# Génère un fichier markdown filtré selon un seuil de similarité.
+# Generates a markdown file filtered by a similarity threshold.
 def generate_filtered_markdown(
     identifiant: str,
     nom: str,
@@ -75,21 +75,21 @@ def generate_filtered_markdown(
     run_name: str,
 ) -> str:
     """
-    Génère un fichier markdown filtré selon les scores de similarité.
+    Generates a markdown file filtered by similarity scores.
 
     Args:
-        identifiant (str): Identifiant du lieu.
-        nom (str): Nom du lieu.
-        type_lieu (str): Type de lieu.
-        phrases (list[str]): Liste des phrases.
-        similarites_norm (np.ndarray): Scores de similarité normalisés.
-        threshold (float): Seuil de filtrage.
-        output_dir (str): Dossier de sortie.
-        model_name (str): Nom du modèle de base.
-        run_name (str): Nom complet du run pour le nom de fichier.
+        identifiant (str): Location identifier.
+        nom (str): Location name.
+        type_lieu (str): Location type.
+        phrases (list[str]): List of sentences.
+        similarites_norm (np.ndarray): Normalized similarity scores.
+        threshold (float): Filtering threshold.
+        output_dir (str): Output directory.
+        model_name (str): Base model name.
+        run_name (str): Full run name for the filename.
 
     Returns:
-        str: Chemin du fichier markdown généré.
+        str: Path to the generated markdown file.
     """
     relevant_indices = set()
     for i, score in enumerate(similarites_norm):
@@ -98,16 +98,16 @@ def generate_filtered_markdown(
 
     relevant_phrases = [phrases[i] for i in sorted(list(relevant_indices))]
 
-    content = f"# Résultat Filtré - {nom} ({type_lieu})\n\n"
+    content = f"# Filtered Result - {nom} ({type_lieu})\n\n"
     content += f"**Run:** {run_name}\n"
-    content += f"**Modèle de base:** {model_name}\n"
-    content += f"**Seuil:** {threshold}\n"
-    content += f"**Phrases sélectionnées:** {len(relevant_phrases)}/{len(phrases)}\n\n"
-    content += "## Contenu Filtré Brut\n\n"
+    content += f"**Base model:** {model_name}\n"
+    content += f"**Threshold:** {threshold}\n"
+    content += f"**Selected sentences:** {len(relevant_phrases)}/{len(phrases)}\n\n"
+    content += "## Raw Filtered Content\n\n"
     if relevant_phrases:
         content += "\n\n".join(relevant_phrases)
     else:
-        content += "Aucune phrase pertinente trouvée."
+        content += "No relevant sentence found."
 
     safe_run_name = run_name.replace("/", "_")
     filename = os.path.join(output_dir, f"{identifiant}_{safe_run_name}_filtered.md")
@@ -116,23 +116,23 @@ def generate_filtered_markdown(
     return filename
 
 
-# Génère un graphique radar pour comparer les modèles sur plusieurs métriques.
+# Generates a radar chart to compare models on several metrics.
 def generate_radar_chart(
     evaluation_results: dict[str, dict[str, float]], output_dir: str
 ) -> str | None:
     """
-    Génère un graphique radar pour une comparaison globale des modèles.
+    Generates a radar chart for a global comparison of models.
 
     Args:
-        evaluation_results (dict): Dictionnaire des résultats d'évaluation.
-        output_dir (str): Dossier de sortie pour la visualisation.
+        evaluation_results (dict): Evaluation results dictionary.
+        output_dir (str): Output directory for the visualization.
     """
     model_names = list(evaluation_results.keys())
     if len(model_names) < 1:
         print("Not enough models to generate a radar chart.")
         return
 
-    # Utiliser les mêmes métriques que les graphiques à barres
+    # Use the same metrics as the bar charts
     metrics = [
         "cohesion",
         "separation",
@@ -143,29 +143,29 @@ def generate_radar_chart(
     ]
     df = pd.DataFrame(evaluation_results).T[metrics]
 
-    # Métriques où une valeur plus faible est meilleure
+    # Metrics where a lower value is better
     lower_is_better = ["separation", "davies_bouldin"]
 
-    # Normalisation des données
+    # Data normalization
     normalized_df = df.copy()
     for metric in metrics:
         min_val = df[metric].min()
         max_val = df[metric].max()
         if max_val == min_val:
-            normalized_df[metric] = 1.0  # Tous les modèles sont équivalents
+            normalized_df[metric] = 1.0  # All models are equivalent
         else:
             if metric in lower_is_better:
-                # Inverser la normalisation : (max - x) / (max - min)
+                # Inverse normalization: (max - x) / (max - min)
                 normalized_df[metric] = (max_val - df[metric]) / (max_val - min_val)
             else:
-                # Normalisation standard : (x - min) / (max - min)
+                # Standard normalization: (x - min) / (max - min)
                 normalized_df[metric] = (df[metric] - min_val) / (max_val - min_val)
 
-    # Création du graphique radar
+    # Radar chart creation
     fig = go.Figure()
     for model_name in normalized_df.index:
         values = normalized_df.loc[model_name].tolist()
-        # Fermer la boucle du radar
+        # Close the radar loop
         values += values[:1]
         metric_labels = metrics + [metrics[0]]
 
@@ -176,15 +176,15 @@ def generate_radar_chart(
                 fill="toself",
                 name=model_name,
                 hovertemplate=f"<b>{model_name}</b><br>"
-                + "Métrique: %{theta}<br>"
-                + "Score Normalisé: %{r:.3f}<extra></extra>",
+                + "Metric: %{theta}<br>"
+                + "Normalized Score: %{r:.3f}<extra></extra>",
             )
         )
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1], showticklabels=False)),
         title={
-            "text": "<b>Comparaison Globale des Modèles (Score Normalisé)</b>",
+            "text": "<b>Global Model Comparison (Normalized Score)</b>",
             "y": 0.95,
             "x": 0.5,
             "xanchor": "center",
@@ -192,7 +192,7 @@ def generate_radar_chart(
             "font": {"size": 20, "family": "Arial, sans-serif"},
         },
         legend=dict(
-            title="Modèles",
+            title="Models",
             orientation="h",
             yanchor="bottom",
             y=-0.2,
@@ -202,7 +202,7 @@ def generate_radar_chart(
         margin=dict(t=100, b=100),
     )
 
-    # Sauvegarder le graphique
+    # Save the chart
     plot_filename = os.path.join(output_dir, "global_model_comparison_radar.png")
     try:
         fig.write_image(plot_filename, width=9600, height=6400, scale=2)
@@ -216,22 +216,22 @@ def generate_radar_chart(
         return None
 
 
-# Analyse et visualise les métriques de clustering pour différents modèles.
+# Analyzes and visualizes clustering metrics for different models.
 def analyze_and_visualize_clustering_metrics(
     evaluation_results: dict[str, dict[str, float]], output_dir: str
 ) -> str | None:
     """
-    Analyse et visualise les métriques de clustering pour chaque modèle.
+    Analyzes and visualizes clustering metrics for each model.
 
     Args:
-        evaluation_results (dict): Dictionnaire des résultats d'évaluation.
-        output_dir (str): Dossier de sortie pour la visualisation.
+        evaluation_results (dict): Evaluation results dictionary.
+        output_dir (str): Output directory for the visualization.
     """
     if not evaluation_results:
         print("No evaluation results to visualize.")
         return None
 
-    # Générer le graphique radar en premier
+    # Generate the radar chart first
     radar_chart_path = generate_radar_chart(evaluation_results, output_dir)
 
     metrics = [
@@ -304,16 +304,16 @@ def analyze_and_visualize_clustering_metrics(
     return radar_chart_path
 
 
-# Analyse et visualise la variance des similarités d'embeddings pour différents modèles.
+# Analyzes and visualizes the variance of embedding similarities for different models.
 def analyze_and_visualize_variance(
     model_embeddings: dict[str, list[np.ndarray]], output_dir: str
 ) -> str | None:
     """
-    Analyse et visualise la variance des similarités cosinus des embeddings pour chaque modèle.
+    Analyzes and visualizes the variance of cosine similarities of embeddings for each model.
 
     Args:
-        model_embeddings (dict): Dictionnaire {nom_modèle: liste d'embeddings}.
-        output_dir (str): Dossier de sortie pour la visualisation.
+        model_embeddings (dict): Dictionary {model_name: list of embeddings}.
+        output_dir (str): Output directory for the visualization.
     """
     variances = {}
     print("\n--- Analyzing Embedding Variance ---")
@@ -417,7 +417,7 @@ def analyze_and_visualize_variance(
         return None
 
 
-# Génère un rapport explicatif markdown basé sur les scores de similarité.
+# Generates an explanatory markdown report based on similarity scores.
 def generate_explanatory_markdown(
     identifiant: str,
     nom: str,
@@ -431,22 +431,22 @@ def generate_explanatory_markdown(
     run_name: str,
 ) -> str:
     """
-    Génère un fichier markdown explicatif sur les zones à forte similarité.
+    Generates an explanatory markdown file about high similarity zones.
 
     Args:
-        identifiant (str): Identifiant du lieu.
-        nom (str): Nom du lieu.
-        type_lieu (str): Type de lieu.
-        phrases (list[str]): Liste des phrases.
-        similarites_norm (np.ndarray): Scores de similarité normalisés.
-        themes (list[str]): Thèmes utilisés.
-        threshold (float): Seuil de similarité.
-        output_dir (str): Dossier de sortie.
-        model_name (str): Nom du modèle de base.
-        run_name (str): Nom complet du run pour le nom de fichier.
+        identifiant (str): Location identifier.
+        nom (str): Location name.
+        type_lieu (str): Location type.
+        phrases (list[str]): List of sentences.
+        similarites_norm (np.ndarray): Normalized similarity scores.
+        themes (list[str]): Used themes.
+        threshold (float): Similarity threshold.
+        output_dir (str): Output directory.
+        model_name (str): Base model name.
+        run_name (str): Full run name for the filename.
 
     Returns:
-        str: Chemin du fichier markdown généré.
+        str: Path to the generated markdown file.
     """
     hot_zones = []
     for i, (phrase, score) in enumerate(zip(phrases, similarites_norm)):
@@ -455,28 +455,26 @@ def generate_explanatory_markdown(
 
     hot_zones.sort(key=lambda x: x[2], reverse=True)
 
-    markdown_content = f"# Rapport de Similarité - {nom} ({type_lieu})\n\n"
-    markdown_content += f"**Identifiant:** {identifiant}\n"
+    markdown_content = f"# Similarity Report - {nom} ({type_lieu})\n\n"
+    markdown_content += f"**Identifier:** {identifiant}\n"
     markdown_content += f"**Run:** {run_name}\n"
-    markdown_content += f"**Modèle de base:** {model_name}\n"
-    markdown_content += f"**Thèmes recherchés:** {', '.join(themes)}\n"
-    markdown_content += f"**Seuil de similarité:** {threshold}\n\n"
+    markdown_content += f"**Base model:** {model_name}\n"
+    markdown_content += f"**Searched themes:** {', '.join(themes)}\n"
+    markdown_content += f"**Similarity threshold:** {threshold}\n\n"
 
     if hot_zones:
-        markdown_content += (
-            f"## Zones à haute similarité ({len(hot_zones)} trouvées)\n\n"
-        )
+        markdown_content += f"## High similarity zones ({len(hot_zones)} found)\n\n"
         for i, (phrase_idx, phrase, score) in enumerate(hot_zones, 1):
             markdown_content += f"### Zone {i} (Score: {score:.3f})\n\n"
             context = extract_context_around_phrase(phrases, phrase_idx)
-            markdown_content += "**Contexte complet:**\n"
+            markdown_content += "**Full context:**\n"
             markdown_content += f"> {context}\n\n"
-            markdown_content += "**Phrase clé identifiée:**\n"
+            markdown_content += "**Identified key sentence:**\n"
             markdown_content += f"> {phrase.strip()}\n\n---\n\n"
     else:
-        markdown_content += "## Aucune zone à haute similarité trouvée\n\n"
+        markdown_content += "## No high similarity zone found\n\n"
         markdown_content += (
-            f"Aucun segment n'a atteint le seuil de similarité de {threshold}.\n"
+            f"No segment reached the similarity threshold of {threshold}.\n"
         )
 
     safe_run_name = run_name.replace("/", "_")
@@ -486,7 +484,7 @@ def generate_explanatory_markdown(
     return filename
 
 
-# Génère une visualisation t-SNE des embeddings.
+# Generates a t-SNE visualization of embeddings.
 def generate_tsne_visualization(
     model_embeddings: dict[str, list[np.ndarray]],
     labels: list[np.ndarray],
@@ -496,15 +494,15 @@ def generate_tsne_visualization(
     consolidate_themes: bool = True,
 ) -> dict[str, str]:
     """
-    Génère une visualisation t-SNE pour chaque modèle.
+    Generates a t-SNE visualization for each model.
 
     Args:
-        model_embeddings (dict): Dictionnaire {nom_modèle: liste d'embeddings}.
-        labels (list[np.ndarray]): Liste des étiquettes pour chaque embedding.
-        themes (list[str]): Liste des thèmes originaux.
-        output_dir (str): Dossier de sortie.
-        perplexity (int): Perplexité pour l'algorithme t-SNE.
-        consolidate_themes (bool): Si True, regroupe tous les thèmes en 'horaires'.
+        model_embeddings (dict): Dictionary {model_name: list of embeddings}.
+        labels (list[np.ndarray]): List of labels for each embedding.
+        themes (list[str]): List of original themes.
+        output_dir (str): Output directory.
+        perplexity (int): Perplexity for the t-SNE algorithm.
+        consolidate_themes (bool): If True, groups all themes as 'horaires'.
     """
     print("\n--- Generating t-SNE Visualizations ---")
 

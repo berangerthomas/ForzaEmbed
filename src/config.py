@@ -7,7 +7,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from .sentencetransformers_client import SentenceTransformersClient
 
 # --- Configuration ---
-# récupérer les variables d'environnement
+# get environment variables
 load_dotenv()
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.6))
 SIMILARITY_METRICS = ["cosine", "euclidean", "manhattan"]
@@ -16,10 +16,10 @@ SIMILARITY_METRICS = ["cosine", "euclidean", "manhattan"]
 # --- Theme and Keyword Generation ---
 def generate_themes_and_keywords() -> list[str]:
     """
-    Génère une liste de thèmes et un dictionnaire de mots-clés pour la détection des horaires d'ouverture.
+    Generates a list of themes and a dictionary of keywords for detecting opening hours.
 
     Returns:
-        tuple: (liste des thèmes, dictionnaire des mots-clés pour les regex)
+        tuple: (list of themes, dictionary of keywords for regex)
     """
     lieux = ["bibliothèque", "médiathèque", "mairie", "piscine"]
     jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
@@ -590,7 +590,7 @@ MODELS_TO_TEST = [
 ]
 
 # --- Output Configuration ---
-# Définit le répertoire de sortie dans le même dossier que le script
+# Sets the output directory in the same folder as the script
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "data", "heatmaps")
 os.makedirs(OUTPUT_DIR, exist_ok=True)

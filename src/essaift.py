@@ -19,5 +19,5 @@ supported_models = (
 
 pprint(supported_models["model"])
 
-# Enregistre les modèles supportés dans un fichier CSV
+# Save supported models to a CSV file
 supported_models.to_csv("supported_models.csv", index=False)

@@ -3,7 +3,7 @@ from fastembed import TextEmbedding
 
 class FastEmbedClient:
     """
-    Client pour gérer les modèles d'embedding FastEmbed.
+    Client to manage FastEmbed embedding models.
     """
 
     _instances = {}
@@ -11,7 +11,7 @@ class FastEmbedClient:
     @classmethod
     def get_instance(cls, model_name: str):
         if model_name not in cls._instances:
-            # print(f"🚀 Chargement du modèle FastEmbed : {model_name}")
+            # print(f"🚀 Loading FastEmbed model: {model_name}")
             cls._instances[model_name] = TextEmbedding(model_name)
         return cls._instances[model_name]
 

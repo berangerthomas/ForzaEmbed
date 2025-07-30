@@ -23,15 +23,15 @@ from src.utils import chunk_text
 def calculate_similarity(
     embed_themes: np.ndarray, embed_phrases: np.ndarray, metric: str
 ) -> np.ndarray:
-    """Calcule la similarité entre les embeddings des thèmes et des phrases."""
+    """Calculate similarity between theme embeddings and phrase embeddings."""
     if metric == "cosine":
         return cosine_similarity(embed_themes, embed_phrases)
     elif metric == "euclidean":
-        # Inverser et normaliser pour que plus haut soit mieux
+        # Invert and normalize so that higher is better
         distances = euclidean_distances(embed_themes, embed_phrases)
         return 1 / (1 + distances)
     elif metric == "manhattan":
-        # Inverser et normaliser
+        # Invert and normalize
         distances = manhattan_distances(embed_themes, embed_phrases)
         return 1 / (1 + distances)
     else:
@@ -54,7 +54,7 @@ def process_item(
     similarity_metric: str,
 ) -> Tuple[str, Optional[Dict[str, Any]]]:
     """
-    Traite un item, génère les rapports statiques, et retourne un dictionnaire de résultats.
+    Process an item, generate static reports, and return a result dictionary.
     """
     identifiant, nom, type_lieu, texte = item
     # print(f"Processing {identifiant} ({nom}) with model {model_name}...")
@@ -82,9 +82,9 @@ def process_item(
     except ValueError:
         pass
 
-    # Les rapports statiques sont maintenant générés à la fin via --generate-reports
+    # Static reports are now generated at the end via --generate-reports
 
-    # Calculer les métriques pour ce fichier spécifique
+    # Compute metrics for this specific file
     cohesion_sep = calculate_cohesion_separation(embed_phrases, labels)
     clustering_metrics = calculate_clustering_metrics(embed_phrases, labels)
 
@@ -120,7 +120,7 @@ def run_test(
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
-    Exécute les tests et retourne les données structurées pour la page web.
+    Run the tests and return structured data for the web page.
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
@@ -174,10 +174,10 @@ def run_test(
             )
             if file_data:
                 results["files"][identifiant] = file_data
-            # Optionnel : affichez les erreurs ou messages importants seulement
-            # tqdm.write(message)  # Pour afficher sans casser la barre
+            # Optionally: display only errors or important messages
+            # tqdm.write(message)  # To display without breaking the progress bar
             if model_type == "api":
-                time.sleep(60)
+                time.sleep(1)
         except Exception as e:
             tqdm.write(f"Error processing {identifiant}: {e}")
 

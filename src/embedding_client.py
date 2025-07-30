@@ -8,14 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Classe client pour obtenir des embeddings via une API de production.
+# Client class to obtain embeddings via a production API.
 class ProductionEmbeddingClient:
     """
-    Client pour obtenir des embeddings depuis une API de production.
+    Client to obtain embeddings from a production API.
 
     Args:
-        base_url (str): URL de base de l'API.
-        model (str): Nom du modèle d'embedding à utiliser.
+        base_url (str): Base URL of the API.
+        model (str): Name of the embedding model to use.
     """
 
     def __init__(self, base_url: str, model: str) -> None:
@@ -24,7 +24,7 @@ class ProductionEmbeddingClient:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
-        # Détermine la clé API à utiliser en fonction du nom du modèle
+        # Determines which API key to use based on the model name
         if "mistral" in model.lower():
             api_key = os.environ.get("API_KEY_MISTRAL")
         elif "voyage" in model.lower():
@@ -35,16 +35,16 @@ class ProductionEmbeddingClient:
         if api_key:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
 
-    # Récupère les embeddings pour une liste de textes via l'API.
+    # Retrieves embeddings for a list of texts via the API.
     def get_embeddings(self, texts: List[str]) -> tuple[List[List[float]], float]:
         """
-        Récupère les embeddings pour une liste de textes via l'API.
+        Retrieves embeddings for a list of texts via the API.
 
         Args:
-            texts (List[str]): Liste de textes.
+            texts (List[str]): List of texts.
 
         Returns:
-            tuple[List[List[float]], float]: Liste des vecteurs d'embedding et temps de réponse.
+            tuple[List[List[float]], float]: List of embedding vectors and response time.
         """
         if not texts:
             return [], 0.0

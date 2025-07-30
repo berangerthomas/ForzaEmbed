@@ -5,10 +5,10 @@ from typing import Any, Dict
 
 def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
     """
-    Génère la page web principale interactive pour la visualisation des heatmaps.
+    Generates the main interactive web page for heatmap visualization.
     """
 
-    # Sérialiser les données pour les injecter dans le JavaScript
+    # Serialize the data to inject into JavaScript
     data_json = json.dumps(processed_data, indent=4)
 
     html_content = f"""
@@ -140,7 +140,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding-bottom: 10px;
         }}
         .metric-item {{
-            flex: 0 0 100px; /* Largeur réduite */
+            flex: 0 0 100px; /* Reduced width */
             background-color: #ecf0f1;
             padding: 15px;
             border-radius: 5px;
@@ -158,7 +158,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         .visualization {{
             overflow-y: auto;
             line-height: 1.8;
-            min-height: 60vh; /* Hauteur minimale augmentée */
+            min-height: 60vh; /* Increased minimum height */
         }}
         .heatmap-content span {{
             padding: 2px 1px;
@@ -196,7 +196,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
     <div class="container">
         <h1>Analyse Interactive des Embeddings</h1>
 
-        <!-- Zone de contrôles -->
+        <!-- Controls area -->
         <div class="controls">
             <div class="control-group">
                 <label for="file-slider"><span class="label-text">Fichier Markdown :</span><span id="file-name" class="label-value"></span></label>
@@ -228,21 +228,21 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             </div>
         </div>
 
-        <!-- Zone de métriques -->
+        <!-- Metrics area -->
         <div class="metrics">
-            <h2>Métriques</h2>
+            <h2>Metrics</h2>
             <div id="metrics-grid" class="metrics-grid"></div>
         </div>
 
-        <!-- Zone de visualisation -->
+        <!-- Visualization area -->
         <div class="visualization">
-            <h2>Heatmap Textuelle</h2>
+            <h2>Textual Heatmap</h2>
             <div id="heatmap-container" class="heatmap-content"></div>
         </div>
 
-        <!-- Zone des liens -->
+        <!-- Links area -->
         <div class="links">
-            <h2>Fichiers Générés</h2>
+            <h2>Generated Files</h2>
             <div id="file-links-container"></div>
         </div>
     </div>
@@ -436,7 +436,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             filterEmbeddings();
 
             if (filteredEmbeddingKeys.length === 0) {{
-                metricsGrid.innerHTML = 'Aucune donnée pour cette sélection.';
+                metricsGrid.innerHTML = 'No data for this selection.';
                 heatmapContainer.innerHTML = '';
                 fileLinksContainer.innerHTML = '';
                 return;
@@ -448,7 +448,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             const embeddingData = fileData.embeddings[embeddingKey];
 
             if (!embeddingData) {{
-                metricsGrid.innerHTML = 'Erreur: Données non trouvées.';
+                metricsGrid.innerHTML = 'Error: Data not found.';
                 heatmapContainer.innerHTML = '';
                 fileLinksContainer.innerHTML = '';
                 return;
@@ -467,12 +467,12 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
 
             const filteredLink = document.createElement('a');
             filteredLink.href = filteredFileName;
-            filteredLink.textContent = `Rapport Filtré (filtered.md)`;
+            filteredLink.textContent = `Filtered Report (filtered.md)`;
             filteredLink.title = filteredFileName;
 
             const explanatoryLink = document.createElement('a');
             explanatoryLink.href = explanatoryFileName;
-            explanatoryLink.textContent = `Rapport Explicatif (explanatory.md)`;
+            explanatoryLink.textContent = `Explanatory Report (explanatory.md)`;
             explanatoryLink.title = explanatoryFileName;
 
             fileLinksContainer.appendChild(filteredLink);
@@ -543,7 +543,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                 span.style.backgroundColor = colorInfo.rgb;
                 span.style.color = colorInfo.isDark ? '#fff' : '#333';
                 span.textContent = phrase + '. ';
-                span.title = `Similarité: ${{score.toFixed(3)}}`;
+                span.title = `Similarity: ${{score.toFixed(3)}}`;
                 
                 content.appendChild(span);
             }});

@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 class SentenceTransformersClient:
     """
-    Client pour gérer les modèles d'embedding locaux en tant que singletons.
+    Client to manage local embedding models as singletons.
     """
 
     _instances: Dict[str, SentenceTransformer] = {}
@@ -13,11 +13,11 @@ class SentenceTransformersClient:
     @classmethod
     def get_instance(cls, model_name: str) -> SentenceTransformer:
         """
-        Récupère une instance du modèle d'embedding.
-        Si l'instance n'existe pas, elle est créée.
+        Retrieves an instance of the embedding model.
+        If the instance does not exist, it is created.
         """
         if model_name not in cls._instances:
-            # print(f"🚀 Chargement du modèle local : {model_name}")
+            # print(f"🚀 Loading local model: {model_name}")
             cls._instances[model_name] = SentenceTransformer(model_name)
         return cls._instances[model_name]
 
@@ -26,7 +26,7 @@ class SentenceTransformersClient:
         cls, texts: list[str], model_name: str
     ) -> tuple[list[list[float]], float]:
         """
-        Génère les embeddings pour une liste de textes en utilisant un modèle local.
+        Generates embeddings for a list of texts using a local model.
         """
         import time
 

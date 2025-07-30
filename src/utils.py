@@ -5,21 +5,21 @@ import numpy as np
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
-# Découpe un texte en phrases ou segments courts.
+# Splits a text into sentences or short segments.
 def chunk_text(
     text: str, chunk_size: int, chunk_overlap: int, strategy: str = "langchain"
 ) -> List[str]:
     """
-    Découpe le texte en segments de taille et de chevauchement définis.
+    Splits the text into segments of defined size and overlap.
 
     Args:
-        text (str): Texte à découper.
-        chunk_size (int): Taille des chunks.
-        chunk_overlap (int): Chevauchement des chunks.
-        strategy (str): 'langchain' pour un découpage intelligent, 'raw' pour un découpage brut.
+        text (str): Text to split.
+        chunk_size (int): Size of the chunks.
+        chunk_overlap (int): Overlap between chunks.
+        strategy (str): 'langchain' for smart splitting, 'raw' for basic splitting.
 
     Returns:
-        List[str]: Liste des segments extraits.
+        List[str]: List of extracted segments.
     """
     if strategy == "langchain":
         text_splitter = RecursiveCharacterTextSplitter(
@@ -45,17 +45,17 @@ def chunk_text(
     return [chunk.strip() for chunk in chunks if chunk.strip()]
 
 
-# Vérifie si un texte contient un motif lié aux horaires d'ouverture.
+# Checks if a text contains a pattern related to opening hours.
 def contains_horaire_pattern(text: str, keywords: dict) -> bool:
     """
-    Vérifie si le texte contient des motifs d'horaires d'ouverture.
+    Checks if the text contains opening hours patterns.
 
     Args:
-        text (str): Texte à analyser.
-        keywords (dict): Dictionnaire de mots-clés pour la regex.
+        text (str): Text to analyze.
+        keywords (dict): Dictionary of keywords for the regex.
 
     Returns:
-        bool: True si un motif est trouvé, sinon False.
+        bool: True if a pattern is found, otherwise False.
     """
     # Build regex patterns from the keywords dictionary
     time_pattern = r"\d{1,2}h(\d{2})?"
@@ -75,17 +75,17 @@ def contains_horaire_pattern(text: str, keywords: dict) -> bool:
     return False
 
 
-# Extrait le contexte autour d'une phrase cible dans une liste de phrases.
+# Extracts the context around a target sentence in a list of sentences.
 def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
     """
-    Extrait et met en valeur le contexte autour d'une phrase cible.
+    Extracts and highlights the context around a target sentence.
 
     Args:
-        phrases (list[str]): Liste des phrases.
-        phrase_index (int): Index de la phrase cible.
+        phrases (list[str]): List of sentences.
+        phrase_index (int): Index of the target sentence.
 
     Returns:
-        str: Contexte avec la phrase cible mise en évidence.
+        str: Context with the target sentence highlighted.
     """
     context_window = 0
     start_idx = max(0, phrase_index - context_window)
@@ -104,8 +104,8 @@ def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
 
 def to_python_type(obj):
     """
-    Convertit récursivement les objets numpy (float32, int64, ndarray, etc.)
-    en types natifs Python pour la sérialisation JSON.
+    Recursively converts numpy objects (float32, int64, ndarray, etc.)
+    to native Python types for JSON serialization.
     """
     if isinstance(obj, np.ndarray):
         return obj.tolist()

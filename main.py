@@ -27,7 +27,7 @@ from src.web_generator import generate_main_page
 
 
 def run_processing(db: EmbeddingDatabase):
-    """Exécute le traitement des données et sauvegarde les résultats dans la base de données."""
+    """Runs data processing and saves results to the database."""
     print("--- Starting Data Processing ---")
 
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
@@ -44,7 +44,7 @@ def run_processing(db: EmbeddingDatabase):
 
     param_combinations = list(itertools.product(*param_grid.values()))
 
-    # Barre de progression globale sur toutes les combinaisons
+    # Global progress bar over all combinations
     for i, params in enumerate(
         tqdm(param_combinations, desc="Total runs", unit="run"), 1
     ):
@@ -90,7 +90,7 @@ def run_processing(db: EmbeddingDatabase):
             theme_name,
             chunking_strategy,
             similarity_metric,
-            show_progress=False,  # Ajoutez ce paramètre dans run_test
+            show_progress=False,  # Add this parameter in run_test
         )
 
         for file_id, file_data in model_results.get("files", {}).items():
@@ -99,7 +99,7 @@ def run_processing(db: EmbeddingDatabase):
 
 
 def generate_all_reports(db: EmbeddingDatabase):
-    """Génère tous les rapports à partir des données de la base de données."""
+    """Generates all reports from the data in the database."""
     print("--- Generating All Reports ---")
 
     # Load file metadata to get 'nom' and 'type_lieu'
@@ -112,16 +112,16 @@ def generate_all_reports(db: EmbeddingDatabase):
         print("No processing results found in the database. Run processing first.")
         return
 
-    # --- Structures de données pour les rapports ---
+    # --- Data structures for reports ---
     processed_data_for_interactive_page = {}
     all_models_metrics = {}
     model_embeddings_for_variance = {}
     all_labels_for_tsne = []
     first_run = True
 
-    # --- Agrégation des données ---
+    # --- Data aggregation ---
     for model_name, model_results in all_results.items():
-        # Pour la page interactive
+        # For the interactive page
         for file_id, file_data in model_results.get("files", {}).items():
             file_entry = processed_data_for_interactive_page.setdefault(
                 file_id, {"embeddings": {}}
@@ -133,7 +133,7 @@ def generate_all_reports(db: EmbeddingDatabase):
                 "themes": file_data.get("themes", []),
             }
 
-        # Pour les rapports statiques
+        # For static reports
         current_model_embeddings = [
             res["embeddings_data"]["embeddings"]
             for res in model_results.get("files", {}).values()
@@ -162,12 +162,12 @@ def generate_all_reports(db: EmbeddingDatabase):
             all_models_metrics[model_name] = avg_metrics
             db.add_evaluation_metrics(model_name, avg_metrics)
 
-    # --- Génération des pages web ---
+    # --- Web page generation ---
     print("\n--- Generating Web Pages ---")
     final_data_structure = {"files": processed_data_for_interactive_page}
     generate_main_page(final_data_structure, OUTPUT_DIR)
 
-    # --- Génération des rapports individuels (HTML et Markdown) ---
+    # --- Generation of individual reports (HTML and Markdown) ---
     print("\n--- Generating Individual Reports (HTML & Markdown) ---")
     for run_name, model_results in all_results.items():
         model_info = db.get_model_info(run_name)
@@ -186,7 +186,7 @@ def generate_all_reports(db: EmbeddingDatabase):
                 similarities_np = np.array(file_data["similarities"])
                 themes = file_data.get("themes", [])
 
-                # Générer le heatmap HTML
+                # Generate the heatmap HTML
                 generate_heatmap_html(
                     identifiant=file_id,
                     nom=nom,
@@ -200,7 +200,7 @@ def generate_all_reports(db: EmbeddingDatabase):
                     run_name=run_name,
                 )
 
-                # Générer le markdown filtré
+                # Generate the filtered markdown
                 generate_filtered_markdown(
                     identifiant=file_id,
                     nom=nom,
@@ -213,7 +213,7 @@ def generate_all_reports(db: EmbeddingDatabase):
                     run_name=run_name,
                 )
 
-                # Générer le markdown explicatif
+                # Generate the explanatory markdown
                 generate_explanatory_markdown(
                     identifiant=file_id,
                     nom=nom,
@@ -227,7 +227,7 @@ def generate_all_reports(db: EmbeddingDatabase):
                     run_name=run_name,
                 )
 
-    # --- Génération des rapports statiques ---
+    # --- Generation of static reports ---
     print("\n--- Generating Static Comparison Plots ---")
     if all_models_metrics:
         plot_path = analyze_and_visualize_clustering_metrics(
@@ -260,7 +260,7 @@ def generate_all_reports(db: EmbeddingDatabase):
 
 
 def main():
-    """Fonction principale pour gérer le pipeline."""
+    """Main function to manage the pipeline."""
     parser = argparse.ArgumentParser(
         description="Run embedding analysis and reporting."
     )

@@ -9,7 +9,7 @@ from src.utils import to_python_type
 
 
 class EmbeddingDatabase:
-    """Gestionnaire de base de données pour stocker les résultats d'embedding."""
+    """Database manager for storing embedding results."""
 
     def __init__(self, db_path: str = "data/heatmaps/ForzaEmbed.db"):
         self.db_path = db_path
@@ -17,11 +17,11 @@ class EmbeddingDatabase:
         self.init_database()
 
     def init_database(self):
-        """Initialise la base de données avec les tables nécessaires."""
+        """Initializes the database with the necessary tables."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # Table des modèles
+            # Models table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS models (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +37,7 @@ class EmbeddingDatabase:
                 )
             """)
 
-            # Table des métriques d'évaluation
+            # Evaluation metrics table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS evaluation_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +54,7 @@ class EmbeddingDatabase:
                 )
             """)
 
-            # Table des fichiers générés
+            # Generated files table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS generated_files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +66,7 @@ class EmbeddingDatabase:
                 )
             """)
 
-            # Table des graphiques de comparaison globaux
+            # Global comparison charts table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS global_charts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +76,7 @@ class EmbeddingDatabase:
                 )
             """)
 
-            # Table pour stocker les résultats de traitement détaillés
+            # Table for storing detailed processing results
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS processing_results (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +101,7 @@ class EmbeddingDatabase:
         chunking_strategy: str,
         similarity_metric: str,
     ):
-        """Ajoute un modèle à la base de données."""
+        """Adds a model to the database."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -123,7 +123,7 @@ class EmbeddingDatabase:
             conn.commit()
 
     def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
-        """Ajoute les métriques d'évaluation pour un modèle."""
+        """Adds evaluation metrics for a model."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -147,7 +147,7 @@ class EmbeddingDatabase:
             conn.commit()
 
     def add_generated_file(self, model_name: str, file_type: str, file_path: str):
-        """Ajoute un fichier généré à la base de données."""
+        """Adds a generated file to the database."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -160,7 +160,7 @@ class EmbeddingDatabase:
             conn.commit()
 
     def add_global_chart(self, chart_type: str, file_path: str):
-        """Ajoute un graphique global à la base de données."""
+        """Adds a global chart to the database."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -173,7 +173,7 @@ class EmbeddingDatabase:
             conn.commit()
 
     def model_exists(self, name: str) -> bool:
-        """Vérifie si un modèle avec le nom de run spécifié existe déjà."""
+        """Checks if a model with the specified run name already exists."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT 1 FROM models WHERE name = ?", (name,))
@@ -182,8 +182,8 @@ class EmbeddingDatabase:
     def save_processing_result(
         self, model_name: str, file_id: str, results: Dict[str, Any]
     ):
-        """Sauvegarde le résultat de traitement détaillé pour un fichier et un modèle."""
-        # Convertir les arrays numpy en listes pour la sérialisation JSON
+        """Saves the detailed processing result for a file and a model."""
+        # Convert numpy arrays to lists for JSON serialization
         if "embeddings_data" in results and "embeddings" in results["embeddings_data"]:
             if isinstance(results["embeddings_data"].get("embeddings"), np.ndarray):
                 results["embeddings_data"]["embeddings"] = results["embeddings_data"][
@@ -208,7 +208,7 @@ class EmbeddingDatabase:
             conn.commit()
 
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
-        """Récupère les informations d'un modèle par son nom de run."""
+        """Retrieves information about a model by its run name."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -232,7 +232,7 @@ class EmbeddingDatabase:
             return None
 
     def get_all_processing_results(self) -> Dict[str, Any]:
-        """Récupère tous les résultats de traitement depuis la base de données."""
+        """Retrieves all processing results from the database."""
         all_results = {}
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -244,7 +244,7 @@ class EmbeddingDatabase:
                 model_name, file_id, results_json = row
                 results = json.loads(results_json)
 
-                # Reconvertir les listes en arrays numpy si nécessaire
+                # Convert lists back to numpy arrays if necessary
                 if (
                     "embeddings_data" in results
                     and "embeddings" in results["embeddings_data"]
@@ -259,7 +259,7 @@ class EmbeddingDatabase:
         return all_results
 
     def get_all_models(self) -> List[Dict[str, Any]]:
-        """Récupère tous les modèles avec leurs métriques."""
+        """Retrieves all models with their metrics."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -298,7 +298,7 @@ class EmbeddingDatabase:
             return models
 
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:
-        """Récupère tous les fichiers générés pour un modèle."""
+        """Retrieves all generated files for a model."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -313,7 +313,7 @@ class EmbeddingDatabase:
             return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
 
     def get_global_charts(self) -> List[Dict[str, str]]:
-        """Récupère tous les graphiques globaux."""
+        """Retrieves all global charts."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -324,7 +324,7 @@ class EmbeddingDatabase:
             return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
 
     def clear_database(self):
-        """Vide toutes les tables de la base de données."""
+        """Clears all tables in the database."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM generated_files")
