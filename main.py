@@ -69,38 +69,45 @@ def run_processing(db: EmbeddingDatabase):
 
         tqdm.write(f"--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
 
-        db.add_model(
-            run_name,
-            model_name,
-            model_config["type"],
-            chunk_size,
-            chunk_overlap,
-            theme_name,
-            chunking_strategy,
-            similarity_metric,
-        )
+        try:
+            db.add_model(
+                run_name,
+                model_name,
+                model_config["type"],
+                chunk_size,
+                chunk_overlap,
+                theme_name,
+                chunking_strategy,
+                similarity_metric,
+            )
 
-        model_results = run_test(
-            rows=all_rows,
-            db=db,
-            model_config=model_config,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            themes=themes,
-            theme_name=theme_name,
-            chunking_strategy=chunking_strategy,
-            similarity_metric=similarity_metric,
-            show_progress=False,
-        )
+            model_results = run_test(
+                rows=all_rows,
+                db=db,
+                model_config=model_config,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                themes=themes,
+                theme_name=theme_name,
+                chunking_strategy=chunking_strategy,
+                similarity_metric=similarity_metric,
+                show_progress=False,
+            )
 
-        # Batch save results for the current run
-        results_to_save = [
-            (run_name, file_id, file_data)
-            for file_id, file_data in model_results.get("files", {}).items()
-            if file_data
-        ]
-        if results_to_save:
-            db.save_processing_results_batch(results_to_save)
+            # Batch save results for the current run
+            results_to_save = [
+                (run_name, file_id, file_data)
+                for file_id, file_data in model_results.get("files", {}).items()
+                if file_data
+            ]
+            if results_to_save:
+                db.save_processing_results_batch(results_to_save)
+
+        except Exception as e:
+            tqdm.write(
+                f"❌ Error in Test {i}/{len(param_combinations)}: {run_name} ({e})"
+            )
+            continue
 
 
 def _aggregate_data(db, all_results):
