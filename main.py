@@ -81,45 +81,34 @@ def run_processing(db: EmbeddingDatabase):
         )
 
         model_results = run_test(
-            all_rows,
-            model_config,
-            chunk_size,
-            chunk_overlap,
-            themes,
-            OUTPUT_DIR,
-            theme_name,
-            chunking_strategy,
-            similarity_metric,
-            show_progress=False,  # Add this parameter in run_test
+            rows=all_rows,
+            db=db,
+            model_config=model_config,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            themes=themes,
+            theme_name=theme_name,
+            chunking_strategy=chunking_strategy,
+            similarity_metric=similarity_metric,
+            show_progress=False,
         )
 
-        for file_id, file_data in model_results.get("files", {}).items():
-            if file_data:
-                db.save_processing_result(run_name, file_id, file_data)
+        # Batch save results for the current run
+        results_to_save = [
+            (run_name, file_id, file_data)
+            for file_id, file_data in model_results.get("files", {}).items()
+            if file_data
+        ]
+        if results_to_save:
+            db.save_processing_results_batch(results_to_save)
 
 
-def generate_all_reports(db: EmbeddingDatabase):
-    """Generates all reports from the data in the database."""
-    print("--- Generating All Reports ---")
-
-    # Load file metadata to get 'nom' and 'type_lieu'
-    markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
-    all_rows = load_markdown_files(markdown_directory)
-    file_metadata = {row[0]: {"nom": row[1], "type_lieu": row[2]} for row in all_rows}
-
-    all_results = db.get_all_processing_results()
-    if not all_results:
-        print("No processing results found in the database. Run processing first.")
-        return
-
-    # --- Data structures for reports ---
+def _aggregate_data(db, all_results):
+    """Aggregates data from results for reporting."""
     processed_data_for_interactive_page = {}
     all_models_metrics = {}
     model_embeddings_for_variance = {}
-    all_labels_for_tsne = []
-    first_run = True
 
-    # --- Data aggregation ---
     for model_name, model_results in all_results.items():
         # For the interactive page
         for file_id, file_data in model_results.get("files", {}).items():
@@ -139,17 +128,8 @@ def generate_all_reports(db: EmbeddingDatabase):
             for res in model_results.get("files", {}).values()
             if res and "embeddings_data" in res
         ]
-        current_model_labels = [
-            res["embeddings_data"]["labels"]
-            for res in model_results.get("files", {}).values()
-            if res and "embeddings_data" in res
-        ]
-
         if current_model_embeddings:
             model_embeddings_for_variance[model_name] = current_model_embeddings
-        if first_run and current_model_labels:
-            all_labels_for_tsne.extend(np.concatenate(current_model_labels))
-            first_run = False
 
         metrics_list = [
             res["metrics"] for res in model_results.get("files", {}).values() if res
@@ -162,14 +142,19 @@ def generate_all_reports(db: EmbeddingDatabase):
             all_models_metrics[model_name] = avg_metrics
             db.add_evaluation_metrics(model_name, avg_metrics)
 
-    # --- Web page generation ---
-    print("\n--- Generating Web Pages ---")
-    final_data_structure = {"files": processed_data_for_interactive_page}
-    generate_main_page(final_data_structure, OUTPUT_DIR)
+    return (
+        processed_data_for_interactive_page,
+        all_models_metrics,
+        model_embeddings_for_variance,
+    )
 
-    # --- Generation of individual reports (HTML and Markdown) ---
+
+def _generate_file_reports(db, all_results, file_metadata):
+    """Generates individual HTML and Markdown reports for each file."""
     print("\n--- Generating Individual Reports (HTML & Markdown) ---")
-    for run_name, model_results in all_results.items():
+    for run_name, model_results in tqdm(
+        all_results.items(), desc="Generating file reports"
+    ):
         model_info = db.get_model_info(run_name)
         if not model_info:
             continue
@@ -179,55 +164,46 @@ def generate_all_reports(db: EmbeddingDatabase):
             metadata = file_metadata.get(
                 file_id, {"nom": file_id, "type_lieu": "Unknown"}
             )
-            nom = metadata["nom"]
-            type_lieu = metadata["type_lieu"]
-
             if "phrases" in file_data and "similarities" in file_data:
-                similarities_np = np.array(file_data["similarities"])
-                themes = file_data.get("themes", [])
-
-                # Generate the heatmap HTML
                 generate_heatmap_html(
                     identifiant=file_id,
-                    nom=nom,
-                    type_lieu=type_lieu,
-                    themes=themes,
+                    nom=metadata["nom"],
+                    type_lieu=metadata["type_lieu"],
+                    themes=file_data.get("themes", []),
                     phrases=file_data["phrases"],
-                    similarites_norm=similarities_np,
+                    similarites_norm=np.array(file_data["similarities"]),
                     cmap=CMAP,
                     output_dir=OUTPUT_DIR,
                     model_name=base_model_name,
                     run_name=run_name,
                 )
-
-                # Generate the filtered markdown
                 generate_filtered_markdown(
                     identifiant=file_id,
-                    nom=nom,
-                    type_lieu=type_lieu,
+                    nom=metadata["nom"],
+                    type_lieu=metadata["type_lieu"],
                     phrases=file_data["phrases"],
-                    similarites_norm=similarities_np,
+                    similarites_norm=np.array(file_data["similarities"]),
                     threshold=SIMILARITY_THRESHOLD,
                     output_dir=OUTPUT_DIR,
                     model_name=base_model_name,
                     run_name=run_name,
                 )
-
-                # Generate the explanatory markdown
                 generate_explanatory_markdown(
                     identifiant=file_id,
-                    nom=nom,
-                    type_lieu=type_lieu,
+                    nom=metadata["nom"],
+                    type_lieu=metadata["type_lieu"],
                     phrases=file_data["phrases"],
-                    similarites_norm=similarities_np,
-                    themes=themes,
+                    similarites_norm=np.array(file_data["similarities"]),
+                    themes=file_data.get("themes", []),
                     threshold=SIMILARITY_THRESHOLD,
                     output_dir=OUTPUT_DIR,
                     model_name=base_model_name,
                     run_name=run_name,
                 )
 
-    # --- Generation of static reports ---
+
+def _generate_global_reports(db, all_models_metrics, model_embeddings_for_variance):
+    """Generates global comparison charts."""
     print("\n--- Generating Static Comparison Plots ---")
     if all_models_metrics:
         plot_path = analyze_and_visualize_clustering_metrics(
@@ -243,15 +219,38 @@ def generate_all_reports(db: EmbeddingDatabase):
         if plot_path:
             db.add_global_chart("variance_analysis", plot_path)
 
-        # Since themes can change, we can't reliably generate a single t-SNE for all runs.
-        # This part could be adapted to generate a t-SNE per theme set if needed.
-        # For now, we disable it to avoid errors.
-        # if all_labels_for_tsne:
-        #     tsne_plots = generate_tsne_visualization(
-        #         model_embeddings_for_variance, all_labels_for_tsne, list(GRID_SEARCH_PARAMS["themes"].keys())[0], OUTPUT_DIR
-        #     )
-        #     for model_name, path in tsne_plots.items():
-        #         db.add_generated_file(model_name, "tsne_visualization", path)
+
+def generate_all_reports(db: EmbeddingDatabase):
+    """Generates all reports from the data in the database."""
+    print("--- Generating All Reports ---")
+
+    # 1. Load metadata and results
+    markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
+    all_rows = load_markdown_files(markdown_directory)
+    file_metadata = {row[0]: {"nom": row[1], "type_lieu": row[2]} for row in all_rows}
+
+    all_results = db.get_all_processing_results()
+    if not all_results:
+        print("No processing results found in the database. Run processing first.")
+        return
+
+    # 2. Aggregate data for reports
+    (
+        processed_data_for_interactive_page,
+        all_models_metrics,
+        model_embeddings_for_variance,
+    ) = _aggregate_data(db, all_results)
+
+    # 3. Generate web pages
+    print("\n--- Generating Web Pages ---")
+    final_data_structure = {"files": processed_data_for_interactive_page}
+    generate_main_page(final_data_structure, OUTPUT_DIR)
+
+    # 4. Generate individual file reports
+    _generate_file_reports(db, all_results, file_metadata)
+
+    # 5. Generate global comparison reports
+    _generate_global_reports(db, all_models_metrics, model_embeddings_for_variance)
 
     print(f"\n✅ All reports generated. Outputs are in the '{OUTPUT_DIR}' directory.")
     print(

@@ -68,13 +68,13 @@ def generate_themes_and_keywords() -> list[str]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [20, 50, 100, 250, 500],
+    "chunk_size": [20, 50, 100, 250],
     # "chunk_size": [50, 100],
-    "chunk_overlap": [0, 10, 25, 50, 100],
+    "chunk_overlap": [0, 10, 25, 50],
     # "chunk_overlap": [0],
     "chunking_strategy": ["langchain", "raw"],
     # "chunking_strategy": ["langchain"],
-    "similarity_metric": SIMILARITY_METRICS,
+    "similarity_metric": ["cosine", "euclidean"],
     "themes": {
         "horaires_simple": ["horaires", "autres"],
         "horaires_full": [
@@ -254,6 +254,7 @@ GRID_SEARCH_PARAMS = {
             "réception ouverte",
             "ouvre ses portes",
             "ferme ses portes",
+            "autres",
         ],
         # "horaires_complets": [
         #     "horaires d'ouverture",

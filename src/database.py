@@ -1,7 +1,7 @@
 import json
 import os
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -85,6 +85,14 @@ class EmbeddingDatabase:
                     results_json TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(model_name, file_id)
+                )
+            """)
+
+            # Cache for phrase embeddings
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS embeddings_cache (
+                    text_hash TEXT PRIMARY KEY,
+                    embedding_json TEXT NOT NULL
                 )
             """)
 
@@ -207,6 +215,40 @@ class EmbeddingDatabase:
             )
             conn.commit()
 
+    def save_processing_results_batch(
+        self, results_batch: List[Tuple[str, str, Dict[str, Any]]]
+    ):
+        """Saves a batch of processing results in a single transaction."""
+        items_to_insert = []
+        for model_name, file_id, results in results_batch:
+            # Convert numpy arrays to lists for JSON serialization
+            if (
+                "embeddings_data" in results
+                and "embeddings" in results["embeddings_data"]
+            ):
+                if isinstance(results["embeddings_data"].get("embeddings"), np.ndarray):
+                    results["embeddings_data"]["embeddings"] = results[
+                        "embeddings_data"
+                    ]["embeddings"].tolist()
+                if isinstance(results["embeddings_data"].get("labels"), np.ndarray):
+                    results["embeddings_data"]["labels"] = results["embeddings_data"][
+                        "labels"
+                    ].tolist()
+
+            results_json = json.dumps(to_python_type(results))
+            items_to_insert.append((model_name, file_id, results_json))
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_json)
+                VALUES (?, ?, ?)
+            """,
+                items_to_insert,
+            )
+            conn.commit()
+
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Retrieves information about a model by its run name."""
         with sqlite3.connect(self.db_path) as conn:
@@ -230,6 +272,34 @@ class EmbeddingDatabase:
                     "chunking_strategy": row[5],
                 }
             return None
+
+    def get_cached_embeddings(self, text_hashes: List[str]) -> Dict[str, List[float]]:
+        """Retrieves cached embeddings for a list of text hashes."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            placeholders = ",".join("?" for _ in text_hashes)
+            query = f"SELECT text_hash, embedding_json FROM embeddings_cache WHERE text_hash IN ({placeholders})"
+            cursor.execute(query, text_hashes)
+
+            cached_embeddings = {}
+            for row in cursor.fetchall():
+                text_hash, embedding_json = row
+                cached_embeddings[text_hash] = json.loads(embedding_json)
+            return cached_embeddings
+
+    def cache_embeddings(self, embeddings_map: Dict[str, List[float]]):
+        """Caches multiple embeddings in a single transaction."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            items_to_insert = [
+                (text_hash, json.dumps(embedding))
+                for text_hash, embedding in embeddings_map.items()
+            ]
+            cursor.executemany(
+                "INSERT OR IGNORE INTO embeddings_cache (text_hash, embedding_json) VALUES (?, ?)",
+                items_to_insert,
+            )
+            conn.commit()
 
     def get_all_processing_results(self) -> Dict[str, Any]:
         """Retrieves all processing results from the database."""
@@ -331,5 +401,6 @@ class EmbeddingDatabase:
             cursor.execute("DELETE FROM evaluation_metrics")
             cursor.execute("DELETE FROM global_charts")
             cursor.execute("DELETE FROM processing_results")
+            cursor.execute("DELETE FROM embeddings_cache")
             cursor.execute("DELETE FROM models")
             conn.commit()
