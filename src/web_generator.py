@@ -17,7 +17,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyse d'Embeddings</title>
+    <title>Embedding Analysis</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -140,7 +140,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             padding-bottom: 10px;
         }}
         .metric-item {{
-            flex: 0 0 100px; /* Reduced width */
+            flex: 0 0 100px;
             background-color: #ecf0f1;
             padding: 15px;
             border-radius: 5px;
@@ -158,7 +158,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         .visualization {{
             overflow-y: auto;
             line-height: 1.8;
-            min-height: 60vh; /* Increased minimum height */
+            min-height: 60vh;
         }}
         .heatmap-content span {{
             padding: 2px 1px;
@@ -194,36 +194,36 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
 </head>
 <body>
     <div class="container">
-        <h1>Analyse Interactive des Embeddings</h1>
+        <h1>Interactive Embeddings Analysis</h1>
 
         <!-- Controls area -->
         <div class="controls">
             <div class="control-group">
-                <label for="file-slider"><span class="label-text">Fichier Markdown :</span><span id="file-name" class="label-value"></span></label>
+                <label for="file-slider"><span class="label-text">Markdown file :</span><span id="file-name" class="label-value"></span></label>
                 <input type="range" id="file-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="model-slider"><span class="label-text">Modèle :</span><span id="model-name" class="label-value"></span></label>
+                <label for="model-slider"><span class="label-text">Model :</span><span id="model-name" class="label-value"></span></label>
                 <input type="range" id="model-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="theme-slider"><span class="label-text">Jeu de Thèmes :</span><span id="theme-name" class="label-value"></span></label>
+                <label for="theme-slider"><span class="label-text">Theme Set :</span><span id="theme-name" class="label-value"></span></label>
                 <input type="range" id="theme-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="chunk-size-slider"><span class="label-text">Taille des Chunks :</span><span id="chunk-size-value" class="label-value"></span></label>
+                <label for="chunk-size-slider"><span class="label-text">Chunk Size :</span><span id="chunk-size-value" class="label-value"></span></label>
                 <input type="range" id="chunk-size-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="chunk-overlap-slider"><span class="label-text">Chevauchement :</span><span id="chunk-overlap-value" class="label-value"></span></label>
+                <label for="chunk-overlap-slider"><span class="label-text">Chunk Overlap :</span><span id="chunk-overlap-value" class="label-value"></span></label>
                 <input type="range" id="chunk-overlap-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="chunking-strategy-slider"><span class="label-text">Stratégie de Chunking :</span><span id="chunking-strategy-name" class="label-value"></span></label>
+                <label for="chunking-strategy-slider"><span class="label-text">Chunking Strategy :</span><span id="chunking-strategy-name" class="label-value"></span></label>
                 <input type="range" id="chunking-strategy-slider" min="0" max="0" value="0">
             </div>
             <div class="control-group">
-                <label for="similarity-metric-slider"><span class="label-text">Métrique de Similarité :</span><span id="similarity-metric-name" class="label-value"></span></label>
+                <label for="similarity-metric-slider"><span class="label-text">Similarity Metric :</span><span id="similarity-metric-name" class="label-value"></span></label>
                 <input type="range" id="similarity-metric-slider" min="0" max="0" value="0">
             </div>
         </div>
