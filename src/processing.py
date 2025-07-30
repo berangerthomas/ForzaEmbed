@@ -177,8 +177,8 @@ def run_test(
     newly_embedded_map = {}
 
     if phrases_to_embed:
-        print(
-            f"Embedding {len(phrases_to_embed)} new phrases for model {model_name}..."
+        tqdm.write(
+            f"--- Embedding {len(phrases_to_embed)} new phrases for model {model_name}..."
         )
         new_embeddings, processing_time = embedding_function(phrases_to_embed)
         total_processing_time += processing_time
