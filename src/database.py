@@ -91,8 +91,10 @@ class EmbeddingDatabase:
             # Cache for phrase embeddings
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings_cache (
-                    text_hash TEXT PRIMARY KEY,
-                    embedding_json TEXT NOT NULL
+                    model_name TEXT NOT NULL,
+                    text_hash TEXT NOT NULL,
+                    embedding_json TEXT NOT NULL,
+                    PRIMARY KEY (model_name, text_hash)
                 )
             """)
 
@@ -273,13 +275,15 @@ class EmbeddingDatabase:
                 }
             return None
 
-    def get_cached_embeddings(self, text_hashes: List[str]) -> Dict[str, List[float]]:
+    def get_cached_embeddings(
+        self, model_name: str, text_hashes: List[str]
+    ) -> Dict[str, List[float]]:
         """Retrieves cached embeddings for a list of text hashes."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             placeholders = ",".join("?" for _ in text_hashes)
-            query = f"SELECT text_hash, embedding_json FROM embeddings_cache WHERE text_hash IN ({placeholders})"
-            cursor.execute(query, text_hashes)
+            query = f"SELECT text_hash, embedding_json FROM embeddings_cache WHERE model_name = ? AND text_hash IN ({placeholders})"
+            cursor.execute(query, [model_name] + text_hashes)
 
             cached_embeddings = {}
             for row in cursor.fetchall():
@@ -287,22 +291,22 @@ class EmbeddingDatabase:
                 cached_embeddings[text_hash] = json.loads(embedding_json)
             return cached_embeddings
 
-    def cache_embeddings(self, embeddings_map: Dict[str, List[float]]):
+    def cache_embeddings(self, model_name: str, embeddings_map: Dict[str, List[float]]):
         """Caches multiple embeddings in a single transaction."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             items_to_insert = [
-                (text_hash, json.dumps(embedding))
+                (model_name, text_hash, json.dumps(embedding))
                 for text_hash, embedding in embeddings_map.items()
             ]
             cursor.executemany(
-                "INSERT OR IGNORE INTO embeddings_cache (text_hash, embedding_json) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO embeddings_cache (model_name, text_hash, embedding_json) VALUES (?, ?, ?)",
                 items_to_insert,
             )
             conn.commit()
 
     def get_all_processing_results(self) -> Dict[str, Any]:
-        """Retrieves all processing results from the database."""
+        """Retrieivs all processing results from the database."""
         all_results = {}
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()

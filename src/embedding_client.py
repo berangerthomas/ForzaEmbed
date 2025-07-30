@@ -16,11 +16,15 @@ class ProductionEmbeddingClient:
     Args:
         base_url (str): Base URL of the API.
         model (str): Name of the embedding model to use.
+        expected_dimension (int, optional): The expected dimension of the embeddings.
     """
 
-    def __init__(self, base_url: str, model: str) -> None:
+    def __init__(
+        self, base_url: str, model: str, expected_dimension: int | None = None
+    ) -> None:
         self.base_url = base_url
         self.model = model
+        self.expected_dimension = expected_dimension
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
@@ -56,6 +60,14 @@ class ProductionEmbeddingClient:
             response.raise_for_status()
             result = response.json()
             embeddings = [data["embedding"] for data in result["data"]]
+
+            if self.expected_dimension and embeddings:
+                actual_dimension = len(embeddings[0])
+                if actual_dimension != self.expected_dimension:
+                    raise ValueError(
+                        f"Expected dimension {self.expected_dimension}, but got {actual_dimension} for model {self.model}"
+                    )
+
             end_time = time.time()
             return embeddings, end_time - start_time
         except requests.exceptions.RequestException as e:

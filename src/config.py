@@ -3,14 +3,23 @@ import os
 from dotenv import load_dotenv
 from matplotlib.colors import LinearSegmentedColormap
 
-# Import SentenceTransformersClient from its module
+from .fastembed_client import FastEmbedClient
+
+# Import embedding clients
+from .huggingface_client import get_huggingface_embeddings
 from .sentencetransformers_client import SentenceTransformersClient
 
 # --- Configuration ---
 # get environment variables
 load_dotenv()
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.6))
-SIMILARITY_METRICS = ["cosine", "euclidean", "manhattan"]
+SIMILARITY_METRICS = [
+    "cosine",
+    "euclidean",
+    "manhattan",
+    "dot_product",
+    "chebyshev",
+]
 
 
 # --- Theme and Keyword Generation ---
@@ -68,16 +77,18 @@ def generate_themes_and_keywords() -> list[str]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [20, 50, 100, 250],
-    # "chunk_size": [50, 100],
-    "chunk_overlap": [0, 10, 25, 50],
-    # "chunk_overlap": [0],
+    "chunk_size": [20, 50, 100, 250, 500, 1000],
+    # "chunk_size": [100],
+    "chunk_overlap": [0, 10, 25, 50, 100, 200],
+    # "chunk_overlap": [15],
     "chunking_strategy": ["langchain", "raw"],
     # "chunking_strategy": ["langchain"],
-    "similarity_metric": ["cosine", "euclidean"],
+    # "similarity_metric": ["cosine", "euclidean"],
+    "similarity_metrics": SIMILARITY_METRICS,
     "themes": {
-        "horaires_simple": ["horaires", "autres"],
+        "horaires_simple": ["horaires", "autre"],
         "horaires_full": [
+            "autre",
             "horaires d'ouverture",
             "heures d'ouverture",
             "accueil du public",
@@ -254,107 +265,69 @@ GRID_SEARCH_PARAMS = {
             "réception ouverte",
             "ouvre ses portes",
             "ferme ses portes",
-            "autres",
         ],
-        # "horaires_complets": [
-        #     "horaires d'ouverture",
-        #     "heures d'ouverture",
-        #     "accueil du public",
-        #     "jour de fermeture",
-        #     "horaires et jours de la semaine",
-        #     "périodes d'ouverture",
-        #     "période scolaire",
-        #     "vacances scolaires",
-        #     "fermeture exceptionnelle",
-        #     "fermeture annuelle",
-        #     "jours fériés",
-        #     "jours spéciaux",
-        #     "horaires spéciaux",
-        #     "quand venir",
-        #     "nous sommes ouverts",
-        #     "nous sommes fermés",
-        #     "le matin",
-        #     "l'après-midi",
-        #     "de 9h à 12h",
-        #     "de 14h à 18h",
-        #     "de 10h00 à 19h00",
-        #     "9h 12h",
-        #     "14h 18h",
-        #     "ouverte le lundi",
-        #     "ouverte le mardi",
-        #     "ouverte le mercredi",
-        #     "ouverte le jeudi",
-        #     "ouverte le vendredi",
-        #     "ouverte le samedi",
-        #     "ouverte le dimanche",
-        #     "fermée le lundi",
-        #     "fermée le mardi",
-        #     "fermée le mercredi",
-        #     "fermée le jeudi",
-        #     "fermée le vendredi",
-        #     "fermée le samedi",
-        #     "fermée le dimanche",
-        #     "bibliothèque ouverte",
-        #     "bibliothèque fermée",
-        #     "bibliothèque ouverture",
-        #     "bibliothèque fermeture",
-        #     "bibliothèque accueil",
-        #     "bibliothèque horaires",
-        #     "médiathèque ouverte",
-        #     "médiathèque fermée",
-        #     "médiathèque ouverture",
-        #     "médiathèque fermeture",
-        #     "médiathèque accueil",
-        #     "médiathèque horaires",
-        #     "mairie ouverte",
-        #     "mairie fermée",
-        #     "mairie ouverture",
-        #     "mairie fermeture",
-        #     "mairie accueil",
-        #     "mairie horaires",
-        #     "piscine ouverte",
-        #     "piscine fermée",
-        #     "piscine ouverture",
-        #     "piscine fermeture",
-        #     "piscine accueil",
-        #     "piscine horaires",
-        #     "autres",
-        # ],
-        # "horaires_medium": [
-        #     "horaires",
-        #     "horaires et accès",
-        #     "horaires d'ouverture",
-        #     "heures d'ouverture",
-        #     "horaires de la médiathèque",
-        #     "horaires de la bibliothèque",
-        #     "horaires de la mairie",
-        #     "horaires de la piscine",
-        #     "fermeture exceptionnelle",
-        #     "fermeture temporaire",
-        #     "fermeture estivale",
-        #     "fermeture annuelle",
-        #     "horaires d'été",
-        #     "horaires estivaux",
-        #     "horaires hors période estivale",
-        #     "lundi",
-        #     "mardi",
-        #     "mercredi",
-        #     "jeudi",
-        #     "vendredi",
-        #     "samedi",
-        #     "dimanche",
-        #     "matin",
-        #     "après-midi",
-        #     "soir",
-        #     "ouvre ses portes",
-        #     "ferme ses portes",
-        #     "autres",
-        # ],
     },
 }
 
 # --- Model Configuration ---
 MODELS_TO_TEST = [
+    {
+        "type": "api",
+        "name": "nomic-embed-text",
+        "base_url": "https://api.erasme.homes/v1",
+        "dimensions": 768,
+        "function": lambda client: client.get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "mistral-embed",
+        "base_url": "https://api.mistral.ai/v1",
+        "dimensions": 1024,
+        "function": lambda client: client.get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "voyage-3-large",
+        "base_url": "https://api.voyageai.com/v1",
+        "dimensions": 4096,
+        "function": lambda client: client.get_embeddings,
+    },
+    {
+        "type": "sentence_transformers",
+        "name": "paraphrase-multilingual-MiniLM-L12-v2",
+        "dimensions": 384,
+        "function": SentenceTransformersClient.get_embeddings,
+    },
+    {
+        "type": "sentence_transformers",
+        "name": "paraphrase-multilingual-mpnet-base-v2",
+        "dimensions": 768,
+        "function": SentenceTransformersClient.get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "intfloat/multilingual-e5-large",
+        "dimensions": 1024,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "jinaai/jina-embeddings-v3",
+        "dimensions": 1024,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "huggingface",
+        "name": "Qwen/Qwen3-Embedding-0.6B",
+        "dimensions": 1024,
+        "function": get_huggingface_embeddings,
+    },
+    {
+        "type": "huggingface",
+        "name": "intfloat/multilingual-e5-large-instruct",
+        "dimensions": 1024,
+        "function": get_huggingface_embeddings,
+    },
     # {
     #     "type": "fastembed",
     #     "name": "BAAI/bge-small-en-v1.5",
@@ -539,43 +512,53 @@ MODELS_TO_TEST = [
     #     "type": "sentence_transformers",
     #     "name": "multi-qa-MiniLM-L6-cos-v1",
     #     "function": SentenceTransformersClient.get_embeddings,
+    # # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-multilingual-mpnet-base-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
     # },
-    {
-        "type": "sentence_transformers",
-        "name": "paraphrase-multilingual-mpnet-base-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
     # {
     #     "type": "sentence_transformers",
     #     "name": "paraphrase-albert-small-v2",
     #     "function": SentenceTransformersClient.get_embeddings,
     # },
-    {
-        "type": "sentence_transformers",
-        "name": "paraphrase-multilingual-MiniLM-L12-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-multilingual-MiniLM-L12-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
     # {
     #     "type": "sentence_transformers",
     #     "name": "paraphrase-MiniLM-L3-v2",
     #     "function": SentenceTransformersClient.get_embeddings,
     # },
-    {
-        "type": "sentence_transformers",
-        "name": "distiluse-base-multilingual-cased-v1",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "distiluse-base-multilingual-cased-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "api",
-        "name": "nomic-embed-text",
-        "base_url": "https://api.erasme.homes/v1",
-        "function": lambda client: client.get_embeddings,
-    },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "distiluse-base-multilingual-cased-v1",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "distiluse-base-multilingual-cased-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "huggingface",
+    #     "name": "intfloat/multilingual-e5-large-instruct",
+    #     "function": get_huggingface_embeddings,
+    # },
+    # {
+    #     "type": "huggingface",
+    #     "name": "Qwen/Qwen3-Embedding-0.6B",
+    #     "function": get_huggingface_embeddings,
+    # },
+    # {
+    #     "type": "api",
+    #     "name": "nomic-embed-text",
+    #     "base_url": "https://api.erasme.homes/v1",
+    #     "function": lambda client: client.get_embeddings,
+    # },
     # {
     #     "type": "api",
     #     "name": "mistral-embed",

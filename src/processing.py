@@ -6,6 +6,7 @@ from sklearn.metrics.pairwise import (
     cosine_similarity,
     euclidean_distances,
     manhattan_distances,
+    pairwise_distances,
 )
 from tqdm import tqdm
 
@@ -27,6 +28,9 @@ def calculate_similarity(
     """Calculate similarity between theme embeddings and phrase embeddings."""
     if metric == "cosine":
         return cosine_similarity(embed_themes, embed_phrases)
+    elif metric == "dot_product":
+        # Note: Not normalized, magnitude matters.
+        return embed_themes @ embed_phrases.T
     elif metric == "euclidean":
         # Invert and normalize so that higher is better
         distances = euclidean_distances(embed_themes, embed_phrases)
@@ -34,6 +38,10 @@ def calculate_similarity(
     elif metric == "manhattan":
         # Invert and normalize
         distances = manhattan_distances(embed_themes, embed_phrases)
+        return 1 / (1 + distances)
+    elif metric == "chebyshev":
+        # Invert and normalize
+        distances = pairwise_distances(embed_themes, embed_phrases, metric="chebyshev")
         return 1 / (1 + distances)
     else:
         raise ValueError(f"Unknown similarity metric: {metric}")
@@ -116,16 +124,18 @@ def run_test(
 
     # --- 1. Setup embedding function ---
     embedding_function: Callable
-    if model_type == "sentence_transformers":
+    if model_type in ["sentence_transformers", "fastembed", "huggingface"]:
         embedding_function = lambda texts: model_config["function"](
-            texts, model_name=model_name
-        )
-    elif model_type == "fastembed":
-        embedding_function = lambda texts: model_config["function"](
-            texts, model_name=model_name
+            texts,
+            model_name=model_name,
+            expected_dimension=model_config.get("dimensions"),
         )
     elif model_type == "api":
-        client = ProductionEmbeddingClient(model_config["base_url"], model_name)
+        client = ProductionEmbeddingClient(
+            model_config["base_url"],
+            model_name,
+            expected_dimension=model_config.get("dimensions"),
+        )
         embedding_function = client.get_embeddings
     else:
         print(f"Unknown model type: {model_type}")
@@ -155,7 +165,7 @@ def run_test(
     phrase_hashes = {phrase: get_text_hash(phrase) for phrase in unique_phrases_list}
     hashes_to_check = list(phrase_hashes.values())
 
-    cached_embeddings = db.get_cached_embeddings(hashes_to_check)
+    cached_embeddings = db.get_cached_embeddings(model_name, hashes_to_check)
 
     phrases_to_embed = [
         phrase
@@ -184,7 +194,7 @@ def run_test(
                 phrase_hashes[phrase]: embedding
                 for phrase, embedding in newly_embedded_map.items()
             }
-            db.cache_embeddings(hashes_to_cache)
+            db.cache_embeddings(model_name, hashes_to_cache)
         else:
             print(f"⚠️ Failed to embed new phrases for {model_name}.")
 

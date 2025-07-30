@@ -59,7 +59,8 @@ def run_processing(db: EmbeddingDatabase):
 
         model_name = model_config["name"]
         themes = GRID_SEARCH_PARAMS["themes"][theme_name]
-        run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
+        dimensions = model_config.get("dimensions", "auto")
+        run_name = f"{model_name}_d{dimensions}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
         if db.model_exists(run_name):
             tqdm.write(
@@ -280,9 +281,18 @@ def main():
         action="store_true",
         help="Generate reports from existing data in the database.",
     )
+    parser.add_argument(
+        "--clear-db",
+        action="store_true",
+        help="Clear the database before running.",
+    )
     args = parser.parse_args()
 
     db = EmbeddingDatabase()
+
+    if args.clear_db:
+        print("--- Clearing Database ---")
+        db.clear_database()
 
     if args.run_all:
         run_processing(db)
