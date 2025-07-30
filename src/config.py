@@ -4,13 +4,13 @@ from dotenv import load_dotenv
 from matplotlib.colors import LinearSegmentedColormap
 
 # Import SentenceTransformersClient from its module
-from .fastembed_client import FastEmbedClient
 from .sentencetransformers_client import SentenceTransformersClient
 
 # --- Configuration ---
 # récupérer les variables d'environnement
 load_dotenv()
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.6))
+SIMILARITY_METRICS = ["cosine", "euclidean", "manhattan"]
 
 
 # --- Theme and Keyword Generation ---
@@ -68,9 +68,15 @@ def generate_themes_and_keywords() -> list[str]:
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [20, 50, 100, 250],
-    "chunk_overlap": [0, 10, 25, 50],
+    "chunk_size": [20, 50, 100, 250, 500],
+    # "chunk_size": [50, 100],
+    "chunk_overlap": [0, 10, 25, 50, 100],
+    # "chunk_overlap": [0],
+    "chunking_strategy": ["langchain", "raw"],
+    # "chunking_strategy": ["langchain"],
+    "similarity_metric": SIMILARITY_METRICS,
     "themes": {
+        "horaires_simple": ["horaires", "autres"],
         "horaires_full": [
             "horaires d'ouverture",
             "heures d'ouverture",
@@ -343,218 +349,216 @@ GRID_SEARCH_PARAMS = {
         #     "ferme ses portes",
         #     "autres",
         # ],
-        # "horaires_simple": ["horaires", "autres"],
     },
-    "chunking_strategy": ["langchain", "raw"],
 }
 
 # --- Model Configuration ---
 MODELS_TO_TEST = [
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-small-en-v1.5",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-small-zh-v1.5",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "snowflake/snowflake-arctic-embed-xs",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "sentence-transformers/all-MiniLM-L6-v2",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-small-en",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "snowflake/snowflake-arctic-embed-s",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "nomic-ai/nomic-embed-text-v1.5-Q",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-small-en",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-base-en-v1.5",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "Qdrant/clip-ViT-B-32-text",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-base-de",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-base-en",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "snowflake/snowflake-arctic-embed-m",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "thenlper/gte-base",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-base-en",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "nomic-ai/nomic-embed-text-v1.5",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "nomic-ai/nomic-embed-text-v1",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "snowflake/snowflake-arctic-embed-m-long",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-clip-v1",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-base-code",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-base-es",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "mixedbread-ai/mxbai-embed-large-v1",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v2-base-zh",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "snowflake/snowflake-arctic-embed-l",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "BAAI/bge-large-en-v1.5",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "thenlper/gte-large",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "intfloat/multilingual-e5-large",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v3",
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "all-mpnet-base-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "multi-qa-mpnet-base-dot-v1",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "all-distilroberta-v1",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "all-MiniLM-L12-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "multi-qa-distilbert-cos-v1",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "all-MiniLM-L6-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
-    {
-        "type": "sentence_transformers",
-        "name": "multi-qa-MiniLM-L6-cos-v1",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-small-en-v1.5",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-small-zh-v1.5",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "snowflake/snowflake-arctic-embed-xs",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "sentence-transformers/all-MiniLM-L6-v2",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-small-en",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "snowflake/snowflake-arctic-embed-s",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "nomic-ai/nomic-embed-text-v1.5-Q",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-small-en",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-base-en-v1.5",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "Qdrant/clip-ViT-B-32-text",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-base-de",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-base-en",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "snowflake/snowflake-arctic-embed-m",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "thenlper/gte-base",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-base-en",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "nomic-ai/nomic-embed-text-v1.5",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "nomic-ai/nomic-embed-text-v1",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "snowflake/snowflake-arctic-embed-m-long",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-clip-v1",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-base-code",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-base-es",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "mixedbread-ai/mxbai-embed-large-v1",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v2-base-zh",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "snowflake/snowflake-arctic-embed-l",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "BAAI/bge-large-en-v1.5",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "thenlper/gte-large",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "intfloat/multilingual-e5-large",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "fastembed",
+    #     "name": "jinaai/jina-embeddings-v3",
+    #     "function": FastEmbedClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "all-mpnet-base-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "multi-qa-mpnet-base-dot-v1",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "all-distilroberta-v1",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "all-MiniLM-L12-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "multi-qa-distilbert-cos-v1",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "all-MiniLM-L6-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "multi-qa-MiniLM-L6-cos-v1",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
     {
         "type": "sentence_transformers",
         "name": "paraphrase-multilingual-mpnet-base-v2",
         "function": SentenceTransformersClient.get_embeddings,
     },
-    {
-        "type": "sentence_transformers",
-        "name": "paraphrase-albert-small-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-albert-small-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
     {
         "type": "sentence_transformers",
         "name": "paraphrase-multilingual-MiniLM-L12-v2",
         "function": SentenceTransformersClient.get_embeddings,
     },
-    {
-        "type": "sentence_transformers",
-        "name": "paraphrase-MiniLM-L3-v2",
-        "function": SentenceTransformersClient.get_embeddings,
-    },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-MiniLM-L3-v2",
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
     {
         "type": "sentence_transformers",
         "name": "distiluse-base-multilingual-cased-v1",
@@ -571,18 +575,18 @@ MODELS_TO_TEST = [
         "base_url": "https://api.erasme.homes/v1",
         "function": lambda client: client.get_embeddings,
     },
-    {
-        "type": "api",
-        "name": "mistral-embed",
-        "base_url": "https://api.mistral.ai/v1",
-        "function": lambda client: client.get_embeddings,
-    },
-    {
-        "type": "api",
-        "name": "voyage-3-large",
-        "base_url": "https://api.voyageai.com/v1",
-        "function": lambda client: client.get_embeddings,
-    },
+    # {
+    #     "type": "api",
+    #     "name": "mistral-embed",
+    #     "base_url": "https://api.mistral.ai/v1",
+    #     "function": lambda client: client.get_embeddings,
+    # },
+    # {
+    #     "type": "api",
+    #     "name": "voyage-3-large",
+    #     "base_url": "https://api.voyageai.com/v1",
+    #     "function": lambda client: client.get_embeddings,
+    # },
 ]
 
 # --- Output Configuration ---

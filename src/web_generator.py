@@ -222,6 +222,10 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                 <label for="chunking-strategy-slider"><span class="label-text">Stratégie de Chunking :</span><span id="chunking-strategy-name" class="label-value"></span></label>
                 <input type="range" id="chunking-strategy-slider" min="0" max="0" value="0">
             </div>
+            <div class="control-group">
+                <label for="similarity-metric-slider"><span class="label-text">Métrique de Similarité :</span><span id="similarity-metric-name" class="label-value"></span></label>
+                <input type="range" id="similarity-metric-slider" min="0" max="0" value="0">
+            </div>
         </div>
 
         <!-- Zone de métriques -->
@@ -258,6 +262,8 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         const themeNameSpan = document.getElementById('theme-name');
         const chunkingStrategySlider = document.getElementById('chunking-strategy-slider');
         const chunkingStrategyNameSpan = document.getElementById('chunking-strategy-name');
+        const similarityMetricSlider = document.getElementById('similarity-metric-slider');
+        const similarityMetricNameSpan = document.getElementById('similarity-metric-name');
         const metricsGrid = document.getElementById('metrics-grid');
         const heatmapContainer = document.getElementById('heatmap-container');
         const fileLinksContainer = document.getElementById('file-links-container');
@@ -270,7 +276,8 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             cs: [],
             co: [],
             t: [],
-            s: []
+            s: [],
+            m: []
         }};
 
         const createCmap = (colorSet) => (score) => {{
@@ -303,9 +310,13 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
         ]);
 
         function parseEmbeddingKey(key) {{
-            const s_part_index = key.lastIndexOf('_s');
-            const s = key.slice(s_part_index + 2);
-            const key_without_s = key.slice(0, s_part_index);
+            const m_part_index = key.lastIndexOf('_m');
+            const m = key.slice(m_part_index + 2);
+            const key_without_m = key.slice(0, m_part_index);
+
+            const s_part_index = key_without_m.lastIndexOf('_s');
+            const s = key_without_m.slice(s_part_index + 2);
+            const key_without_s = key_without_m.slice(0, s_part_index);
 
             const t_part_index = key_without_s.lastIndexOf('_t');
             const t = key_without_s.slice(t_part_index + 2);
@@ -319,7 +330,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             const cs = key_without_co.slice(cs_part_index + 3);
             const model = key_without_co.slice(0, cs_part_index);
             
-            return {{ model, cs, co, t, s }};
+            return {{ model, cs, co, t, s, m }};
         }}
 
         function populateFilters() {{
@@ -331,7 +342,8 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                 cs: new Set(),
                 co: new Set(),
                 t: new Set(),
-                s: new Set()
+                s: new Set(),
+                m: new Set()
             }};
 
             allEmbeddingKeys = Object.keys(processedData.files[firstFileKey].embeddings);
@@ -342,6 +354,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                 paramSets.co.add(p.co);
                 paramSets.t.add(p.t);
                 paramSets.s.add(p.s);
+                paramSets.m.add(p.m);
             }});
 
             params.model = [...paramSets.model].sort();
@@ -349,12 +362,14 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             params.co = [...paramSets.co].sort((a, b) => a - b);
             params.t = [...paramSets.t].sort();
             params.s = [...paramSets.s].sort();
+            params.m = [...paramSets.m].sort();
 
             modelSlider.max = params.model.length - 1;
             chunkSizeSlider.max = params.cs.length - 1;
             chunkOverlapSlider.max = params.co.length - 1;
             themeSlider.max = params.t.length - 1;
             chunkingStrategySlider.max = params.s.length - 1;
+            similarityMetricSlider.max = params.m.length - 1;
         }}
 
         function initialize() {{
@@ -373,6 +388,7 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             chunkOverlapSlider.addEventListener('input', updateInterface);
             themeSlider.addEventListener('input', updateInterface);
             chunkingStrategySlider.addEventListener('input', updateInterface);
+            similarityMetricSlider.addEventListener('input', updateInterface);
 
             updateInterface();
         }}
@@ -383,12 +399,14 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
             const selectedCO = params.co[chunkOverlapSlider.value];
             const selectedT = params.t[themeSlider.value];
             const selectedS = params.s[chunkingStrategySlider.value];
+            const selectedM = params.m[similarityMetricSlider.value];
 
             modelNameSpan.textContent = selectedModel;
             chunkSizeValueSpan.textContent = selectedCS;
             chunkOverlapValueSpan.textContent = selectedCO;
             themeNameSpan.textContent = selectedT;
             chunkingStrategyNameSpan.textContent = selectedS;
+            similarityMetricNameSpan.textContent = selectedM;
 
             filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {{
                 const p = parseEmbeddingKey(key);
@@ -396,7 +414,8 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
                        p.cs === selectedCS &&
                        p.co === selectedCO &&
                        p.t === selectedT &&
-                       p.s === selectedS;
+                       p.s === selectedS &&
+                       p.m === selectedM;
             }});
         }}
 

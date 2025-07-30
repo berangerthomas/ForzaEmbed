@@ -2,7 +2,11 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import (
+    cosine_similarity,
+    euclidean_distances,
+    manhattan_distances,
+)
 from tqdm import tqdm
 
 from src.config import (
@@ -14,6 +18,24 @@ from src.evaluation_metrics import (
     calculate_cohesion_separation,
 )
 from src.utils import chunk_text
+
+
+def calculate_similarity(
+    embed_themes: np.ndarray, embed_phrases: np.ndarray, metric: str
+) -> np.ndarray:
+    """Calcule la similarité entre les embeddings des thèmes et des phrases."""
+    if metric == "cosine":
+        return cosine_similarity(embed_themes, embed_phrases)
+    elif metric == "euclidean":
+        # Inverser et normaliser pour que plus haut soit mieux
+        distances = euclidean_distances(embed_themes, embed_phrases)
+        return 1 / (1 + distances)
+    elif metric == "manhattan":
+        # Inverser et normaliser
+        distances = manhattan_distances(embed_themes, embed_phrases)
+        return 1 / (1 + distances)
+    else:
+        raise ValueError(f"Unknown similarity metric: {metric}")
 
 
 def process_item(
@@ -29,6 +51,7 @@ def process_item(
     chunk_overlap: int,
     theme_name: str,
     chunking_strategy: str,
+    similarity_metric: str,
 ) -> Tuple[str, Optional[Dict[str, Any]]]:
     """
     Traite un item, génère les rapports statiques, et retourne un dictionnaire de résultats.
@@ -48,7 +71,7 @@ def process_item(
         return f"Failed to get phrase embeddings for {identifiant}.", None
 
     embed_phrases = np.array(embed_phrases_list)
-    similarites = cosine_similarity(embed_themes, embed_phrases)
+    similarites = calculate_similarity(embed_themes, embed_phrases, similarity_metric)
     similarites_max = similarites.max(axis=0)
     similarites_norm = np.clip(similarites_max, 0, 1)
 
@@ -93,6 +116,7 @@ def run_test(
     output_dir: str,
     theme_name: str,
     chunking_strategy: str,
+    similarity_metric: str,
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -100,7 +124,7 @@ def run_test(
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
-    run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
+    run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
     # print(f"\n--- Starting {model_type.upper()} Processing ({run_name}) ---")
 
     results = {"files": {}}
@@ -146,6 +170,7 @@ def run_test(
                 chunk_overlap,
                 theme_name,
                 chunking_strategy,
+                similarity_metric,
             )
             if file_data:
                 results["files"][identifiant] = file_data

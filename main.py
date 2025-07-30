@@ -10,6 +10,7 @@ from src.config import (
     GRID_SEARCH_PARAMS,
     MODELS_TO_TEST,
     OUTPUT_DIR,
+    SIMILARITY_METRICS,
     SIMILARITY_THRESHOLD,
 )
 from src.data_loader import load_markdown_files
@@ -28,7 +29,6 @@ from src.web_generator import generate_main_page
 def run_processing(db: EmbeddingDatabase):
     """Exécute le traitement des données et sauvegarde les résultats dans la base de données."""
     print("--- Starting Data Processing ---")
-    db.clear_database()
 
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
     all_rows = load_markdown_files(markdown_directory)
@@ -39,6 +39,7 @@ def run_processing(db: EmbeddingDatabase):
         "chunk_overlap": GRID_SEARCH_PARAMS["chunk_overlap"],
         "theme_name": list(GRID_SEARCH_PARAMS["themes"].keys()),
         "chunking_strategy": GRID_SEARCH_PARAMS["chunking_strategy"],
+        "similarity_metric": SIMILARITY_METRICS,
     }
 
     param_combinations = list(itertools.product(*param_grid.values()))
@@ -53,13 +54,20 @@ def run_processing(db: EmbeddingDatabase):
             chunk_overlap,
             theme_name,
             chunking_strategy,
+            similarity_metric,
         ) = params
 
         model_name = model_config["name"]
         themes = GRID_SEARCH_PARAMS["themes"][theme_name]
-        run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}"
+        run_name = f"{model_name}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
-        # tqdm.write(f"--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
+        if db.model_exists(run_name):
+            tqdm.write(
+                f"--- Skipping Test {i}/{len(param_combinations)}: {run_name} (already exists) ---"
+            )
+            continue
+
+        tqdm.write(f"--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
 
         db.add_model(
             run_name,
@@ -69,6 +77,7 @@ def run_processing(db: EmbeddingDatabase):
             chunk_overlap,
             theme_name,
             chunking_strategy,
+            similarity_metric,
         )
 
         model_results = run_test(
@@ -80,6 +89,7 @@ def run_processing(db: EmbeddingDatabase):
             OUTPUT_DIR,
             theme_name,
             chunking_strategy,
+            similarity_metric,
             show_progress=False,  # Ajoutez ce paramètre dans run_test
         )
 

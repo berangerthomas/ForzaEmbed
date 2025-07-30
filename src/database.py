@@ -11,7 +11,7 @@ from src.utils import to_python_type
 class EmbeddingDatabase:
     """Gestionnaire de base de données pour stocker les résultats d'embedding."""
 
-    def __init__(self, db_path: str = "data/heatmaps/embedding_results.db"):
+    def __init__(self, db_path: str = "data/heatmaps/ForzaEmbed.db"):
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.init_database()
@@ -32,6 +32,7 @@ class EmbeddingDatabase:
                     chunk_overlap INTEGER NOT NULL,
                     theme_name TEXT NOT NULL,
                     chunking_strategy TEXT NOT NULL,
+                    similarity_metric TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -98,14 +99,15 @@ class EmbeddingDatabase:
         chunk_overlap: int,
         theme_name: str,
         chunking_strategy: str,
+        similarity_metric: str,
     ):
         """Ajoute un modèle à la base de données."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT OR IGNORE INTO models (name, base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO models (name, base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy, similarity_metric)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     name,
@@ -115,6 +117,7 @@ class EmbeddingDatabase:
                     chunk_overlap,
                     theme_name,
                     chunking_strategy,
+                    similarity_metric,
                 ),
             )
             conn.commit()
@@ -168,6 +171,13 @@ class EmbeddingDatabase:
                 (chart_type, file_path),
             )
             conn.commit()
+
+    def model_exists(self, name: str) -> bool:
+        """Vérifie si un modèle avec le nom de run spécifié existe déjà."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM models WHERE name = ?", (name,))
+            return cursor.fetchone() is not None
 
     def save_processing_result(
         self, model_name: str, file_id: str, results: Dict[str, Any]
