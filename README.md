@@ -12,6 +12,12 @@ The entire process is optimized for speed and cost-efficiency, using an intellig
 
 ---
 
+## Demo
+
+![ForzaEmbed Demo](docs/demo.gif)
+
+---
+
 ## Key Features
 
 - **High-Performance Caching:**  
