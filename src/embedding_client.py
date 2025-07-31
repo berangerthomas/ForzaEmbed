@@ -4,6 +4,7 @@ from typing import List
 
 import requests
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -77,8 +78,8 @@ class ProductionEmbeddingClient:
             end_time = time.time()
             return embeddings, end_time - start_time
         except requests.exceptions.RequestException as e:
-            print(f"❌ API Error: {e}")
+            tqdm.write(f"❌ API Error: {e}")
             return [], 0.0
         except (KeyError, IndexError) as e:
-            print(f"❌ API Response Parsing Error: {e}")
+            tqdm.write(f"❌ API Response Parsing Error: {e}")
             return [], 0.0

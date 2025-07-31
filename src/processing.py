@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 from sklearn.metrics.pairwise import (
@@ -138,13 +138,13 @@ def run_test(
         )
         embedding_function = client.get_embeddings
     else:
-        print(f"Unknown model type: {model_type}")
+        tqdm.write(f"Unknown model type: {model_type}")
         return results
 
     # --- 2. Embed themes (never cached) ---
     embed_themes_list, _ = embedding_function(themes)
     if not embed_themes_list:
-        print(f"❌ Could not get theme embeddings for {model_name}. Aborting.")
+        tqdm.write(f"❌ Could not get theme embeddings for {model_name}. Aborting.")
         return results
     embed_themes = np.array(embed_themes_list)
 
@@ -197,7 +197,7 @@ def run_test(
             }
             db.cache_embeddings(model_name, hashes_to_cache)
         else:
-            print(f"⚠️ Failed to embed new phrases for {model_name}.")
+            tqdm.write(f"⚠️ Failed to embed new phrases for {model_name}.")
 
     # --- 5. Combine cached and new embeddings ---
     final_embeddings_map = {}

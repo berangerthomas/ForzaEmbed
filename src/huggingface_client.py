@@ -2,6 +2,7 @@ import time
 from typing import List, Tuple
 
 import torch
+from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
 
@@ -69,5 +70,5 @@ def get_huggingface_embeddings(
         return normalized_embeddings.tolist(), processing_time
 
     except Exception as e:
-        print(f"❌ Error getting Hugging Face embeddings for {model_name}: {e}")
+        tqdm.write(f"❌ Error getting Hugging Face embeddings for {model_name}: {e}")
         return [], 0.0
