@@ -1,4 +1,7 @@
+import os
+
 from fastembed import TextEmbedding
+from tqdm import tqdm
 
 
 class FastEmbedClient:
@@ -11,17 +14,20 @@ class FastEmbedClient:
     @classmethod
     def get_instance(cls, model_name: str):
         if model_name not in cls._instances:
-            # print(f"🚀 Loading FastEmbed model: {model_name}")
-            cls._instances[model_name] = TextEmbedding(model_name)
+            cpu_count = os.cpu_count()
+            tqdm.write(
+                f"🚀 Loading FastEmbed model: {model_name} with {cpu_count} threads"
+            )
+            cls._instances[model_name] = TextEmbedding(model_name, threads=cpu_count)
         return cls._instances[model_name]
 
-    @classmethod
+    @staticmethod
     def get_embeddings(
-        cls, texts: list[str], model_name: str, expected_dimension: int | None = None
+        texts: list[str], model_name: str, expected_dimension: int | None = None
     ) -> tuple[list[list[float]], float]:
         import time
 
-        instance = cls.get_instance(model_name)
+        instance = FastEmbedClient.get_instance(model_name)
         start_time = time.time()
         embeddings = list(instance.embed(texts))
 
