@@ -60,7 +60,7 @@ def process_item(
     embed_phrases: np.ndarray,
     processing_time: float,
     similarity_metric: str,
-) -> Tuple[str, Optional[Dict]]:
+) -> Tuple[str, Any]:
     """
     Process an item with pre-computed embeddings and return a result dictionary.
     """
@@ -134,6 +134,7 @@ def run_test(
             model_config["base_url"],
             model_name,
             expected_dimension=model_config.get("dimensions"),
+            timeout=model_config.get("timeout", 30),
         )
         embedding_function = client.get_embeddings
     else:

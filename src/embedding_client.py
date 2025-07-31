@@ -17,14 +17,20 @@ class ProductionEmbeddingClient:
         base_url (str): Base URL of the API.
         model (str): Name of the embedding model to use.
         expected_dimension (int, optional): The expected dimension of the embeddings.
+        timeout (int, optional): Timeout for the request in seconds. Defaults to 30.
     """
 
     def __init__(
-        self, base_url: str, model: str, expected_dimension: int | None = None
+        self,
+        base_url: str,
+        model: str,
+        expected_dimension: int | None = None,
+        timeout: int = 30,
     ) -> None:
         self.base_url = base_url
         self.model = model
         self.expected_dimension = expected_dimension
+        self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
@@ -56,7 +62,7 @@ class ProductionEmbeddingClient:
         payload = {"model": self.model, "input": texts}
         start_time = time.time()
         try:
-            response = self.session.post(url, json=payload, timeout=30)
+            response = self.session.post(url, json=payload, timeout=self.timeout)
             response.raise_for_status()
             result = response.json()
             embeddings = [data["embedding"] for data in result["data"]]

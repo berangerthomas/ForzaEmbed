@@ -276,6 +276,7 @@ MODELS_TO_TEST = [
         "name": "nomic-embed-text",
         "base_url": "https://api.erasme.homes/v1",
         "dimensions": 768,
+        "timeout": 240,
         "function": lambda client: client.get_embeddings,
     },
     {
@@ -283,6 +284,7 @@ MODELS_TO_TEST = [
         "name": "mistral-embed",
         "base_url": "https://api.mistral.ai/v1",
         "dimensions": 1024,
+        "timeout": 240,
         "function": lambda client: client.get_embeddings,
     },
     {
@@ -290,6 +292,7 @@ MODELS_TO_TEST = [
         "name": "voyage-3-large",
         "base_url": "https://api.voyageai.com/v1",
         "dimensions": 4096,
+        "timeout": 240,
         "function": lambda client: client.get_embeddings,
     },
     {
