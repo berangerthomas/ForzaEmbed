@@ -19,7 +19,7 @@ from src.evaluation_metrics import (
     calculate_clustering_metrics,
     calculate_cohesion_separation,
 )
-from src.utils import chunk_text
+from src.utils import chunk_text, to_python_type
 
 
 def calculate_similarity(
@@ -87,19 +87,17 @@ def process_item(
         **cohesion_sep,
         **clustering_metrics,
         "processing_time": processing_time,
-        "mean_similarity": np.mean(similarites_norm),
+        "mean_similarity": float(np.mean(similarites_norm)),
     }
 
-    return f"Successfully processed {identifiant}", {
+    result_data = {
         "phrases": phrases,
         "themes": themes,
-        "similarities": similarites_norm.tolist(),
+        "similarities": similarites_norm,
         "metrics": metrics,
-        "embeddings_data": {
-            "embeddings": embed_phrases,
-            "labels": labels,
-        },
+        "embeddings_data": {"embeddings": embed_phrases, "labels": labels},
     }
+    return f"Successfully processed {identifiant}", to_python_type(result_data)
 
 
 def run_test(

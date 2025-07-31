@@ -1,6 +1,9 @@
 # data directory
 data/
 
+# Fichiers projet
+a_faire.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

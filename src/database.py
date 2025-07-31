@@ -193,17 +193,7 @@ class EmbeddingDatabase:
         self, model_name: str, file_id: str, results: Dict[str, Any]
     ):
         """Saves the detailed processing result for a file and a model."""
-        # Convert numpy arrays to lists for JSON serialization
-        if "embeddings_data" in results and "embeddings" in results["embeddings_data"]:
-            if isinstance(results["embeddings_data"].get("embeddings"), np.ndarray):
-                results["embeddings_data"]["embeddings"] = results["embeddings_data"][
-                    "embeddings"
-                ].tolist()
-            if isinstance(results["embeddings_data"].get("labels"), np.ndarray):
-                results["embeddings_data"]["labels"] = results["embeddings_data"][
-                    "labels"
-                ].tolist()
-
+        # Convert all numpy objects to native Python types for JSON serialization
         results_json = json.dumps(to_python_type(results))
 
         with sqlite3.connect(self.db_path) as conn:
@@ -223,20 +213,7 @@ class EmbeddingDatabase:
         """Saves a batch of processing results in a single transaction."""
         items_to_insert = []
         for model_name, file_id, results in results_batch:
-            # Convert numpy arrays to lists for JSON serialization
-            if (
-                "embeddings_data" in results
-                and "embeddings" in results["embeddings_data"]
-            ):
-                if isinstance(results["embeddings_data"].get("embeddings"), np.ndarray):
-                    results["embeddings_data"]["embeddings"] = results[
-                        "embeddings_data"
-                    ]["embeddings"].tolist()
-                if isinstance(results["embeddings_data"].get("labels"), np.ndarray):
-                    results["embeddings_data"]["labels"] = results["embeddings_data"][
-                        "labels"
-                    ].tolist()
-
+            # Convert all numpy objects to native Python types for JSON serialization
             results_json = json.dumps(to_python_type(results))
             items_to_insert.append((model_name, file_id, results_json))
 
@@ -296,7 +273,7 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             items_to_insert = [
-                (model_name, text_hash, json.dumps(embedding))
+                (model_name, text_hash, json.dumps(to_python_type(embedding)))
                 for text_hash, embedding in embeddings_map.items()
             ]
             cursor.executemany(

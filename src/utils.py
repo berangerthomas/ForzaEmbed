@@ -117,5 +117,7 @@ def to_python_type(obj):
         return {k: to_python_type(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [to_python_type(v) for v in obj]
+    elif isinstance(obj, tuple):
+        return tuple(to_python_type(v) for v in obj)
     else:
         return obj
