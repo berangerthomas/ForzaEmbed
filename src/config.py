@@ -7,7 +7,6 @@ from .fastembed_client import FastEmbedClient
 
 # Import embedding clients
 from .huggingface_client import get_huggingface_embeddings
-from .sentencetransformers_client import SentenceTransformersClient
 
 # --- Configuration ---
 # get environment variables
@@ -295,17 +294,29 @@ MODELS_TO_TEST = [
         "timeout": 240,
         "function": lambda client: client.get_embeddings,
     },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-multilingual-MiniLM-L12-v2",
+    #     "dimensions": 384,
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
+    # {
+    #     "type": "sentence_transformers",
+    #     "name": "paraphrase-multilingual-mpnet-base-v2",
+    #     "dimensions": 768,
+    #     "function": SentenceTransformersClient.get_embeddings,
+    # },
     {
-        "type": "sentence_transformers",
-        "name": "paraphrase-multilingual-MiniLM-L12-v2",
+        "type": "fastembed",
+        "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         "dimensions": 384,
-        "function": SentenceTransformersClient.get_embeddings,
+        "function": FastEmbedClient.get_embeddings,
     },
     {
-        "type": "sentence_transformers",
-        "name": "paraphrase-multilingual-mpnet-base-v2",
+        "type": "fastembed",
+        "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
         "dimensions": 768,
-        "function": SentenceTransformersClient.get_embeddings,
+        "function": FastEmbedClient.get_embeddings,
     },
     {
         "type": "fastembed",
