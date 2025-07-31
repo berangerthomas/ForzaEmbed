@@ -32,6 +32,7 @@ def run_processing(db: EmbeddingDatabase):
 
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
     all_rows = load_markdown_files(markdown_directory)
+    all_rows.sort(key=lambda x: x[0])  # Sort by file_id for consistent order
 
     param_grid = {
         "model_config": MODELS_TO_TEST,
@@ -62,13 +63,19 @@ def run_processing(db: EmbeddingDatabase):
         dimensions = model_config.get("dimensions", "auto")
         run_name = f"{model_name}_d{dimensions}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
-        if db.model_exists(run_name):
+        # Resume logic: get already processed files for this run
+        processed_files = db.get_processed_files(run_name)
+        if len(processed_files) == len(all_rows):
             tqdm.write(
-                f"--- Skipping Test {i}/{len(param_combinations)}: {run_name} (already exists) ---"
+                f"--- Skipping Test {i}/{len(param_combinations)}: {run_name} (already complete) ---"
             )
             continue
 
         tqdm.write(f"--- Running Test {i}/{len(param_combinations)}: {run_name} ---")
+        if processed_files:
+            tqdm.write(
+                f"--- Resuming run, {len(processed_files)}/{len(all_rows)} files already processed."
+            )
 
         try:
             db.add_model(
@@ -92,6 +99,7 @@ def run_processing(db: EmbeddingDatabase):
                 theme_name=theme_name,
                 chunking_strategy=chunking_strategy,
                 similarity_metric=similarity_metric,
+                processed_files=processed_files,  # Pass the list of processed files
                 show_progress=False,
             )
 

@@ -60,7 +60,7 @@ def process_item(
     embed_phrases: np.ndarray,
     processing_time: float,
     similarity_metric: str,
-) -> Tuple[str, Optional[Dict[str, Any]]]:
+) -> Tuple[str, Optional[Dict]]:
     """
     Process an item with pre-computed embeddings and return a result dictionary.
     """
@@ -110,6 +110,7 @@ def run_test(
     theme_name: str,
     chunking_strategy: str,
     similarity_metric: str,
+    processed_files: List[str],  # Add parameter for already processed files
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -146,10 +147,11 @@ def run_test(
         return results
     embed_themes = np.array(embed_themes_list)
 
-    # --- 3. Chunk all documents and gather unique phrases ---
+    # --- 3. Filter out already processed rows and gather phrases ---
+    unprocessed_rows = [row for row in rows if row[0] not in processed_files]
     all_phrases_map = {}  # {identifiant: [phrases]}
     unique_phrases = set()
-    for item in rows:
+    for item in unprocessed_rows:
         identifiant, _, _, texte = item
         if not texte or not texte.strip():
             continue
@@ -205,11 +207,17 @@ def run_test(
         elif phrase in newly_embedded_map:
             final_embeddings_map[phrase] = newly_embedded_map[phrase]
 
-    # --- 6. Process each item with all embeddings ready ---
+    # --- 6. Process each unprocessed item with all embeddings ready ---
     iterable = (
-        tqdm(rows, desc=f"Processing files ({model_name})", unit="file")
+        tqdm(
+            unprocessed_rows,
+            desc=f"Processing files ({model_name})",
+            unit="file",
+            initial=len(processed_files),
+            total=len(rows),
+        )
         if show_progress
-        else rows
+        else unprocessed_rows
     )
     for item in iterable:
         identifiant = item[0]

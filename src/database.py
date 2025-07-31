@@ -228,6 +228,16 @@ class EmbeddingDatabase:
             )
             conn.commit()
 
+    def get_processed_files(self, model_name: str) -> List[str]:
+        """Retrieves the list of file_ids that have been processed for a model."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT file_id FROM processing_results WHERE model_name = ?",
+                (model_name,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Retrieves information about a model by its run name."""
         with sqlite3.connect(self.db_path) as conn:
