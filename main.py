@@ -178,18 +178,8 @@ def process_combination_optimized(params_with_info):
 def calculate_optimal_processes():
     """Calculate optimal number of processes based on system resources."""
     cpu_count = multiprocessing.cpu_count()
-
-    # For I/O bound tasks (API calls), we can use more processes
-    # For CPU bound tasks (local models), stick closer to CPU count
-    api_models = sum(1 for model in MODELS_TO_TEST if model["type"] == "api")
-    local_models = len(MODELS_TO_TEST) - api_models
-
-    if api_models > local_models:
-        # More API models - can handle more concurrent requests
-        return min(cpu_count * 2, 16)  # Cap at 16 to avoid overwhelming APIs
-    else:
-        # More local models - stick closer to CPU count
-        return max(1, cpu_count - 1)
+    # Garder un coeur de libre pour que le PC reste utilisable
+    return max(1, cpu_count - 1)
 
 
 def run_processing(db: EmbeddingDatabase):
@@ -219,7 +209,7 @@ def run_processing(db: EmbeddingDatabase):
     print("🔍 Checking for already completed combinations...")
     completed_combinations = get_completed_combinations(db, all_rows)
 
-    # Filtrer les combinaisons déjà complètes
+    # Filter out already completed combinations
     remaining_combinations = []
     for params in valid_combinations:
         (
@@ -238,7 +228,6 @@ def run_processing(db: EmbeddingDatabase):
             chunking_strategy,
             similarity_metric,
         )
-
         if run_name not in completed_combinations:
             remaining_combinations.append(params)
 
@@ -253,97 +242,163 @@ def run_processing(db: EmbeddingDatabase):
         f"Remaining to process: {len(remaining_combinations)}"
     )
 
-    # Si toutes les combinaisons sont déjà traitées, on peut s'arrêter ici
     if not remaining_combinations:
         print("🎉 All combinations already processed! Nothing to do.")
         return
 
-    # Prepare arguments for parallel processing
-    total_runs = len(remaining_combinations)
-    tasks = [
-        (i, total_runs, all_rows, params)
-        for i, params in enumerate(remaining_combinations, 1)
+    # Separate combinations: API models run sequentially, local models run in parallel
+    api_combinations = [
+        p for p in remaining_combinations if p[0].get("type") == "api"
+    ]
+    local_combinations = [
+        p for p in remaining_combinations if p[0].get("type") != "api"
     ]
 
-    # Calculate optimal number of processes
-    num_processes = calculate_optimal_processes()
     print(
-        f"--- Running {total_runs} remaining tests using {num_processes} parallel processes ---"
+        f"Separated into {len(api_combinations)} API combinations (sequential) "
+        f"and {len(local_combinations)} local combinations (parallel)."
     )
 
-    # Enhanced multiprocessing with better error handling and progress tracking
+    # Initialize statistics
     successful_runs = 0
     skipped_runs = 0
     failed_runs = 0
     total_processing_time = 0
 
-    try:
-        with multiprocessing.Pool(
-            processes=num_processes,
-            initializer=initialize_worker,
-            maxtasksperchild=10,  # Restart workers periodically to prevent memory leaks
-        ) as pool:
-            # Use imap_unordered for better memory efficiency
-            results_iterator = pool.imap_unordered(
-                process_combination_optimized, tasks, chunksize=1
-            )
+    # --- 1. Process API combinations sequentially ---
+    if api_combinations:
+        print("\n--- Running API tests sequentially to avoid rate limiting ---")
+        global worker_db
+        worker_db = db
 
-            # Progress tracking with detailed statistics and better message handling
-            with tqdm(
-                total=total_runs, desc="Processing combinations", unit="combo"
-            ) as pbar:
-                for result in results_iterator:
-                    status = result["status"]
-                    processing_time = result["processing_time"]
-                    run_name = result["run_name"]
-                    total_processing_time += processing_time
+        total_api_runs = len(api_combinations)
+        api_tasks = [
+            (i, total_api_runs, all_rows, params)
+            for i, params in enumerate(api_combinations, 1)
+        ]
 
-                    if status == "success":
-                        successful_runs += 1
-                        files_processed = result.get("files_processed", 0)
-                        # Afficher le modèle traité dans la description
-                        pbar.set_description(f"✅ {run_name}")
-                        pbar.set_postfix(
-                            {
-                                "Success": successful_runs,
-                                "Skipped": skipped_runs,
-                                "Failed": failed_runs,
-                                "Files": files_processed,
-                                "Time": f"{processing_time:.1f}s",
-                            }
-                        )
-                    elif status == "skipped":
-                        skipped_runs += 1
-                        pbar.set_description(f"⏭️ {run_name}")
-                        pbar.set_postfix(
-                            {
-                                "Success": successful_runs,
-                                "Skipped": skipped_runs,
-                                "Failed": failed_runs,
-                            }
-                        )
-                    else:  # error
-                        failed_runs += 1
-                        pbar.set_description(f"❌ {run_name}")
-                        pbar.set_postfix(
-                            {
-                                "Success": successful_runs,
-                                "Skipped": skipped_runs,
-                                "Failed": failed_runs,
-                                "Error": result.get("error", "Unknown")[:30] + "...",
-                            }
-                        )
-                        # Écrire l'erreur détaillée après la barre de progression
-                        pbar.write(f"❌ ERROR: {result['message']}")
+        with tqdm(
+            total=total_api_runs, desc="Processing API combinations", unit="combo"
+        ) as pbar:
+            for task in api_tasks:
+                result = process_combination_optimized(task)
+                status = result["status"]
+                processing_time = result["processing_time"]
+                run_name = result["run_name"]
+                total_processing_time += processing_time
 
-                    pbar.update(1)
+                if status == "success":
+                    successful_runs += 1
+                    files_processed = result.get("files_processed", 0)
+                    pbar.set_description(f"✅ {run_name}")
+                    pbar.set_postfix(
+                        {
+                            "Success": successful_runs,
+                            "Skipped": skipped_runs,
+                            "Failed": failed_runs,
+                            "Files": files_processed,
+                            "Time": f"{processing_time:.1f}s",
+                        }
+                    )
+                elif status == "skipped":
+                    skipped_runs += 1
+                    pbar.set_description(f"⏭️ {run_name}")
+                    pbar.set_postfix(
+                        {
+                            "Success": successful_runs,
+                            "Skipped": skipped_runs,
+                            "Failed": failed_runs,
+                        }
+                    )
+                else:  # error
+                    failed_runs += 1
+                    pbar.set_description(f"❌ {run_name}")
+                    pbar.set_postfix(
+                        {
+                            "Success": successful_runs,
+                            "Skipped": skipped_runs,
+                            "Failed": failed_runs,
+                            "Error": result.get("error", "Unknown")[:30] + "...",
+                        }
+                    )
+                    pbar.write(f"❌ ERROR: {result['message']}")
+                pbar.update(1)
 
-    except KeyboardInterrupt:
-        tqdm.write("\n🛑 Processing interrupted by user")
-        return
-    except Exception as e:
-        tqdm.write(f"\n❌ Fatal error in multiprocessing: {e}")
-        return
+    # --- 2. Process local combinations in parallel ---
+    if local_combinations:
+        num_processes = calculate_optimal_processes()
+        print(
+            f"\n--- Running {len(local_combinations)} local tests using {num_processes} parallel processes ---"
+        )
+        total_local_runs = len(local_combinations)
+        local_tasks = [
+            (i, total_local_runs, all_rows, params)
+            for i, params in enumerate(local_combinations, 1)
+        ]
+
+        try:
+            with multiprocessing.Pool(
+                processes=num_processes,
+                initializer=initialize_worker,
+                maxtasksperchild=10,
+            ) as pool:
+                results_iterator = pool.imap_unordered(
+                    process_combination_optimized, local_tasks, chunksize=1
+                )
+                with tqdm(
+                    total=total_local_runs,
+                    desc="Processing local combinations",
+                    unit="combo",
+                ) as pbar:
+                    for result in results_iterator:
+                        status = result["status"]
+                        processing_time = result["processing_time"]
+                        run_name = result["run_name"]
+                        total_processing_time += processing_time
+
+                        if status == "success":
+                            successful_runs += 1
+                            files_processed = result.get("files_processed", 0)
+                            pbar.set_description(f"✅ {run_name}")
+                            pbar.set_postfix(
+                                {
+                                    "Success": successful_runs,
+                                    "Skipped": skipped_runs,
+                                    "Failed": failed_runs,
+                                    "Files": files_processed,
+                                    "Time": f"{processing_time:.1f}s",
+                                }
+                            )
+                        elif status == "skipped":
+                            skipped_runs += 1
+                            pbar.set_description(f"⏭️ {run_name}")
+                            pbar.set_postfix(
+                                {
+                                    "Success": successful_runs,
+                                    "Skipped": skipped_runs,
+                                    "Failed": failed_runs,
+                                }
+                            )
+                        else:  # error
+                            failed_runs += 1
+                            pbar.set_description(f"❌ {run_name}")
+                            pbar.set_postfix(
+                                {
+                                    "Success": successful_runs,
+                                    "Skipped": skipped_runs,
+                                    "Failed": failed_runs,
+                                    "Error": result.get("error", "Unknown")[:30]
+                                    + "...",
+                                }
+                            )
+                            pbar.write(f"❌ ERROR: {result['message']}")
+                        pbar.update(1)
+        except KeyboardInterrupt:
+            tqdm.write("\n🛑 Processing interrupted by user")
+            return
+        except Exception as e:
+            tqdm.write(f"\n❌ Fatal error in multiprocessing: {e}")
+            return
 
     # Final statistics
     avg_time = total_processing_time / max(1, successful_runs + failed_runs)
@@ -487,6 +542,23 @@ def generate_all_reports(db: EmbeddingDatabase):
         print("No processing results found in the database. Run processing first.")
         return
 
+    # Calculate total combinations for reporting
+    param_grid = {
+        "model_config": MODELS_TO_TEST,
+        "chunk_size": GRID_SEARCH_PARAMS["chunk_size"],
+        "chunk_overlap": GRID_SEARCH_PARAMS["chunk_overlap"],
+        "theme_name": list(GRID_SEARCH_PARAMS["themes"].keys()),
+        "chunking_strategy": GRID_SEARCH_PARAMS["chunking_strategy"],
+        "similarity_metric": SIMILARITY_METRICS,
+    }
+    param_combinations = list(itertools.product(*param_grid.values()))
+    valid_combinations = [
+        params
+        for params in param_combinations
+        if params[1] > params[2]  # chunk_size > chunk_overlap
+    ]
+    total_combinations = len(valid_combinations)
+
     # 2. Aggregate data for reports
     (
         processed_data_for_interactive_page,
@@ -497,7 +569,7 @@ def generate_all_reports(db: EmbeddingDatabase):
     # 3. Generate web pages
     print("\n--- Generating Web Pages ---")
     final_data_structure = {"files": processed_data_for_interactive_page}
-    generate_main_page(final_data_structure, OUTPUT_DIR)
+    generate_main_page(final_data_structure, OUTPUT_DIR, total_combinations)
 
     # 4. Generate individual file reports
     _generate_file_reports(db, all_results, file_metadata)

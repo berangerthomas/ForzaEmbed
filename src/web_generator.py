@@ -3,7 +3,9 @@ import os
 from typing import Any, Dict
 
 
-def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
+def generate_main_page(
+    processed_data: Dict[str, Any], output_dir: str, total_combinations: int
+):
     """
     Generates the main interactive web page for heatmap visualization.
     """
@@ -195,6 +197,9 @@ def generate_main_page(processed_data: Dict[str, Any], output_dir: str):
 <body>
     <div class="container">
         <h1>Interactive Embeddings Analysis</h1>
+        <p style="text-align: center; margin-top: -15px; color: #555;">
+            Displaying results for {total_combinations} parameter combinations.
+        </p>
 
         <!-- Controls area -->
         <div class="controls">
