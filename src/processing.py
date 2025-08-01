@@ -110,12 +110,11 @@ def run_test(
     theme_name: str,
     chunking_strategy: str,
     similarity_metric: str,
-    processed_files: List[str],  # Add parameter for already processed files
+    processed_files: List[str],
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
-    Run a test configuration by chunking, embedding, and processing documents.
-    Utilizes caching for phrase embeddings.
+    Enhanced run_test with better memory management and batch processing.
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
@@ -148,24 +147,34 @@ def run_test(
         return results
     embed_themes = np.array(embed_themes_list)
 
-    # --- 3. Filter out already processed rows and gather phrases ---
+    # --- 3. Filter and batch process phrases more efficiently ---
     unprocessed_rows = [row for row in rows if row[0] not in processed_files]
-    all_phrases_map = {}  # {identifiant: [phrases]}
-    unique_phrases = set()
-    for item in unprocessed_rows:
-        identifiant, _, _, texte = item
-        if not texte or not texte.strip():
-            continue
-        phrases = chunk_text(texte, chunk_size, chunk_overlap, chunking_strategy)
-        if phrases:
-            all_phrases_map[identifiant] = phrases
-            unique_phrases.update(phrases)
 
-    # --- 4. Handle phrase embeddings (cache-lookup, then batch embed) ---
+    # Process in smaller batches to reduce memory usage
+    batch_size = min(50, len(unprocessed_rows))  # Adjust based on available memory
+
+    all_phrases_map = {}
+    unique_phrases = set()
+
+    for batch_start in range(0, len(unprocessed_rows), batch_size):
+        batch_end = min(batch_start + batch_size, len(unprocessed_rows))
+        batch_rows = unprocessed_rows[batch_start:batch_end]
+
+        for item in batch_rows:
+            identifiant, _, _, texte = item
+            if not texte or not texte.strip():
+                continue
+            phrases = chunk_text(texte, chunk_size, chunk_overlap, chunking_strategy)
+            if phrases:
+                all_phrases_map[identifiant] = phrases
+                unique_phrases.update(phrases)
+
+    # --- 4. Optimized phrase embedding with batch processing ---
     unique_phrases_list = list(unique_phrases)
     phrase_hashes = {phrase: get_text_hash(phrase) for phrase in unique_phrases_list}
     hashes_to_check = list(phrase_hashes.values())
 
+    # Batch database lookups
     cached_embeddings = db.get_cached_embeddings(model_name, hashes_to_check)
 
     phrases_to_embed = [
@@ -178,26 +187,35 @@ def run_test(
     newly_embedded_map = {}
 
     if phrases_to_embed:
-        tqdm.write(
-            f"--- Embedding {len(phrases_to_embed)} new phrases for model {model_name}..."
-        )
-        new_embeddings, processing_time = embedding_function(phrases_to_embed)
-        total_processing_time += processing_time
+        # Process embeddings in batches for API efficiency
+        embedding_batch_size = 100 if model_type == "api" else 500
 
-        if new_embeddings:
-            newly_embedded_map = {
-                phrase: embedding
-                for phrase, embedding in zip(phrases_to_embed, new_embeddings)
-            }
+        for i in range(0, len(phrases_to_embed), embedding_batch_size):
+            batch_phrases = phrases_to_embed[i : i + embedding_batch_size]
 
-            # Create a map of hash -> embedding to cache
-            hashes_to_cache = {
-                phrase_hashes[phrase]: embedding
-                for phrase, embedding in newly_embedded_map.items()
-            }
-            db.cache_embeddings(model_name, hashes_to_cache)
-        else:
-            tqdm.write(f"⚠️ Failed to embed new phrases for {model_name}.")
+            if not show_progress:
+                tqdm.write(
+                    f"   Embedding batch {i // embedding_batch_size + 1}/{(len(phrases_to_embed) + embedding_batch_size - 1) // embedding_batch_size} ({len(batch_phrases)} phrases)"
+                )
+
+            new_embeddings, processing_time = embedding_function(batch_phrases)
+            total_processing_time += processing_time
+
+            if new_embeddings:
+                batch_embedded_map = {
+                    phrase: embedding
+                    for phrase, embedding in zip(batch_phrases, new_embeddings)
+                }
+                newly_embedded_map.update(batch_embedded_map)
+
+                # Cache embeddings immediately to prevent loss
+                hashes_to_cache = {
+                    phrase_hashes[phrase]: embedding
+                    for phrase, embedding in batch_embedded_map.items()
+                }
+                db.cache_embeddings(model_name, hashes_to_cache)
+            else:
+                tqdm.write(f"⚠️ Failed to embed batch for {model_name}.")
 
     # --- 5. Combine cached and new embeddings ---
     final_embeddings_map = {}
@@ -208,7 +226,7 @@ def run_test(
         elif phrase in newly_embedded_map:
             final_embeddings_map[phrase] = newly_embedded_map[phrase]
 
-    # --- 6. Process each unprocessed item with all embeddings ready ---
+    # --- 6. Process items with memory-efficient iteration ---
     iterable = (
         tqdm(
             unprocessed_rows,
@@ -216,26 +234,27 @@ def run_test(
             unit="file",
             initial=len(processed_files),
             total=len(rows),
+            leave=False,  # Don't leave progress bar after completion
         )
         if show_progress
         else unprocessed_rows
     )
+
     for item in iterable:
         identifiant = item[0]
         if identifiant not in all_phrases_map:
-            continue  # Skip items that had no text/phrases
+            continue
 
         item_phrases = all_phrases_map[identifiant]
-
-        # Reconstruct the embedding array in the correct order for this item
         item_embed_phrases_list = [
             final_embeddings_map[p] for p in item_phrases if p in final_embeddings_map
         ]
 
         if not item_embed_phrases_list:
-            tqdm.write(
-                f"Skipping {identifiant}: could not find embeddings for its phrases."
-            )
+            if show_progress:
+                tqdm.write(
+                    f"Skipping {identifiant}: could not find embeddings for its phrases."
+                )
             continue
 
         item_embed_phrases = np.array(item_embed_phrases_list)
@@ -247,14 +266,13 @@ def run_test(
                 embed_themes,
                 item_phrases,
                 item_embed_phrases,
-                total_processing_time / len(unique_phrases)
-                if unique_phrases
-                else 0,  # Avg time per phrase
+                total_processing_time / len(unique_phrases) if unique_phrases else 0,
                 similarity_metric,
             )
             if file_data:
                 results["files"][identifiant] = file_data
         except Exception as e:
-            tqdm.write(f"Error processing {identifiant}: {e}")
+            if show_progress:
+                tqdm.write(f"Error processing {identifiant}: {e}")
 
     return results

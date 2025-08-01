@@ -395,3 +395,32 @@ class EmbeddingDatabase:
             cursor.execute("DELETE FROM embeddings_cache")
             cursor.execute("DELETE FROM models")
             conn.commit()
+
+    def get_all_run_names(self) -> list[str]:
+        """Récupère tous les run_names existants."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT name FROM models")
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_processed_files_with_similarities(self, run_name: str) -> list[str]:
+        """
+        Récupère la liste des fichiers qui ont été traités avec des similarités calculées
+        pour un run donné. Distinction importante avec get_processed_files qui ne vérifie
+        que l'existence des embeddings.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT file_id 
+                FROM processing_results 
+                WHERE model_name = ? 
+                AND results_json IS NOT NULL 
+                AND results_json != ''
+                AND json_extract(results_json, '$.similarities') IS NOT NULL
+                AND json_array_length(json_extract(results_json, '$.similarities')) > 0
+            """,
+                (run_name,),
+            )
+            return [row[0] for row in cursor.fetchall()]

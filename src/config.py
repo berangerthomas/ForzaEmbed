@@ -21,68 +21,114 @@ SIMILARITY_METRICS = [
 ]
 
 
-# --- Theme and Keyword Generation ---
-def generate_themes_and_keywords() -> list[str]:
-    """
-    Generates a list of themes and a dictionary of keywords for detecting opening hours.
+# --- Multiprocessing Configuration ---
+MULTIPROCESSING_CONFIG = {
+    "max_workers_api": 16,  # Maximum workers for API models
+    "max_workers_local": None,  # Auto-detect based on CPU count
+    "maxtasksperchild": 10,  # Restart workers to prevent memory leaks
+    "embedding_batch_size_api": 100,  # Batch size for API embedding requests
+    "embedding_batch_size_local": 500,  # Batch size for local embedding requests
+    "file_batch_size": 50,  # Batch size for file processing
+}
 
-    Returns:
-        tuple: (list of themes, dictionary of keywords for regex)
-    """
-    lieux = ["bibliothèque", "médiathèque", "mairie", "piscine"]
-    jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
-    actions = ["ouverte", "fermée", "ouverture", "fermeture", "accueil", "horaires"]
-    concepts_generaux = [
-        "horaires d'ouverture",
-        "heures d'ouverture",
-        "accueil du public",
-        "jour de fermeture",
-        "horaires et jours de la semaine",
-        "périodes d'ouverture",
-        "période scolaire",
-        "vacances scolaires",
-        "fermeture exceptionnelle",
-        "fermeture annuelle",
-        "jours fériés",
-        "jours spéciaux",
-        "horaires spéciaux",
-        "quand venir",
-        "nous sommes ouverts",
-        "nous sommes fermés",
-    ]
-    expressions_temporelles = [
-        "le matin",
-        "l'après-midi",
-        "de 9h à 12h",
-        "de 14h à 18h",
-        "de 10h00 à 19h00",
-        "9h 12h",
-        "14h 18h",
-    ]
 
-    # Generate themes by combining actions and days
-    themes_jours = [f"{action} le {jour}" for action in actions[:2] for jour in jours]
+# --- Model Configuration ---
+# Define named functions instead of lambdas for multiprocessing compatibility
+def api_get_embeddings(client):
+    """Named function to replace lambda for API clients."""
+    return client.get_embeddings
 
-    # generate themes for each type of place
-    themes_lieux = [f"{lieu} {action}" for lieu in lieux for action in actions]
 
-    # Combine all themes into a single list
-    base_themes = (
-        concepts_generaux + expressions_temporelles + themes_jours + themes_lieux
-    )
-    base_themes.append("autre")
-    return base_themes
+def fastembed_get_embeddings(client):
+    """Named function to replace lambda for FastEmbed clients."""
+    return FastEmbedClient.get_embeddings
 
+
+def huggingface_get_embeddings(client):
+    """Named function to replace lambda for HuggingFace clients."""
+    return get_huggingface_embeddings
+
+
+MODELS_TO_TEST = [
+    {
+        "type": "api",
+        "name": "nomic-embed-text",
+        "base_url": "https://api.erasme.homes/v1",
+        "dimensions": 768,
+        "timeout": 240,
+        "function": api_get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "mistral-embed",
+        "base_url": "https://api.mistral.ai/v1",
+        "dimensions": 1024,
+        "timeout": 240,
+        "function": api_get_embeddings,
+    },
+    {
+        "type": "api",
+        "name": "voyage-3-large",
+        "base_url": "https://api.voyageai.com/v1",
+        "dimensions": 1024,
+        "timeout": 240,
+        "function": api_get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "dimensions": 384,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        "dimensions": 768,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "intfloat/multilingual-e5-large",
+        "dimensions": 1024,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "fastembed",
+        "name": "jinaai/jina-embeddings-v3",
+        "dimensions": 1024,
+        "function": FastEmbedClient.get_embeddings,
+    },
+    {
+        "type": "huggingface",
+        "name": "Qwen/Qwen3-Embedding-0.6B",
+        "dimensions": 1024,
+        "function": get_huggingface_embeddings,
+    },
+    {
+        "type": "huggingface",
+        "name": "intfloat/multilingual-e5-large-instruct",
+        "dimensions": 1024,
+        "function": get_huggingface_embeddings,
+    },
+]
+
+# --- Output Configuration ---
+# Sets the output directory in the same folder as the script
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "data", "heatmaps")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# --- Colormap for Heatmaps ---
+CMAP = LinearSegmentedColormap.from_list(
+    "custom",
+    ["#2b83ba", "#abdda4", "#ffffbf", "#fdae61", "#d7191c"],
+)
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
     "chunk_size": [20, 50, 100, 250, 500, 1000],
-    # "chunk_size": [100],
     "chunk_overlap": [0, 10, 25, 50, 100, 200],
-    # "chunk_overlap": [15],
     "chunking_strategy": ["langchain", "raw"],
-    # "chunking_strategy": ["langchain"],
-    # "similarity_metric": ["cosine", "euclidean"],
     "similarity_metrics": SIMILARITY_METRICS,
     "themes": {
         "horaires_simple": ["horaires", "autre"],
@@ -267,334 +313,3 @@ GRID_SEARCH_PARAMS = {
         ],
     },
 }
-
-# --- Model Configuration ---
-MODELS_TO_TEST = [
-    {
-        "type": "api",
-        "name": "nomic-embed-text",
-        "base_url": "https://api.erasme.homes/v1",
-        "dimensions": 768,
-        "timeout": 240,
-        "function": lambda client: client.get_embeddings,
-    },
-    {
-        "type": "api",
-        "name": "mistral-embed",
-        "base_url": "https://api.mistral.ai/v1",
-        "dimensions": 1024,
-        "timeout": 240,
-        "function": lambda client: client.get_embeddings,
-    },
-    {
-        "type": "api",
-        "name": "voyage-3-large",
-        "base_url": "https://api.voyageai.com/v1",
-        "dimensions": 1024,
-        "timeout": 240,
-        "function": lambda client: client.get_embeddings,
-    },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-multilingual-MiniLM-L12-v2",
-    #     "dimensions": 384,
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-multilingual-mpnet-base-v2",
-    #     "dimensions": 768,
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    {
-        "type": "fastembed",
-        "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        "dimensions": 384,
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-        "dimensions": 768,
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "intfloat/multilingual-e5-large",
-        "dimensions": 1024,
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "fastembed",
-        "name": "jinaai/jina-embeddings-v3",
-        "dimensions": 1024,
-        "function": FastEmbedClient.get_embeddings,
-    },
-    {
-        "type": "huggingface",
-        "name": "Qwen/Qwen3-Embedding-0.6B",
-        "dimensions": 1024,
-        "function": get_huggingface_embeddings,
-    },
-    {
-        "type": "huggingface",
-        "name": "intfloat/multilingual-e5-large-instruct",
-        "dimensions": 1024,
-        "function": get_huggingface_embeddings,
-    },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-small-en-v1.5",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-small-zh-v1.5",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "snowflake/snowflake-arctic-embed-xs",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "sentence-transformers/all-MiniLM-L6-v2",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-small-en",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "snowflake/snowflake-arctic-embed-s",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "nomic-ai/nomic-embed-text-v1.5-Q",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-small-en",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-base-en-v1.5",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "Qdrant/clip-ViT-B-32-text",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-base-de",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-base-en",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "snowflake/snowflake-arctic-embed-m",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "thenlper/gte-base",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-base-en",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "nomic-ai/nomic-embed-text-v1.5",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "nomic-ai/nomic-embed-text-v1",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "snowflake/snowflake-arctic-embed-m-long",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-clip-v1",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-base-code",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-base-es",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "mixedbread-ai/mxbai-embed-large-v1",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v2-base-zh",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "snowflake/snowflake-arctic-embed-l",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "BAAI/bge-large-en-v1.5",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "thenlper/gte-large",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "intfloat/multilingual-e5-large",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "fastembed",
-    #     "name": "jinaai/jina-embeddings-v3",
-    #     "function": FastEmbedClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "all-mpnet-base-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "multi-qa-mpnet-base-dot-v1",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "all-distilroberta-v1",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "all-MiniLM-L12-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "multi-qa-distilbert-cos-v1",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "all-MiniLM-L6-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "multi-qa-MiniLM-L6-cos-v1",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-multilingual-mpnet-base-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-albert-small-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-multilingual-MiniLM-L12-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "paraphrase-MiniLM-L3-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "distiluse-base-multilingual-cased-v1",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "sentence_transformers",
-    #     "name": "distiluse-base-multilingual-cased-v2",
-    #     "function": SentenceTransformersClient.get_embeddings,
-    # },
-    # {
-    #     "type": "huggingface",
-    #     "name": "intfloat/multilingual-e5-large-instruct",
-    #     "function": get_huggingface_embeddings,
-    # },
-    # {
-    #     "type": "huggingface",
-    #     "name": "Qwen/Qwen3-Embedding-0.6B",
-    #     "function": get_huggingface_embeddings,
-    # },
-    # {
-    #     "type": "api",
-    #     "name": "nomic-embed-text",
-    #     "base_url": "https://api.erasme.homes/v1",
-    #     "function": lambda client: client.get_embeddings,
-    # },
-    # {
-    #     "type": "api",
-    #     "name": "mistral-embed",
-    #     "base_url": "https://api.mistral.ai/v1",
-    #     "function": lambda client: client.get_embeddings,
-    # },
-    # {
-    #     "type": "api",
-    #     "name": "voyage-3-large",
-    #     "base_url": "https://api.voyageai.com/v1",
-    #     "function": lambda client: client.get_embeddings,
-    # },
-]
-
-# --- Output Configuration ---
-# Sets the output directory in the same folder as the script
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT_DIR = os.path.join(SCRIPT_DIR, "data", "heatmaps")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# --- Colormap for Heatmaps ---
-CMAP = LinearSegmentedColormap.from_list(
-    "custom",
-    ["#2b83ba", "#abdda4", "#ffffbf", "#fdae61", "#d7191c"],
-)
