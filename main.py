@@ -244,18 +244,18 @@ def run_processing(db: EmbeddingDatabase):
 
     completed_count = len(valid_combinations) - len(remaining_combinations)
 
-    tqdm.write(
+    print(
         f"Generated {len(param_combinations)} parameter combinations. "
         f"Filtered down to {len(valid_combinations)} valid combinations."
     )
-    tqdm.write(
+    print(
         f"Found {completed_count} already completed combinations. "
         f"Remaining to process: {len(remaining_combinations)}"
     )
 
     # Si toutes les combinaisons sont déjà traitées, on peut s'arrêter ici
     if not remaining_combinations:
-        tqdm.write("🎉 All combinations already processed! Nothing to do.")
+        print("🎉 All combinations already processed! Nothing to do.")
         return
 
     # Prepare arguments for parallel processing
@@ -267,7 +267,7 @@ def run_processing(db: EmbeddingDatabase):
 
     # Calculate optimal number of processes
     num_processes = calculate_optimal_processes()
-    tqdm.write(
+    print(
         f"--- Running {total_runs} remaining tests using {num_processes} parallel processes ---"
     )
 
@@ -288,16 +288,21 @@ def run_processing(db: EmbeddingDatabase):
                 process_combination_optimized, tasks, chunksize=1
             )
 
-            # Progress tracking with detailed statistics
-            with tqdm(total=total_runs, desc="Processing combinations") as pbar:
+            # Progress tracking with detailed statistics and better message handling
+            with tqdm(
+                total=total_runs, desc="Processing combinations", unit="combo"
+            ) as pbar:
                 for result in results_iterator:
                     status = result["status"]
                     processing_time = result["processing_time"]
+                    run_name = result["run_name"]
                     total_processing_time += processing_time
 
                     if status == "success":
                         successful_runs += 1
                         files_processed = result.get("files_processed", 0)
+                        # Afficher le modèle traité dans la description
+                        pbar.set_description(f"✅ {run_name}")
                         pbar.set_postfix(
                             {
                                 "Success": successful_runs,
@@ -309,6 +314,7 @@ def run_processing(db: EmbeddingDatabase):
                         )
                     elif status == "skipped":
                         skipped_runs += 1
+                        pbar.set_description(f"⏭️ {run_name}")
                         pbar.set_postfix(
                             {
                                 "Success": successful_runs,
@@ -318,14 +324,17 @@ def run_processing(db: EmbeddingDatabase):
                         )
                     else:  # error
                         failed_runs += 1
-                        tqdm.write(f"❌ {result['message']}")
+                        pbar.set_description(f"❌ {run_name}")
                         pbar.set_postfix(
                             {
                                 "Success": successful_runs,
                                 "Skipped": skipped_runs,
                                 "Failed": failed_runs,
+                                "Error": result.get("error", "Unknown")[:30] + "...",
                             }
                         )
+                        # Écrire l'erreur détaillée après la barre de progression
+                        pbar.write(f"❌ ERROR: {result['message']}")
 
                     pbar.update(1)
 

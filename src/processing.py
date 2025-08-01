@@ -137,13 +137,12 @@ def run_test(
         )
         embedding_function = client.get_embeddings
     else:
-        tqdm.write(f"Unknown model type: {model_type}")
+        # Ne pas utiliser tqdm.write dans les workers
         return results
 
     # --- 2. Embed themes (never cached) ---
     embed_themes_list, _ = embedding_function(themes)
     if not embed_themes_list:
-        tqdm.write(f"❌ Could not get theme embeddings for {model_name}. Aborting.")
         return results
     embed_themes = np.array(embed_themes_list)
 
@@ -151,7 +150,7 @@ def run_test(
     unprocessed_rows = [row for row in rows if row[0] not in processed_files]
 
     # Process in smaller batches to reduce memory usage
-    batch_size = min(50, len(unprocessed_rows))  # Adjust based on available memory
+    batch_size = min(50, len(unprocessed_rows))
 
     all_phrases_map = {}
     unique_phrases = set()
@@ -193,10 +192,9 @@ def run_test(
         for i in range(0, len(phrases_to_embed), embedding_batch_size):
             batch_phrases = phrases_to_embed[i : i + embedding_batch_size]
 
-            if not show_progress:
-                tqdm.write(
-                    f"   Embedding batch {i // embedding_batch_size + 1}/{(len(phrases_to_embed) + embedding_batch_size - 1) // embedding_batch_size} ({len(batch_phrases)} phrases)"
-                )
+            # Messages silencieux dans les workers pour éviter d'interférer avec tqdm
+            # if not show_progress:
+            #     print(f"   Embedding batch {i//embedding_batch_size + 1}/{(len(phrases_to_embed) + embedding_batch_size - 1)//embedding_batch_size} ({len(batch_phrases)} phrases)")
 
             new_embeddings, processing_time = embedding_function(batch_phrases)
             total_processing_time += processing_time
@@ -214,8 +212,6 @@ def run_test(
                     for phrase, embedding in batch_embedded_map.items()
                 }
                 db.cache_embeddings(model_name, hashes_to_cache)
-            else:
-                tqdm.write(f"⚠️ Failed to embed batch for {model_name}.")
 
     # --- 5. Combine cached and new embeddings ---
     final_embeddings_map = {}
@@ -234,7 +230,7 @@ def run_test(
             unit="file",
             initial=len(processed_files),
             total=len(rows),
-            leave=False,  # Don't leave progress bar after completion
+            leave=False,
         )
         if show_progress
         else unprocessed_rows
@@ -251,10 +247,6 @@ def run_test(
         ]
 
         if not item_embed_phrases_list:
-            if show_progress:
-                tqdm.write(
-                    f"Skipping {identifiant}: could not find embeddings for its phrases."
-                )
             continue
 
         item_embed_phrases = np.array(item_embed_phrases_list)
@@ -271,8 +263,8 @@ def run_test(
             )
             if file_data:
                 results["files"][identifiant] = file_data
-        except Exception as e:
-            if show_progress:
-                tqdm.write(f"Error processing {identifiant}: {e}")
+        except Exception:
+            # Messages silencieux dans les workers
+            pass
 
     return results
