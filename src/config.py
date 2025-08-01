@@ -290,7 +290,7 @@ MODELS_TO_TEST = [
         "type": "api",
         "name": "voyage-3-large",
         "base_url": "https://api.voyageai.com/v1",
-        "dimensions": 4096,
+        "dimensions": 1024,
         "timeout": 240,
         "function": lambda client: client.get_embeddings,
     },
