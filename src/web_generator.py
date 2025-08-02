@@ -121,6 +121,16 @@ def generate_main_page(
             border-radius: 50%;
             border: 2px solid #fff;
         }}
+        input[type="range"]:disabled::-webkit-slider-thumb {{
+            background: #bdc3c7;
+        }}
+        input[type="range"]:disabled::-moz-range-thumb {{
+            background: #bdc3c7;
+        }}
+        input[type="range"]:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
         .label-value {{
             font-weight: bold;
             color: #2980b9;
@@ -338,9 +348,8 @@ def generate_main_page(
             return {{ model, cs, co, t, s, m }};
         }}
 
-        function populateFilters() {{
-            const firstFileKey = fileKeys[0];
-            if (!firstFileKey) return;
+        function populateAndSetupSliders(fileKey) {{
+            if (!fileKey || !processedData.files[fileKey]) return;
 
             const paramSets = {{
                 model: new Set(),
@@ -351,7 +360,7 @@ def generate_main_page(
                 m: new Set()
             }};
 
-            allEmbeddingKeys = Object.keys(processedData.files[firstFileKey].embeddings);
+            allEmbeddingKeys = Object.keys(processedData.files[fileKey].embeddings);
             allEmbeddingKeys.forEach(key => {{
                 const p = parseEmbeddingKey(key);
                 paramSets.model.add(p.model);
@@ -369,12 +378,18 @@ def generate_main_page(
             params.s = [...paramSets.s].sort();
             params.m = [...paramSets.m].sort();
 
-            modelSlider.max = params.model.length - 1;
-            chunkSizeSlider.max = params.cs.length - 1;
-            chunkOverlapSlider.max = params.co.length - 1;
-            themeSlider.max = params.t.length - 1;
-            chunkingStrategySlider.max = params.s.length - 1;
-            similarityMetricSlider.max = params.m.length - 1;
+            const setupSlider = (slider, values) => {{
+                slider.max = values.length - 1;
+                slider.disabled = values.length <= 1;
+                slider.value = 0;
+            }};
+
+            setupSlider(modelSlider, params.model);
+            setupSlider(chunkSizeSlider, params.cs);
+            setupSlider(chunkOverlapSlider, params.co);
+            setupSlider(themeSlider, params.t);
+            setupSlider(chunkingStrategySlider, params.s);
+            setupSlider(similarityMetricSlider, params.m);
         }}
 
         function initialize() {{
@@ -385,17 +400,25 @@ def generate_main_page(
             }}
 
             fileSlider.max = fileKeys.length - 1;
-            populateFilters();
+            fileSlider.value = 0;
 
-            fileSlider.addEventListener('input', updateInterface);
-            modelSlider.addEventListener('input', updateInterface);
-            chunkSizeSlider.addEventListener('input', updateInterface);
-            chunkOverlapSlider.addEventListener('input', updateInterface);
-            themeSlider.addEventListener('input', updateInterface);
-            chunkingStrategySlider.addEventListener('input', updateInterface);
-            similarityMetricSlider.addEventListener('input', updateInterface);
+            const initialFileKey = fileKeys[0];
+            populateAndSetupSliders(initialFileKey);
+            updateView(initialFileKey);
 
-            updateInterface();
+            fileSlider.addEventListener('input', (e) => {{
+                const fileKey = fileKeys[parseInt(e.target.value, 10)];
+                populateAndSetupSliders(fileKey);
+                updateView(fileKey);
+            }});
+
+            const otherSliders = [modelSlider, chunkSizeSlider, chunkOverlapSlider, themeSlider, chunkingStrategySlider, similarityMetricSlider];
+            otherSliders.forEach(slider => {{
+                slider.addEventListener('input', () => {{
+                    const fileKey = fileKeys[parseInt(fileSlider.value, 10)];
+                    updateView(fileKey);
+                }});
+            }});
         }}
 
         function filterEmbeddings() {{
@@ -406,12 +429,12 @@ def generate_main_page(
             const selectedS = params.s[chunkingStrategySlider.value];
             const selectedM = params.m[similarityMetricSlider.value];
 
-            modelNameSpan.textContent = selectedModel;
-            chunkSizeValueSpan.textContent = selectedCS;
-            chunkOverlapValueSpan.textContent = selectedCO;
-            themeNameSpan.textContent = selectedT;
-            chunkingStrategyNameSpan.textContent = selectedS;
-            similarityMetricNameSpan.textContent = selectedM;
+            modelNameSpan.textContent = selectedModel || 'N/A';
+            chunkSizeValueSpan.textContent = selectedCS || 'N/A';
+            chunkOverlapValueSpan.textContent = selectedCO || 'N/A';
+            themeNameSpan.textContent = selectedT || 'N/A';
+            chunkingStrategyNameSpan.textContent = selectedS || 'N/A';
+            similarityMetricNameSpan.textContent = selectedM || 'N/A';
 
             filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {{
                 const p = parseEmbeddingKey(key);
@@ -424,9 +447,7 @@ def generate_main_page(
             }});
         }}
 
-        function updateInterface() {{
-            const fileIndex = parseInt(fileSlider.value, 10);
-            const fileKey = fileKeys[fileIndex];
+        function updateView(fileKey) {{
             const fileData = processedData.files[fileKey];
             
             if (!fileData) {{
@@ -447,8 +468,6 @@ def generate_main_page(
                 return;
             }}
 
-            // For simplicity, we display the first result of the filtered list.
-            // A slider for filtered results could be added here.
             const embeddingKey = filteredEmbeddingKeys[0];
             const embeddingData = fileData.embeddings[embeddingKey];
 

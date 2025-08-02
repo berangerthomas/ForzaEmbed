@@ -542,22 +542,8 @@ def generate_all_reports(db: EmbeddingDatabase):
         print("No processing results found in the database. Run processing first.")
         return
 
-    # Calculate total combinations for reporting
-    param_grid = {
-        "model_config": MODELS_TO_TEST,
-        "chunk_size": GRID_SEARCH_PARAMS["chunk_size"],
-        "chunk_overlap": GRID_SEARCH_PARAMS["chunk_overlap"],
-        "theme_name": list(GRID_SEARCH_PARAMS["themes"].keys()),
-        "chunking_strategy": GRID_SEARCH_PARAMS["chunking_strategy"],
-        "similarity_metric": SIMILARITY_METRICS,
-    }
-    param_combinations = list(itertools.product(*param_grid.values()))
-    valid_combinations = [
-        params
-        for params in param_combinations
-        if params[1] > params[2]  # chunk_size > chunk_overlap
-    ]
-    total_combinations = len(valid_combinations)
+    # Count the number of combinations that have actually been processed
+    processed_combinations_count = len(all_results)
 
     # 2. Aggregate data for reports
     (
@@ -569,7 +555,9 @@ def generate_all_reports(db: EmbeddingDatabase):
     # 3. Generate web pages
     print("\n--- Generating Web Pages ---")
     final_data_structure = {"files": processed_data_for_interactive_page}
-    generate_main_page(final_data_structure, OUTPUT_DIR, total_combinations)
+    generate_main_page(
+        final_data_structure, OUTPUT_DIR, processed_combinations_count
+    )
 
     # 4. Generate individual file reports
     _generate_file_reports(db, all_results, file_metadata)
@@ -586,22 +574,17 @@ def generate_all_reports(db: EmbeddingDatabase):
 def main():
     """Main function to manage the pipeline."""
     parser = argparse.ArgumentParser(
-        description="Run embedding analysis and reporting."
-    )
-    parser.add_argument(
-        "--run-all",
-        action="store_true",
-        help="Run the full pipeline: processing and reporting.",
+        description="Run embedding analysis and reporting. By default, it runs the full pipeline."
     )
     parser.add_argument(
         "--generate-reports",
         action="store_true",
-        help="Generate reports from existing data in the database.",
+        help="Only generate reports from existing data in the database, without processing.",
     )
     parser.add_argument(
         "--clear-db",
         action="store_true",
-        help="Clear the database before running.",
+        help="Clear the database before running the full pipeline.",
     )
     args = parser.parse_args()
 
@@ -610,17 +593,17 @@ def main():
     if args.clear_db:
         print("--- Clearing Database ---")
         db.clear_database()
-        # Re-initialize after clearing
         db.init_database()
-
-    if args.run_all:
+        # Proceed to run the full pipeline after clearing
         run_processing(db)
         generate_all_reports(db)
+
     elif args.generate_reports:
+        # Only generate reports
         generate_all_reports(db)
+
     else:
-        print("No action specified. Use --run-all or --generate-reports.")
-        print("Defaulting to --run-all.")
+        # Default behavior: run the full pipeline without clearing
         run_processing(db)
         generate_all_reports(db)
 
