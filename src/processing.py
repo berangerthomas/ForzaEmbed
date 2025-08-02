@@ -1,7 +1,9 @@
 import hashlib
+import json
 from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
+import pyarrow as pa
 from sklearn.metrics.pairwise import (
     cosine_similarity,
     euclidean_distances,
@@ -10,16 +12,15 @@ from sklearn.metrics.pairwise import (
 )
 from tqdm import tqdm
 
-from src.config import (
-    SIMILARITY_THRESHOLD,
-)
+from src.config import SIMILARITY_THRESHOLD
 from src.database import EmbeddingDatabase
 from src.embedding_client import ProductionEmbeddingClient
+from src.lancedb_client import LanceDBClient
 from src.evaluation_metrics import (
     calculate_clustering_metrics,
     calculate_cohesion_separation,
 )
-from src.utils import chunk_text, to_python_type
+from src.utils import chunk_text
 
 
 def calculate_similarity(
@@ -29,18 +30,14 @@ def calculate_similarity(
     if metric == "cosine":
         return cosine_similarity(embed_themes, embed_phrases)
     elif metric == "dot_product":
-        # Note: Not normalized, magnitude matters.
         return embed_themes @ embed_phrases.T
     elif metric == "euclidean":
-        # Invert and normalize so that higher is better
         distances = euclidean_distances(embed_themes, embed_phrases)
         return 1 / (1 + distances)
     elif metric == "manhattan":
-        # Invert and normalize
         distances = manhattan_distances(embed_themes, embed_phrases)
         return 1 / (1 + distances)
     elif metric == "chebyshev":
-        # Invert and normalize
         distances = pairwise_distances(embed_themes, embed_phrases, metric="chebyshev")
         return 1 / (1 + distances)
     else:
@@ -52,57 +49,69 @@ def get_text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def process_item(
-    item: Tuple[str, str, str, str],
-    themes: List[str],
-    embed_themes: np.ndarray,
+def _get_or_create_embeddings(
+    lance_db: LanceDBClient,
+    embedding_function: Callable,
     phrases: List[str],
-    embed_phrases: np.ndarray,
-    processing_time: float,
-    similarity_metric: str,
-) -> Tuple[str, Any]:
+    model_name: str,
+    model_dimensions: int,
+) -> Tuple[Dict[str, np.ndarray], float]:
     """
-    Process an item with pre-computed embeddings and return a result dictionary.
+    Retrieves embeddings from LanceDB or generates and caches them if they don't exist.
     """
-    identifiant, _, _, _ = item
+    table_name = f"embed_{model_name.replace('-', '_').replace('/', '_')}"
+    phrase_hashes = {phrase: get_text_hash(phrase) for phrase in phrases}
 
-    similarites = calculate_similarity(embed_themes, embed_phrases, similarity_metric)
-    similarites_max = similarites.max(axis=0)
-    similarites_norm = np.clip(similarites_max, 0, 1)
+    schema = pa.schema(
+        [
+            pa.field("text_hash", pa.string()),
+            pa.field("vector", pa.list_(pa.float32(), list_size=model_dimensions)),
+        ]
+    )
+    lance_db.create_table_if_not_exists(table_name, schema)
 
-    labels = np.argmax(similarites, axis=0)
+    existing_embeddings = {}
     try:
-        autre_theme_index = themes.index("autre")
-        labels[similarites_max < SIMILARITY_THRESHOLD] = autre_theme_index
-    except ValueError:
+        table = lance_db.db.open_table(table_name)
+        all_records = table.to_pandas()
+        if not all_records.empty:
+            existing_hashes = set(all_records["text_hash"])
+            phrases_to_check = [
+                h for h in phrase_hashes.values() if h in existing_hashes
+            ]
+            if phrases_to_check:
+                results = all_records[
+                    all_records["text_hash"].isin(phrases_to_check)
+                ]
+                for _, row in results.iterrows():
+                    existing_embeddings[row["text_hash"]] = np.array(row["vector"])
+    except FileNotFoundError:
         pass
 
-    # Static reports are now generated at the end via --generate-reports
+    phrases_to_embed = [
+        phrase for phrase, h in phrase_hashes.items() if h not in existing_embeddings
+    ]
 
-    # Compute metrics for this specific file
-    cohesion_sep = calculate_cohesion_separation(embed_phrases, labels)
-    clustering_metrics = calculate_clustering_metrics(embed_phrases, labels)
+    total_processing_time = 0.0
+    if phrases_to_embed:
+        new_embeddings, processing_time = embedding_function(phrases_to_embed)
+        total_processing_time = processing_time
+        if new_embeddings:
+            new_data = [
+                {"text_hash": phrase_hashes[phrase], "vector": embedding}
+                for phrase, embedding in zip(phrases_to_embed, new_embeddings)
+            ]
+            lance_db.add_embeddings(table_name, new_data)
+            for item in new_data:
+                existing_embeddings[item["text_hash"]] = np.array(item["vector"])
 
-    metrics = {
-        **cohesion_sep,
-        **clustering_metrics,
-        "processing_time": processing_time,
-        "mean_similarity": float(np.mean(similarites_norm)),
-    }
-
-    result_data = {
-        "phrases": phrases,
-        "themes": themes,
-        "similarities": similarites_norm,
-        "metrics": metrics,
-        "embeddings_data": {"embeddings": embed_phrases, "labels": labels},
-    }
-    return f"Successfully processed {identifiant}", to_python_type(result_data)
+    return existing_embeddings, total_processing_time
 
 
 def run_test(
     rows: List[Tuple[str, str, str, str]],
     db: EmbeddingDatabase,
+    lance_db: LanceDBClient,
     model_config: Dict[str, Any],
     chunk_size: int,
     chunk_overlap: int,
@@ -114,21 +123,22 @@ def run_test(
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
-    Enhanced run_test with better memory management and batch processing.
+    Processes a test run using SQLite for metadata and LanceDB for embeddings.
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
     results = {"files": {}}
 
-    # --- 1. Setup embedding function ---
     embedding_function: Callable
     if model_type in ["sentence_transformers", "fastembed", "huggingface"]:
-        embedding_function = lambda texts: model_config["function"](
-            texts,
-            model_name=model_name,
-            expected_dimension=model_config.get("dimensions"),
-        )
-    elif model_type == "api":
+        def get_embeddings(texts):
+            return model_config["function"](
+                texts,
+                model_name=model_name,
+                expected_dimension=model_config.get("dimensions"),
+            )
+        embedding_function = get_embeddings
+    else:
         client = ProductionEmbeddingClient(
             model_config["base_url"],
             model_name,
@@ -136,135 +146,61 @@ def run_test(
             timeout=model_config.get("timeout", 30),
         )
         embedding_function = client.get_embeddings
-    else:
-        # Ne pas utiliser tqdm.write dans les workers
-        return results
 
-    # --- 2. Embed themes (never cached) ---
     embed_themes_list, _ = embedding_function(themes)
-    if not embed_themes_list:
-        return results
     embed_themes = np.array(embed_themes_list)
 
-    # --- 3. Filter and batch process phrases more efficiently ---
     unprocessed_rows = [row for row in rows if row[0] not in processed_files]
 
-    # Process in smaller batches to reduce memory usage
-    batch_size = min(50, len(unprocessed_rows))
+    for item in tqdm(unprocessed_rows, desc=f"Processing {model_name}", leave=False, disable=not show_progress):
+        identifiant, _, _, texte = item
+        if not texte or not texte.strip():
+            continue
 
-    all_phrases_map = {}
-    unique_phrases = set()
+        item_phrases = chunk_text(texte, chunk_size, chunk_overlap, chunking_strategy)
+        if not item_phrases:
+            continue
 
-    for batch_start in range(0, len(unprocessed_rows), batch_size):
-        batch_end = min(batch_start + batch_size, len(unprocessed_rows))
-        batch_rows = unprocessed_rows[batch_start:batch_end]
+        model_dimensions = model_config.get("dimensions")
+        if model_dimensions is None:
+            raise ValueError(f"Model dimensions not configured for {model_name}")
 
-        for item in batch_rows:
-            identifiant, _, _, texte = item
-            if not texte or not texte.strip():
-                continue
-            phrases = chunk_text(texte, chunk_size, chunk_overlap, chunking_strategy)
-            if phrases:
-                all_phrases_map[identifiant] = phrases
-                unique_phrases.update(phrases)
-
-    # --- 4. Optimized phrase embedding with batch processing ---
-    unique_phrases_list = list(unique_phrases)
-    phrase_hashes = {phrase: get_text_hash(phrase) for phrase in unique_phrases_list}
-    hashes_to_check = list(phrase_hashes.values())
-
-    # Batch database lookups
-    cached_embeddings = db.get_cached_embeddings(model_name, hashes_to_check)
-
-    phrases_to_embed = [
-        phrase
-        for phrase in unique_phrases_list
-        if phrase_hashes[phrase] not in cached_embeddings
-    ]
-
-    total_processing_time = 0.0
-    newly_embedded_map = {}
-
-    if phrases_to_embed:
-        # Process embeddings in batches for API efficiency
-        embedding_batch_size = 100 if model_type == "api" else 500
-
-        for i in range(0, len(phrases_to_embed), embedding_batch_size):
-            batch_phrases = phrases_to_embed[i : i + embedding_batch_size]
-
-            # Messages silencieux dans les workers pour éviter d'interférer avec tqdm
-            # if not show_progress:
-            #     print(f"   Embedding batch {i//embedding_batch_size + 1}/{(len(phrases_to_embed) + embedding_batch_size - 1)//embedding_batch_size} ({len(batch_phrases)} phrases)")
-
-            new_embeddings, processing_time = embedding_function(batch_phrases)
-            total_processing_time += processing_time
-
-            if new_embeddings:
-                batch_embedded_map = {
-                    phrase: embedding
-                    for phrase, embedding in zip(batch_phrases, new_embeddings)
-                }
-                newly_embedded_map.update(batch_embedded_map)
-
-                # Cache embeddings immediately to prevent loss
-                hashes_to_cache = {
-                    phrase_hashes[phrase]: embedding
-                    for phrase, embedding in batch_embedded_map.items()
-                }
-                db.cache_embeddings(model_name, hashes_to_cache)
-
-    # --- 5. Combine cached and new embeddings ---
-    final_embeddings_map = {}
-    for phrase in unique_phrases_list:
-        text_hash = phrase_hashes[phrase]
-        if text_hash in cached_embeddings:
-            final_embeddings_map[phrase] = cached_embeddings[text_hash]
-        elif phrase in newly_embedded_map:
-            final_embeddings_map[phrase] = newly_embedded_map[phrase]
-
-    # --- 6. Process items with memory-efficient iteration ---
-    iterable = (
-        tqdm(
-            unprocessed_rows,
-            desc=f"Processing files ({model_name})",
-            unit="file",
-            initial=len(processed_files),
-            total=len(rows),
-            leave=False,
+        all_embeddings_map, p_time = _get_or_create_embeddings(
+            lance_db,
+            embedding_function,
+            item_phrases,
+            model_name,
+            model_dimensions,
         )
-        if show_progress
-        else unprocessed_rows
-    )
 
-    for item in iterable:
-        identifiant = item[0]
-        if identifiant not in all_phrases_map:
+        phrase_hashes = {p: get_text_hash(p) for p in item_phrases}
+        item_embed_phrases = np.array(
+            [
+                all_embeddings_map[h]
+                for p in item_phrases
+                if (h := phrase_hashes[p]) in all_embeddings_map
+            ]
+        )
+
+        if item_embed_phrases.size == 0:
             continue
 
-        item_phrases = all_phrases_map[identifiant]
-        item_embed_phrases_list = [
-            final_embeddings_map[p] for p in item_phrases if p in final_embeddings_map
-        ]
+        similarites = calculate_similarity(embed_themes, item_embed_phrases, similarity_metric)
+        labels = np.argmax(similarites, axis=0)
 
-        if not item_embed_phrases_list:
-            continue
+        cohesion_sep = calculate_cohesion_separation(item_embed_phrases, labels)
+        clustering_metrics = calculate_clustering_metrics(item_embed_phrases, labels)
 
-        item_embed_phrases = np.array(item_embed_phrases_list)
+        results["files"][identifiant] = {
+            "phrases": item_phrases,
+            "themes": themes,
+            "similarities": similarites.max(axis=0),
+            "metrics": {
+                **cohesion_sep,
+                **clustering_metrics,
+                "processing_time": p_time,
+                "mean_similarity": float(np.mean(similarites.max(axis=0))),
+            },
+        }
 
-        try:
-            message, file_data = process_item(
-                item,
-                themes,
-                embed_themes,
-                item_phrases,
-                item_embed_phrases,
-                total_processing_time / len(unique_phrases) if unique_phrases else 0,
-                similarity_metric,
-            )
-            if file_data:
-                results["files"][identifiant] = file_data
-        except Exception:
-            # Messages silencieux dans les workers
-            pass
-
-    return results
+    return {"results": results}

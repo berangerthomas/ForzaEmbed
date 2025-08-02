@@ -1,8 +1,20 @@
 import re
 from typing import List
 
+import nltk
 import numpy as np
+import semchunk
+import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# Load spacy model
+nlp = spacy.load("fr_core_news_sm")
+
+# Download nltk data if not already present
+try:
+    nltk.data.find("tokenizers/punkt")
+except nltk.downloader.DownloadError:  # type: ignore
+    nltk.download("punkt")
 
 
 # Splits a text into sentences or short segments.
@@ -14,9 +26,10 @@ def chunk_text(
 
     Args:
         text (str): Text to split.
-        chunk_size (int): Size of the chunks.
-        chunk_overlap (int): Overlap between chunks.
-        strategy (str): 'langchain' for smart splitting, 'raw' for basic splitting.
+        chunk_size (int): Size of the chunks. For nltk and spacy, this is ignored.
+        chunk_overlap (int): Overlap between chunks. For nltk and spacy, this is ignored.
+        strategy (str): 'langchain' for smart splitting, 'raw' for basic splitting,
+                        'semchunk', 'nltk', or 'spacy' for other methods.
 
     Returns:
         List[str]: List of extracted segments.
@@ -28,7 +41,22 @@ def chunk_text(
             length_function=len,
         )
         chunks = text_splitter.split_text(text)
-    else:  # raw strategy
+    elif strategy == "semchunk":
+        # semchunk uses chunk_size, but not chunk_overlap in the same way as 'raw'
+        chunks = list(semchunk.chunk(  # type: ignore
+            text,
+            chunk_size=chunk_size,
+            token_counter=lambda text: len(text.split()),
+            offsets=False,
+        ))
+    elif strategy == "nltk":
+        # nltk.sent_tokenize does not use chunk_size or chunk_overlap
+        chunks = nltk.sent_tokenize(text, language="french")
+    elif strategy == "spacy":
+        # Spacy's sentence splitter does not use chunk_size or chunk_overlap
+        doc = nlp(text)
+        chunks = [sent.text for sent in doc.sents]
+    elif strategy == "raw":
         if chunk_size <= 0:
             raise ValueError("chunk_size must be > 0")
         if chunk_overlap < 0:
@@ -41,8 +69,10 @@ def chunk_text(
         chunks = []
         for i in range(0, len(text), step):
             chunks.append(text[i : i + chunk_size])
+    else:
+        raise ValueError(f"Unknown chunking strategy: {strategy}")
 
-    return [chunk.strip() for chunk in chunks if chunk.strip()]
+    return [str(chunk).strip() for chunk in chunks if str(chunk).strip()]
 
 
 # Checks if a text contains a pattern related to opening hours.
@@ -100,24 +130,3 @@ def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
         else:
             context_with_highlight.append(phrase.strip())
     return " ".join(context_with_highlight)
-
-
-def to_python_type(obj):
-    """
-    Recursively converts numpy objects (float32, int64, ndarray, etc.)
-    to native Python types for JSON serialization.
-    """
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, (np.float32, np.float64)):
-        return float(obj)
-    elif isinstance(obj, (np.int32, np.int64)):
-        return int(obj)
-    elif isinstance(obj, dict):
-        return {k: to_python_type(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [to_python_type(v) for v in obj]
-    elif isinstance(obj, tuple):
-        return tuple(to_python_type(v) for v in obj)
-    else:
-        return obj

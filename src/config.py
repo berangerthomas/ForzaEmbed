@@ -127,8 +127,10 @@ CMAP = LinearSegmentedColormap.from_list(
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
     "chunk_size": [20, 50, 100, 250, 500, 1000],
+    # "chunk_size": [100],
     "chunk_overlap": [0, 10, 25, 50, 100, 200],
-    "chunking_strategy": ["langchain", "raw"],
+    # "chunk_overlap": [0],
+    "chunking_strategy": ["langchain", "raw", "semchunk", "nltk", "spacy"],
     "similarity_metrics": SIMILARITY_METRICS,
     "themes": {
         "horaires_simple": ["horaires", "autre"],

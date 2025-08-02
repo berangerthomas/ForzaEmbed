@@ -351,6 +351,15 @@ def generate_main_page(
         function populateAndSetupSliders(fileKey) {{
             if (!fileKey || !processedData.files[fileKey]) return;
 
+            const currentValues = {{
+                model: params.model[modelSlider.value],
+                cs: params.cs[chunkSizeSlider.value],
+                co: params.co[chunkOverlapSlider.value],
+                t: params.t[themeSlider.value],
+                s: params.s[chunkingStrategySlider.value],
+                m: params.m[similarityMetricSlider.value]
+            }};
+
             const paramSets = {{
                 model: new Set(),
                 cs: new Set(),
@@ -378,18 +387,19 @@ def generate_main_page(
             params.s = [...paramSets.s].sort();
             params.m = [...paramSets.m].sort();
 
-            const setupSlider = (slider, values) => {{
-                slider.max = values.length - 1;
+            const setupSlider = (slider, values, previousValue) => {{
+                slider.max = values.length > 0 ? values.length - 1 : 0;
                 slider.disabled = values.length <= 1;
-                slider.value = 0;
+                const newIndex = values.indexOf(previousValue);
+                slider.value = newIndex !== -1 ? newIndex : 0;
             }};
 
-            setupSlider(modelSlider, params.model);
-            setupSlider(chunkSizeSlider, params.cs);
-            setupSlider(chunkOverlapSlider, params.co);
-            setupSlider(themeSlider, params.t);
-            setupSlider(chunkingStrategySlider, params.s);
-            setupSlider(similarityMetricSlider, params.m);
+            setupSlider(modelSlider, params.model, currentValues.model);
+            setupSlider(chunkSizeSlider, params.cs, currentValues.cs);
+            setupSlider(chunkOverlapSlider, params.co, currentValues.co);
+            setupSlider(themeSlider, params.t, currentValues.t);
+            setupSlider(chunkingStrategySlider, params.s, currentValues.s);
+            setupSlider(similarityMetricSlider, params.m, currentValues.m);
         }}
 
         function initialize() {{
@@ -403,13 +413,11 @@ def generate_main_page(
             fileSlider.value = 0;
 
             const initialFileKey = fileKeys[0];
-            populateAndSetupSliders(initialFileKey);
-            updateView(initialFileKey);
+            updateView(initialFileKey, true);
 
             fileSlider.addEventListener('input', (e) => {{
                 const fileKey = fileKeys[parseInt(e.target.value, 10)];
-                populateAndSetupSliders(fileKey);
-                updateView(fileKey);
+                updateView(fileKey, true);
             }});
 
             const otherSliders = [modelSlider, chunkSizeSlider, chunkOverlapSlider, themeSlider, chunkingStrategySlider, similarityMetricSlider];
@@ -447,7 +455,11 @@ def generate_main_page(
             }});
         }}
 
-        function updateView(fileKey) {{
+        function updateView(fileKey, repopulate = false) {{
+            if (repopulate) {{
+                populateAndSetupSliders(fileKey);
+            }}
+
             const fileData = processedData.files[fileKey];
             
             if (!fileData) {{

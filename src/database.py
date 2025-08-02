@@ -5,7 +5,16 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from src.utils import to_python_type
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 
 class EmbeddingDatabase:
@@ -85,16 +94,6 @@ class EmbeddingDatabase:
                     results_json TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(model_name, file_id)
-                )
-            """)
-
-            # Cache for phrase embeddings
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS embeddings_cache (
-                    model_name TEXT NOT NULL,
-                    text_hash TEXT NOT NULL,
-                    embedding_json TEXT NOT NULL,
-                    PRIMARY KEY (model_name, text_hash)
                 )
             """)
 
@@ -193,8 +192,7 @@ class EmbeddingDatabase:
         self, model_name: str, file_id: str, results: Dict[str, Any]
     ):
         """Saves the detailed processing result for a file and a model."""
-        # Convert all numpy objects to native Python types for JSON serialization
-        results_json = json.dumps(to_python_type(results))
+        results_json = json.dumps(results, cls=NpEncoder)
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -213,8 +211,7 @@ class EmbeddingDatabase:
         """Saves a batch of processing results in a single transaction."""
         items_to_insert = []
         for model_name, file_id, results in results_batch:
-            # Convert all numpy objects to native Python types for JSON serialization
-            results_json = json.dumps(to_python_type(results))
+            results_json = json.dumps(results, cls=NpEncoder)
             items_to_insert.append((model_name, file_id, results_json))
 
         with sqlite3.connect(self.db_path) as conn:
@@ -262,36 +259,6 @@ class EmbeddingDatabase:
                 }
             return None
 
-    def get_cached_embeddings(
-        self, model_name: str, text_hashes: List[str]
-    ) -> Dict[str, List[float]]:
-        """Retrieves cached embeddings for a list of text hashes."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            placeholders = ",".join("?" for _ in text_hashes)
-            query = f"SELECT text_hash, embedding_json FROM embeddings_cache WHERE model_name = ? AND text_hash IN ({placeholders})"
-            cursor.execute(query, [model_name] + text_hashes)
-
-            cached_embeddings = {}
-            for row in cursor.fetchall():
-                text_hash, embedding_json = row
-                cached_embeddings[text_hash] = json.loads(embedding_json)
-            return cached_embeddings
-
-    def cache_embeddings(self, model_name: str, embeddings_map: Dict[str, List[float]]):
-        """Caches multiple embeddings in a single transaction."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            items_to_insert = [
-                (model_name, text_hash, json.dumps(to_python_type(embedding)))
-                for text_hash, embedding in embeddings_map.items()
-            ]
-            cursor.executemany(
-                "INSERT OR IGNORE INTO embeddings_cache (model_name, text_hash, embedding_json) VALUES (?, ?, ?)",
-                items_to_insert,
-            )
-            conn.commit()
-
     def get_all_processing_results(self) -> Dict[str, Any]:
         """Retrieivs all processing results from the database."""
         all_results = {}
@@ -304,15 +271,6 @@ class EmbeddingDatabase:
             for row in cursor.fetchall():
                 model_name, file_id, results_json = row
                 results = json.loads(results_json)
-
-                # Convert lists back to numpy arrays if necessary
-                if (
-                    "embeddings_data" in results
-                    and "embeddings" in results["embeddings_data"]
-                ):
-                    results["embeddings_data"]["embeddings"] = np.array(
-                        results["embeddings_data"]["embeddings"]
-                    )
 
                 if model_name not in all_results:
                     all_results[model_name] = {"files": {}}
@@ -392,7 +350,6 @@ class EmbeddingDatabase:
             cursor.execute("DELETE FROM evaluation_metrics")
             cursor.execute("DELETE FROM global_charts")
             cursor.execute("DELETE FROM processing_results")
-            cursor.execute("DELETE FROM embeddings_cache")
             cursor.execute("DELETE FROM models")
             conn.commit()
 
@@ -406,8 +363,7 @@ class EmbeddingDatabase:
     def get_processed_files_with_similarities(self, run_name: str) -> list[str]:
         """
         Récupère la liste des fichiers qui ont été traités avec des similarités calculées
-        pour un run donné. Distinction importante avec get_processed_files qui ne vérifie
-        que l'existence des embeddings.
+        pour un run donné.
         """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -416,10 +372,7 @@ class EmbeddingDatabase:
                 SELECT DISTINCT file_id 
                 FROM processing_results 
                 WHERE model_name = ? 
-                AND results_json IS NOT NULL 
-                AND results_json != ''
                 AND json_extract(results_json, '$.similarities') IS NOT NULL
-                AND json_array_length(json_extract(results_json, '$.similarities')) > 0
             """,
                 (run_name,),
             )
