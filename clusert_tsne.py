@@ -12,7 +12,7 @@ from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
-from transformers import pipeline
+from transformers.pipelines import pipeline
 
 from sentencetransformers_client import SentenceTransformersClient
 
@@ -101,6 +101,9 @@ class TextClusterAnalyzer:
         """
         Trouve automatiquement le nombre optimal de clusters
         """
+        if self.embeddings is None:
+            print("⚠️ Embeddings not generated. Cannot find optimal clusters.")
+            return 1
         n_sentences = len(self.sentences)
 
         # Validation préliminaire
@@ -258,6 +261,9 @@ class TextClusterAnalyzer:
         """
         Regroupe les phrases en clusters avec détection automatique du nombre optimal
         """
+        if self.embeddings is None:
+            print("⚠️ Embeddings not generated. Cannot cluster sentences.")
+            return None
         n_sentences = len(self.sentences)
 
         # Validation du nombre de phrases
@@ -319,6 +325,9 @@ class TextClusterAnalyzer:
         """
         Analyse chaque cluster pour proposer un thème
         """
+        if self.labels is None:
+            print("⚠️ Labels not generated. Cannot extract themes.")
+            return {}
         print("Extraction des thèmes par cluster...")
 
         for cluster_id in np.unique(self.labels):
@@ -356,7 +365,7 @@ class TextClusterAnalyzer:
 
                 # Récupérer les scores TF-IDF pour ce cluster
                 cluster_idx = list(np.unique(self.labels)).index(cluster_id)
-                tfidf_scores = tfidf_matrix[cluster_idx].toarray()[0]
+                tfidf_scores = tfidf_matrix.toarray()[cluster_idx]
 
                 # Obtenir les top mots-clés
                 top_indices = tfidf_scores.argsort()[-10:][::-1]
@@ -419,6 +428,8 @@ class TextClusterAnalyzer:
         """
         Utilise un petit modèle de langage pour générer un thème naturel
         """
+        if not self.theme_generator:
+            return self._generate_theme_fallback(keywords, sentences)
         try:
             # Préparer le contexte pour le modèle
             context_keywords = ", ".join(keywords[:5])
@@ -902,6 +913,9 @@ class TextClusterAnalyzer:
         """
         Visualise les clusters avec t-SNE
         """
+        if self.embeddings is None or self.labels is None:
+            print("⚠️ Embeddings or labels not generated. Cannot visualize clusters.")
+            return
         print("Génération de la visualisation t-SNE...")
 
         # Réduire la dimensionnalité avec t-SNE
@@ -914,17 +928,19 @@ class TextClusterAnalyzer:
         plt.figure(figsize=figsize)
 
         # Couleurs pour chaque cluster
-        colors = plt.cm.Set3(np.linspace(0, 1, len(np.unique(self.labels))))
+        unique_labels = np.unique(self.labels)
+        colors = plt.get_cmap("Set3")(np.linspace(0, 1, len(unique_labels)))
+        color_map = {label: color for label, color in zip(unique_labels, colors)}
 
         # Tracer chaque cluster
-        for cluster_id in np.unique(self.labels):
+        for cluster_id in unique_labels:
             mask = self.labels == cluster_id
             theme_name = self.themes[cluster_id]["theme"]
 
             plt.scatter(
                 embeddings_2d[mask, 0],
                 embeddings_2d[mask, 1],
-                c=[colors[cluster_id]],
+                c=[color_map[cluster_id]],
                 label=f"Cluster {cluster_id}: {theme_name}",
                 alpha=0.7,
                 s=50,
@@ -938,7 +954,7 @@ class TextClusterAnalyzer:
                 xytext=(5, 5),
                 textcoords="offset points",
                 bbox=dict(
-                    boxstyle="round,pad=0.3", facecolor=colors[cluster_id], alpha=0.7
+                    boxstyle="round,pad=0.3", facecolor=color_map[cluster_id], alpha=0.7
                 ),
                 fontsize=9,
                 ha="center",

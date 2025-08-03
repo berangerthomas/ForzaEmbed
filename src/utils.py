@@ -7,6 +7,9 @@ import semchunk
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+# téléchargement du modèle de langue français
+# python -m spacy download fr_core_news_sm
+
 # Load spacy model
 nlp = spacy.load("fr_core_news_sm")
 

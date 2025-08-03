@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from typing import List
@@ -34,6 +35,7 @@ class ProductionEmbeddingClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+        self._initial_batch_size = None
 
         # Determines which API key to use based on the model name
         if "mistral" in model.lower():
@@ -49,37 +51,122 @@ class ProductionEmbeddingClient:
     # Retrieves embeddings for a list of texts via the API.
     def get_embeddings(self, texts: List[str]) -> tuple[List[List[float]], float]:
         """
-        Retrieves embeddings for a list of texts via the API.
-
-        Args:
-            texts (List[str]): List of texts.
-
-        Returns:
-            tuple[List[List[float]], float]: List of embedding vectors and response time.
+        Retrieves embeddings for a list of texts via the API with automatic batch splitting.
         """
         if not texts:
             return [], 0.0
+
+        # Start with full batch, will be subdivided if needed
+        return self._get_embeddings_with_retry(texts, initial_batch_size=len(texts))
+
+    def _get_embeddings_with_retry(
+        self, texts: List[str], initial_batch_size: int, max_retries: int = 3
+    ) -> tuple[List[List[float]], float]:
+        """
+        Internal method to handle batch subdivision and retries.
+        """
+        batch_size = min(initial_batch_size, len(texts))
+        total_embeddings = []
+        total_time = 0.0
+
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i : i + batch_size]
+
+            for attempt in range(max_retries):
+                try:
+                    embeddings, processing_time = self._single_api_call(batch_texts)
+                    total_embeddings.extend(embeddings)
+                    total_time += processing_time
+                    break  # Success, move to next batch
+
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 400:
+                        try:
+                            error_response = e.response.json()
+                            error_message = error_response.get("message", "").lower()
+
+                            # Check if it's a batch size error
+                            if any(
+                                keyword in error_message
+                                for keyword in [
+                                    "too many inputs",
+                                    "split into more batches",
+                                    "batch size",
+                                    "request too large",
+                                ]
+                            ):
+                                # Reduce batch size by half
+                                new_batch_size = max(1, len(batch_texts) // 2)
+                                tqdm.write(
+                                    f"🔄 Batch too large ({len(batch_texts)} texts), "
+                                    f"splitting into smaller batches of {new_batch_size}"
+                                )
+
+                                # Recursively process with smaller batches
+                                sub_embeddings, sub_time = (
+                                    self._get_embeddings_with_retry(
+                                        batch_texts, new_batch_size, max_retries
+                                    )
+                                )
+                                total_embeddings.extend(sub_embeddings)
+                                total_time += sub_time
+                                break  # Success with subdivision
+                            else:
+                                # Other 400 error, don't retry
+                                raise
+                        except (json.JSONDecodeError, KeyError):
+                            # Can't parse error response, don't retry
+                            raise
+                    else:
+                        # Non-400 error, don't retry
+                        raise
+
+                except requests.exceptions.RequestException as e:
+                    if attempt == max_retries - 1:
+                        # Last attempt failed
+                        error_msg = f"❌ API Error after {max_retries} attempts: {e}"
+                        if hasattr(e, "response") and e.response is not None:
+                            error_msg += f"\n  Status code: {e.response.status_code}"
+                            error_msg += (
+                                f"\n  URL: {getattr(e.response, 'url', 'unknown')}"
+                            )
+                            error_msg += f"\n  Response content: {e.response.text}"
+                        tqdm.write(error_msg)
+                        return [], 0.0
+                    else:
+                        # Wait before retry
+                        time.sleep(2**attempt)  # Exponential backoff
+
+        return total_embeddings, total_time
+
+    def _single_api_call(self, texts: List[str]) -> tuple[List[List[float]], float]:
+        """
+        Makes a single API call without retry logic.
+        """
         url = f"{self.base_url}/embeddings"
         payload = {"model": self.model, "input": texts}
         start_time = time.time()
+
         try:
+            # Make the API request
             response = self.session.post(url, json=payload, timeout=self.timeout)
             response.raise_for_status()
             result = response.json()
             embeddings = [data["embedding"] for data in result["data"]]
-
-            if self.expected_dimension and embeddings:
-                actual_dimension = len(embeddings[0])
-                if actual_dimension != self.expected_dimension:
-                    raise ValueError(
-                        f"Expected dimension {self.expected_dimension}, but got {actual_dimension} for model {self.model}"
-                    )
-
-            end_time = time.time()
-            return embeddings, end_time - start_time
         except requests.exceptions.RequestException as e:
-            tqdm.write(f"❌ API Error: {e}")
-            return [], 0.0
-        except (KeyError, IndexError) as e:
-            tqdm.write(f"❌ API Response Parsing Error: {e}")
-            return [], 0.0
+            tqdm.write(f"❌ API request failed: {e}")
+            if hasattr(e, "response") and e.response is not None:
+                tqdm.write(f"  Status code: {e.response.status_code}")
+                tqdm.write(f"  URL: {getattr(e.response, 'url', 'unknown')}")
+                tqdm.write(f"  Response content: {e.response.text}")
+            return [], 0.0  # Return empty embeddings
+
+        if self.expected_dimension and embeddings:
+            actual_dimension = len(embeddings[0])
+            if actual_dimension != self.expected_dimension:
+                raise ValueError(
+                    f"Expected dimension {self.expected_dimension}, but got {actual_dimension} for model {self.model}"
+                )
+
+        end_time = time.time()
+        return embeddings, end_time - start_time

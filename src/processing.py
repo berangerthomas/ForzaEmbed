@@ -1,9 +1,7 @@
 import hashlib
-import json
 from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
-import pyarrow as pa
 from sklearn.metrics.pairwise import (
     cosine_similarity,
     euclidean_distances,
@@ -12,10 +10,9 @@ from sklearn.metrics.pairwise import (
 )
 from tqdm import tqdm
 
-from src.config import SIMILARITY_THRESHOLD
+from src.config import MULTIPROCESSING_CONFIG
 from src.database import EmbeddingDatabase
 from src.embedding_client import ProductionEmbeddingClient
-from src.lancedb_client import LanceDBClient
 from src.evaluation_metrics import (
     calculate_clustering_metrics,
     calculate_cohesion_separation,
@@ -50,68 +47,58 @@ def get_text_hash(text: str) -> str:
 
 
 def _get_or_create_embeddings(
-    lance_db: LanceDBClient,
+    db: EmbeddingDatabase,
     embedding_function: Callable,
+    base_model_name: str,
     phrases: List[str],
-    model_name: str,
-    model_dimensions: int,
 ) -> Tuple[Dict[str, np.ndarray], float]:
     """
-    Retrieves embeddings from LanceDB or generates and caches them if they don't exist.
+    Retrieves embeddings from the SQLite cache or generates and caches them if they don't exist.
     """
-    table_name = f"embed_{model_name.replace('-', '_').replace('/', '_')}"
     phrase_hashes = {phrase: get_text_hash(phrase) for phrase in phrases}
 
-    schema = pa.schema(
-        [
-            pa.field("text_hash", pa.string()),
-            pa.field("vector", pa.list_(pa.float32(), list_size=model_dimensions)),
-        ]
+    # Check for existing embeddings in the cache WITH model context
+    existing_embeddings = db.get_embeddings_by_hashes(
+        base_model_name, list(phrase_hashes.values())
     )
-    lance_db.create_table_if_not_exists(table_name, schema)
 
-    existing_embeddings = {}
-    try:
-        table = lance_db.db.open_table(table_name)
-        all_records = table.to_pandas()
-        if not all_records.empty:
-            existing_hashes = set(all_records["text_hash"])
-            phrases_to_check = [
-                h for h in phrase_hashes.values() if h in existing_hashes
-            ]
-            if phrases_to_check:
-                results = all_records[
-                    all_records["text_hash"].isin(phrases_to_check)
-                ]
-                for _, row in results.iterrows():
-                    existing_embeddings[row["text_hash"]] = np.array(row["vector"])
-    except FileNotFoundError:
-        pass
-
+    # Identify which phrases need to be embedded
     phrases_to_embed = [
         phrase for phrase, h in phrase_hashes.items() if h not in existing_embeddings
     ]
 
     total_processing_time = 0.0
     if phrases_to_embed:
-        new_embeddings, processing_time = embedding_function(phrases_to_embed)
+        # Generate embeddings for new phrases
+        new_embeddings_list, processing_time = embedding_function(phrases_to_embed)
         total_processing_time = processing_time
-        if new_embeddings:
-            new_data = [
-                {"text_hash": phrase_hashes[phrase], "vector": embedding}
-                for phrase, embedding in zip(phrases_to_embed, new_embeddings)
-            ]
-            lance_db.add_embeddings(table_name, new_data)
-            for item in new_data:
-                existing_embeddings[item["text_hash"]] = np.array(item["vector"])
 
-    return existing_embeddings, total_processing_time
+        if new_embeddings_list:
+            # Create a map of hash to new embedding vector
+            new_embeddings_map = {
+                phrase_hashes[phrase]: np.array(embedding)
+                for phrase, embedding in zip(phrases_to_embed, new_embeddings_list)
+            }
+
+            # Save the new embeddings to the cache WITH model context
+            db.save_embeddings_batch(base_model_name, new_embeddings_map)
+
+            # Add the new embeddings to the map of existing embeddings for this run
+            existing_embeddings.update(new_embeddings_map)
+
+    # Combine all embeddings (cached and new) for the current set of phrases
+    all_embeddings_for_phrases = {
+        h: existing_embeddings[h]
+        for p, h in phrase_hashes.items()
+        if h in existing_embeddings
+    }
+
+    return all_embeddings_for_phrases, total_processing_time
 
 
 def run_test(
     rows: List[Tuple[str, str, str, str]],
     db: EmbeddingDatabase,
-    lance_db: LanceDBClient,
     model_config: Dict[str, Any],
     chunk_size: int,
     chunk_overlap: int,
@@ -123,7 +110,7 @@ def run_test(
     show_progress: bool = True,
 ) -> Dict[str, Any]:
     """
-    Processes a test run using SQLite for metadata and LanceDB for embeddings.
+    Processes a test run using SQLite for metadata and embeddings cache.
     """
     model_type = model_config["type"]
     model_name = model_config["name"]
@@ -131,28 +118,62 @@ def run_test(
 
     embedding_function: Callable
     if model_type in ["sentence_transformers", "fastembed", "huggingface"]:
+
         def get_embeddings(texts):
             return model_config["function"](
                 texts,
                 model_name=model_name,
                 expected_dimension=model_config.get("dimensions"),
             )
+
         embedding_function = get_embeddings
     else:
+        # Determine appropriate batch size based on API provider
+        api_batch_sizes = MULTIPROCESSING_CONFIG.get("api_batch_sizes", {})
+        model_lower = model_name.lower()
+
+        initial_batch_size = api_batch_sizes.get("default", 100)
+        for provider, batch_size in api_batch_sizes.items():
+            if provider in model_lower:
+                initial_batch_size = batch_size
+                break
+
         client = ProductionEmbeddingClient(
             model_config["base_url"],
             model_name,
             expected_dimension=model_config.get("dimensions"),
             timeout=model_config.get("timeout", 30),
         )
+        # Store initial batch size for use in subdivision
+        client._initial_batch_size = initial_batch_size
         embedding_function = client.get_embeddings
 
-    embed_themes_list, _ = embedding_function(themes)
+    # Cache themes embeddings too WITH model context
+    themes_embeddings_map, _ = _get_or_create_embeddings(
+        db, embedding_function, model_config["name"], themes
+    )
+
+    if not themes_embeddings_map:
+        raise RuntimeError(
+            f"Embedding for themes failed for model '{model_name}'. "
+            "Check API response or local model configuration."
+        )
+
+    # Reconstruct themes embeddings in the same order
+    theme_hashes = [get_text_hash(theme) for theme in themes]
+    embed_themes_list = [
+        themes_embeddings_map[h] for h in theme_hashes if h in themes_embeddings_map
+    ]
     embed_themes = np.array(embed_themes_list)
 
     unprocessed_rows = [row for row in rows if row[0] not in processed_files]
 
-    for item in tqdm(unprocessed_rows, desc=f"Processing {model_name}", leave=False, disable=not show_progress):
+    for item in tqdm(
+        unprocessed_rows,
+        desc=f"Processing {model_name}",
+        leave=False,
+        disable=not show_progress,
+    ):
         identifiant, _, _, texte = item
         if not texte or not texte.strip():
             continue
@@ -161,16 +182,11 @@ def run_test(
         if not item_phrases:
             continue
 
-        model_dimensions = model_config.get("dimensions")
-        if model_dimensions is None:
-            raise ValueError(f"Model dimensions not configured for {model_name}")
-
         all_embeddings_map, p_time = _get_or_create_embeddings(
-            lance_db,
+            db,
             embedding_function,
+            model_config["name"],
             item_phrases,
-            model_name,
-            model_dimensions,
         )
 
         phrase_hashes = {p: get_text_hash(p) for p in item_phrases}
@@ -182,10 +198,24 @@ def run_test(
             ]
         )
 
+        # Skip if phrase embeddings are empty (API error)
         if item_embed_phrases.size == 0:
+            # Skip this file if embedding failed, do not write to results
             continue
 
-        similarites = calculate_similarity(embed_themes, item_embed_phrases, similarity_metric)
+        # --- Vérification stricte des dimensions ---
+        if embed_themes.shape[1] != item_embed_phrases.shape[1]:
+            raise ValueError(
+                f"Dimension mismatch for file '{identifiant}': "
+                f"theme embeddings dim={embed_themes.shape[1]}, "
+                f"phrase embeddings dim={item_embed_phrases.shape[1]} "
+                f"(model: {model_name}). "
+                "This indicates that themes and phrases were not embedded with the same model or configuration."
+            )
+
+        similarites = calculate_similarity(
+            embed_themes, item_embed_phrases, similarity_metric
+        )
         labels = np.argmax(similarites, axis=0)
 
         cohesion_sep = calculate_cohesion_separation(item_embed_phrases, labels)
@@ -193,7 +223,6 @@ def run_test(
 
         results["files"][identifiant] = {
             "phrases": item_phrases,
-            "themes": themes,
             "similarities": similarites.max(axis=0),
             "metrics": {
                 **cohesion_sep,

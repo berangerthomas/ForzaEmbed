@@ -2,6 +2,21 @@ import json
 import os
 from typing import Any, Dict
 
+import numpy as np
+
+
+class NumpyJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for NumPy data types."""
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
 
 def generate_main_page(
     processed_data: Dict[str, Any], output_dir: str, total_combinations: int
@@ -11,7 +26,7 @@ def generate_main_page(
     """
 
     # Serialize the data to inject into JavaScript
-    data_json = json.dumps(processed_data, indent=4)
+    data_json = json.dumps(processed_data, indent=4, cls=NumpyJSONEncoder)
 
     html_content = f"""
 <!DOCTYPE html>
@@ -70,6 +85,11 @@ def generate_main_page(
         .control-group {{
             margin-bottom: 0;
             overflow: hidden;
+            transition: filter 0.3s ease;
+        }}
+        .control-group.disabled {{
+            filter: grayscale(80%);
+            opacity: 0.7;
         }}
         .label-group {{
             display: flex;
@@ -392,6 +412,7 @@ def generate_main_page(
                 slider.disabled = values.length <= 1;
                 const newIndex = values.indexOf(previousValue);
                 slider.value = newIndex !== -1 ? newIndex : 0;
+                slider.parentElement.classList.toggle('disabled', slider.disabled);
             }};
 
             setupSlider(modelSlider, params.model, currentValues.model);
@@ -409,8 +430,15 @@ def generate_main_page(
                 return;
             }}
 
-            fileSlider.max = fileKeys.length - 1;
-            fileSlider.value = 0;
+            const setupSlider = (slider, values, previousValue) => {{
+                slider.max = values.length > 0 ? values.length - 1 : 0;
+                slider.disabled = values.length <= 1;
+                const newIndex = values.indexOf(previousValue);
+                slider.value = newIndex !== -1 ? newIndex : 0;
+                slider.parentElement.classList.toggle('disabled', slider.disabled);
+            }};
+
+            setupSlider(fileSlider, fileKeys, fileKeys[0]);
 
             const initialFileKey = fileKeys[0];
             updateView(initialFileKey, true);

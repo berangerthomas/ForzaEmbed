@@ -29,6 +29,13 @@ MULTIPROCESSING_CONFIG = {
     "embedding_batch_size_api": 100,  # Batch size for API embedding requests
     "embedding_batch_size_local": 500,  # Batch size for local embedding requests
     "file_batch_size": 50,  # Batch size for file processing
+    # API-specific batch sizes
+    "api_batch_sizes": {
+        "mistral": 50,  # Mistral has lower limits
+        "voyage": 100,  # Voyage can handle more
+        "openai": 100,  # Standard OpenAI limit
+        "default": 100,  # Default for unknown APIs
+    },
 }
 
 
@@ -126,9 +133,9 @@ CMAP = LinearSegmentedColormap.from_list(
 
 # --- Grid Search Parameters ---
 GRID_SEARCH_PARAMS = {
-    "chunk_size": [20, 50, 100, 250, 500, 1000],
+    "chunk_size": [10, 20, 50, 100, 250, 500, 1000],
     # "chunk_size": [100],
-    "chunk_overlap": [0, 10, 25, 50, 100, 200],
+    "chunk_overlap": [0, 5, 10, 25, 50, 100, 200],
     # "chunk_overlap": [0],
     "chunking_strategy": ["langchain", "raw", "semchunk", "nltk", "spacy"],
     "similarity_metrics": SIMILARITY_METRICS,

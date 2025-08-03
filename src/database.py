@@ -1,20 +1,35 @@
-import json
 import os
 import sqlite3
+import zlib
 from typing import Any, Dict, List, Optional, Tuple
 
+import msgpack
 import numpy as np
 
 
-class NpEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super(NpEncoder, self).default(obj)
+def numpy_default(obj):
+    """Custom encoder for numpy data types for msgpack, with compression."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        # Using zlib for a good balance of speed and compression
+        return {
+            "__ndarray__": True,
+            "dtype": obj.dtype.str,
+            "shape": obj.shape,
+            "data": zlib.compress(obj.tobytes()),
+        }
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not serializable")
+
+
+def decode_numpy(obj):
+    """Custom decoder for numpy data types for msgpack."""
+    if isinstance(obj, dict) and "__ndarray__" in obj:
+        data = zlib.decompress(obj["data"])
+        return np.frombuffer(data, dtype=np.dtype(obj["dtype"])).reshape(obj["shape"])
+    return obj
 
 
 class EmbeddingDatabase:
@@ -91,9 +106,30 @@ class EmbeddingDatabase:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     model_name TEXT NOT NULL,
                     file_id TEXT NOT NULL,
-                    results_json TEXT NOT NULL,
+                    results_blob BLOB NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(model_name, file_id)
+                )
+            """)
+
+            # Check if embedding_cache needs migration
+            cursor.execute("PRAGMA table_info(embedding_cache)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "cache_key" not in columns:
+                # Migration needed: drop old table and recreate
+                print("Migrating embedding_cache table structure...")
+                cursor.execute("DROP TABLE IF EXISTS embedding_cache")
+
+            # Table for caching embeddings - MODIFIED to include model_name
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS embedding_cache (
+                    cache_key TEXT PRIMARY KEY NOT NULL,
+                    model_name TEXT NOT NULL,
+                    text_hash TEXT NOT NULL,
+                    vector BLOB NOT NULL,
+                    dimension INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
@@ -132,12 +168,17 @@ class EmbeddingDatabase:
             conn.commit()
 
     def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
-        """Adds evaluation metrics for a model."""
+        """Adds or updates evaluation metrics for a model."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            # Delete existing metrics for this model to avoid duplicates
+            cursor.execute(
+                "DELETE FROM evaluation_metrics WHERE model_name = ?", (model_name,)
+            )
+            # Insert the new metrics
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO evaluation_metrics 
+                INSERT INTO evaluation_metrics 
                 (model_name, cohesion, separation, discriminant_score, 
                  silhouette, calinski_harabasz, davies_bouldin, processing_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -169,12 +210,15 @@ class EmbeddingDatabase:
             conn.commit()
 
     def add_global_chart(self, chart_type: str, file_path: str):
-        """Adds a global chart to the database."""
+        """Adds or updates a global chart in the database."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            # Delete existing chart of this type
+            cursor.execute("DELETE FROM global_charts WHERE chart_type = ?", (chart_type,))
+            # Insert the new chart path
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO global_charts (chart_type, file_path)
+                INSERT INTO global_charts (chart_type, file_path)
                 VALUES (?, ?)
             """,
                 (chart_type, file_path),
@@ -192,16 +236,16 @@ class EmbeddingDatabase:
         self, model_name: str, file_id: str, results: Dict[str, Any]
     ):
         """Saves the detailed processing result for a file and a model."""
-        results_json = json.dumps(results, cls=NpEncoder)
+        results_blob = msgpack.packb(results, default=numpy_default, use_bin_type=True)
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_json)
+                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_blob)
                 VALUES (?, ?, ?)
             """,
-                (model_name, file_id, results_json),
+                (model_name, file_id, results_blob),
             )
             conn.commit()
 
@@ -211,14 +255,16 @@ class EmbeddingDatabase:
         """Saves a batch of processing results in a single transaction."""
         items_to_insert = []
         for model_name, file_id, results in results_batch:
-            results_json = json.dumps(results, cls=NpEncoder)
-            items_to_insert.append((model_name, file_id, results_json))
+            results_blob = msgpack.packb(
+                results, default=numpy_default, use_bin_type=True
+            )
+            items_to_insert.append((model_name, file_id, results_blob))
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.executemany(
                 """
-                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_json)
+                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_blob)
                 VALUES (?, ?, ?)
             """,
                 items_to_insert,
@@ -265,12 +311,14 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT model_name, file_id, results_json FROM processing_results"
+                "SELECT model_name, file_id, results_blob FROM processing_results"
             )
 
             for row in cursor.fetchall():
-                model_name, file_id, results_json = row
-                results = json.loads(results_json)
+                model_name, file_id, results_blob = row
+                results = msgpack.unpackb(
+                    results_blob, object_hook=decode_numpy, raw=False
+                )
 
                 if model_name not in all_results:
                     all_results[model_name] = {"files": {}}
@@ -342,6 +390,11 @@ class EmbeddingDatabase:
 
             return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
 
+    def vacuum_database(self):
+        """Vacuums the database to reclaim space."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("VACUUM")
+
     def clear_database(self):
         """Clears all tables in the database."""
         with sqlite3.connect(self.db_path) as conn:
@@ -351,6 +404,7 @@ class EmbeddingDatabase:
             cursor.execute("DELETE FROM global_charts")
             cursor.execute("DELETE FROM processing_results")
             cursor.execute("DELETE FROM models")
+            cursor.execute("DELETE FROM embedding_cache")
             conn.commit()
 
     def get_all_run_names(self) -> list[str]:
@@ -365,15 +419,76 @@ class EmbeddingDatabase:
         Récupère la liste des fichiers qui ont été traités avec des similarités calculées
         pour un run donné.
         """
+        processed_files = []
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                """
-                SELECT DISTINCT file_id 
-                FROM processing_results 
-                WHERE model_name = ? 
-                AND json_extract(results_json, '$.similarities') IS NOT NULL
-            """,
+                "SELECT file_id, results_blob FROM processing_results WHERE model_name = ?",
                 (run_name,),
             )
-            return [row[0] for row in cursor.fetchall()]
+            for file_id, results_blob in cursor.fetchall():
+                results = msgpack.unpackb(
+                    results_blob, object_hook=decode_numpy, raw=False
+                )
+                if "similarities" in results and results["similarities"] is not None:
+                    processed_files.append(file_id)
+        return processed_files
+
+    def get_embeddings_by_hashes(
+        self, base_model_name: str, text_hashes: List[str]
+    ) -> Dict[str, np.ndarray]:
+        """Retrieves embeddings from the cache by base model and text hashes."""
+        if not text_hashes:
+            return {}
+
+        # Use the base_model_name for the cache key to ensure one entry per model
+        cache_keys = [f"{base_model_name}:{h}" for h in text_hashes]
+        placeholders = ",".join("?" for _ in cache_keys)
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT cache_key, vector FROM embedding_cache WHERE cache_key IN ({placeholders})",
+                cache_keys,
+            )
+
+            embeddings = {}
+            for cache_key, vector_blob in cursor.fetchall():
+                # The text hash is after the first colon
+                text_hash = cache_key.split(":", 1)[1]
+                embeddings[text_hash] = msgpack.unpackb(
+                    vector_blob, object_hook=decode_numpy, raw=False
+                )
+            return embeddings
+
+    def save_embeddings_batch(
+        self, base_model_name: str, embeddings: Dict[str, np.ndarray]
+    ):
+        """Saves a batch of embeddings to the cache using the base model name."""
+        if not embeddings:
+            return
+
+        items_to_insert = []
+        for text_hash, vector in embeddings.items():
+            # Use the base_model_name for the cache key
+            cache_key = f"{base_model_name}:{text_hash}"
+            vector_blob = msgpack.packb(vector, default=numpy_default, use_bin_type=True)
+            dimension = len(vector) if len(vector.shape) == 1 else vector.shape[1]
+            items_to_insert.append(
+                (cache_key, base_model_name, text_hash, vector_blob, dimension)
+            )
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                "INSERT OR IGNORE INTO embedding_cache (cache_key, model_name, text_hash, vector, dimension) VALUES (?, ?, ?, ?, ?)",
+                items_to_insert,
+            )
+            conn.commit()
+
+    def clear_embedding_cache(self):
+        """Clears all embeddings from the cache."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM embedding_cache")
+            conn.commit()

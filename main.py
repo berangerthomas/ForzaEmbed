@@ -1,8 +1,6 @@
 import argparse
 import itertools
-import multiprocessing
 import os
-import time
 
 import numpy as np
 from tqdm import tqdm
@@ -17,17 +15,16 @@ from src.config import (
 )
 from src.data_loader import load_markdown_files
 from src.database import EmbeddingDatabase
-from src.lancedb_client import LanceDBClient
 from src.processing import get_text_hash, run_test
 from src.reporting import (
     analyze_and_visualize_clustering_metrics,
-    analyze_and_visualize_variance,
+    analyze_and_visualize_variance,  # Import variance analysis function
     generate_explanatory_markdown,
     generate_filtered_markdown,
-    generate_heatmap_html,
 )
-from src.utils import chunk_text
 from src.web_generator import generate_main_page
+
+# .venv\Scripts\python -m spacy download fr_core_news_sm
 
 
 def get_completed_combinations(db: EmbeddingDatabase, all_rows: list) -> set[str]:
@@ -61,8 +58,8 @@ def generate_run_name(
     return f"{model_name}_d{dimensions}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
 
-def run_processing(db: EmbeddingDatabase, lance_db: LanceDBClient):
-    """Processes data using an optimized architecture with SQLite and LanceDB."""
+def run_processing(db: EmbeddingDatabase):
+    """Processes data using an optimized architecture with SQLite."""
     print("--- Starting Data Processing ---")
 
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
@@ -114,11 +111,10 @@ def run_processing(db: EmbeddingDatabase, lance_db: LanceDBClient):
         run_name = generate_run_name(*params)
 
         processed_files = db.get_processed_files(run_name)
-        
+
         result = run_test(
             rows=all_rows,
             db=db,
-            lance_db=lance_db,
             model_config=model_config,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -139,7 +135,7 @@ def run_processing(db: EmbeddingDatabase, lance_db: LanceDBClient):
         if results_to_save:
             db.add_model(
                 run_name,
-                model_config["name"],
+                model_config["name"],  # This is the base_model_name
                 model_config["type"],
                 chunk_size,
                 chunk_overlap,
@@ -150,7 +146,7 @@ def run_processing(db: EmbeddingDatabase, lance_db: LanceDBClient):
             db.save_processing_results_batch(results_to_save)
 
 
-def _aggregate_data(db: EmbeddingDatabase, lance_db: LanceDBClient, all_results: dict):
+def _aggregate_data(db: EmbeddingDatabase, all_results: dict):
     """Aggregates data from results for reporting."""
     processed_data_for_interactive_page = {}
     all_models_metrics = {}
@@ -165,45 +161,47 @@ def _aggregate_data(db: EmbeddingDatabase, lance_db: LanceDBClient, all_results:
                 "phrases": file_data.get("phrases", []),
                 "similarities": file_data.get("similarities", []),
                 "metrics": file_data.get("metrics", {}),
-                "themes": file_data.get("themes", []),
             }
 
         model_info = db.get_model_info(model_name)
+        if model_info and "theme_name" in model_info:
+            theme_name = model_info["theme_name"]
+            themes = GRID_SEARCH_PARAMS["themes"].get(theme_name, [])
+            for file_data in file_entry["embeddings"].values():
+                file_data["themes"] = themes
         if model_info:
             base_model_name = model_info["model_name"]
-            table_name = f"embed_{base_model_name.replace('-', '_').replace('/', '_')}"
-            
-            try:
-                table = lance_db.db.open_table(table_name)
-                all_lance_records = table.to_pandas()
-                current_model_embeddings = []
+            current_model_embeddings = []
+            all_phrase_hashes = []
+            for res in model_results.get("files", {}).values():
+                if res and "phrases" in res:
+                    all_phrase_hashes.extend([get_text_hash(p) for p in res["phrases"]])
+
+            if all_phrase_hashes:
+                # Fetch all embeddings for this model in one go
+                cached_embeddings = db.get_embeddings_by_hashes(
+                    base_model_name, all_phrase_hashes
+                )
+
                 for res in model_results.get("files", {}).values():
                     if res and "phrases" in res:
                         phrase_hashes = [get_text_hash(p) for p in res["phrases"]]
-                        embeddings_df = all_lance_records[
-                            all_lance_records["text_hash"].isin(phrase_hashes)
+
+                        # Reconstruct the embedding array from the cached data
+                        ordered_embeddings = [
+                            cached_embeddings.get(h) for h in phrase_hashes
                         ]
-                        if not embeddings_df.empty:
-                            hash_to_vector = {
-                                row["text_hash"]: row["vector"]
-                                for _, row in embeddings_df.iterrows()
-                            }
-                            ordered_embeddings = [
-                                hash_to_vector.get(h) for h in phrase_hashes
-                            ]
-                            ordered_embeddings = [
-                                e for e in ordered_embeddings if e is not None
-                            ]
-                            if ordered_embeddings:
-                                current_model_embeddings.append(
-                                    np.array(ordered_embeddings)
-                                )
-                if current_model_embeddings:
-                    model_embeddings_for_variance[
-                        model_name
-                    ] = current_model_embeddings
-            except FileNotFoundError:
-                pass  # Table might not exist for this model
+                        ordered_embeddings = [
+                            e for e in ordered_embeddings if e is not None
+                        ]
+
+                        if ordered_embeddings:
+                            current_model_embeddings.append(
+                                np.array(ordered_embeddings)
+                            )
+
+            if current_model_embeddings:
+                model_embeddings_for_variance[model_name] = current_model_embeddings
 
         metrics_list = [
             res["metrics"] for res in model_results.get("files", {}).values() if res
@@ -223,8 +221,14 @@ def _aggregate_data(db: EmbeddingDatabase, lance_db: LanceDBClient, all_results:
     )
 
 
-def generate_all_reports(db: EmbeddingDatabase, lance_db: LanceDBClient):
-    """Generates all reports from the data in the database."""
+def generate_all_reports(db: EmbeddingDatabase, top_n: int | None = None):
+    """
+    Generates all reports from the data in the database.
+
+    Args:
+        db (EmbeddingDatabase): The database connection.
+        top_n (int, optional): If set, limits charts to the top N models.
+    """
     print("--- Generating All Reports ---")
 
     markdown_directory = os.path.join(os.path.dirname(__file__), "data", "markdown")
@@ -240,7 +244,7 @@ def generate_all_reports(db: EmbeddingDatabase, lance_db: LanceDBClient):
         processed_data_for_interactive_page,
         all_models_metrics,
         model_embeddings_for_variance,
-    ) = _aggregate_data(db, lance_db, all_results)
+    ) = _aggregate_data(db, all_results)
 
     generate_main_page(
         {"files": processed_data_for_interactive_page},
@@ -248,7 +252,9 @@ def generate_all_reports(db: EmbeddingDatabase, lance_db: LanceDBClient):
         len(all_results),
     )
     _generate_file_reports(db, all_results, file_metadata)
-    _generate_global_reports(db, all_models_metrics, model_embeddings_for_variance)
+    _generate_global_reports(
+        db, all_models_metrics, model_embeddings_for_variance, top_n
+    )
 
     print(f"\n✅ All reports generated in '{OUTPUT_DIR}'.")
 
@@ -268,32 +274,45 @@ def _generate_file_reports(db, all_results, file_metadata):
                 file_id, {"nom": file_id, "type_lieu": "Unknown"}
             )
             if "phrases" in file_data and "similarities" in file_data:
-                generate_heatmap_html(
+                generate_filtered_markdown(
                     identifiant=file_id,
                     nom=metadata["nom"],
                     type_lieu=metadata["type_lieu"],
-                    themes=file_data.get("themes", []),
                     phrases=file_data["phrases"],
                     similarites_norm=np.array(file_data["similarities"]),
-                    cmap=CMAP,
+                    threshold=SIMILARITY_THRESHOLD,
+                    output_dir=OUTPUT_DIR,
+                    model_name=base_model_name,
+                    run_name=run_name,
+                )
+                generate_explanatory_markdown(
+                    identifiant=file_id,
+                    nom=metadata["nom"],
+                    type_lieu=metadata["type_lieu"],
+                    phrases=file_data["phrases"],
+                    similarites_norm=np.array(file_data["similarities"]),
+                    themes=file_data.get("themes", []),
+                    threshold=SIMILARITY_THRESHOLD,
                     output_dir=OUTPUT_DIR,
                     model_name=base_model_name,
                     run_name=run_name,
                 )
 
 
-def _generate_global_reports(db, all_models_metrics, model_embeddings_for_variance):
+def _generate_global_reports(
+    db, all_models_metrics, model_embeddings_for_variance, top_n=None
+):
     """Generates global comparison charts."""
     if all_models_metrics:
         plot_path = analyze_and_visualize_clustering_metrics(
-            all_models_metrics, OUTPUT_DIR
+            all_models_metrics, OUTPUT_DIR, top_n=top_n
         )
         if plot_path:
             db.add_global_chart("clustering_metrics", plot_path)
 
     if model_embeddings_for_variance:
         plot_path = analyze_and_visualize_variance(
-            model_embeddings_for_variance, OUTPUT_DIR
+            model_embeddings_for_variance, OUTPUT_DIR, top_n=top_n
         )
         if plot_path:
             db.add_global_chart("variance_analysis", plot_path)
@@ -301,7 +320,9 @@ def _generate_global_reports(db, all_models_metrics, model_embeddings_for_varian
 
 def main():
     """Main function to manage the pipeline."""
-    parser = argparse.ArgumentParser(description="Run embedding analysis and reporting.")
+    parser = argparse.ArgumentParser(
+        description="Run embedding analysis and reporting."
+    )
     parser.add_argument(
         "--generate-reports",
         action="store_true",
@@ -310,24 +331,39 @@ def main():
     parser.add_argument(
         "--clear-db", action="store_true", help="Clear the database before running."
     )
+    parser.add_argument(
+        "--clear-embedding-cache",
+        action="store_true",
+        help="Clear the embedding cache before running.",
+    )
+    parser.add_argument(
+        "--top-n",
+        type=int,
+        default=None,
+        help="Display only the top N models in comparison charts.",
+    )
     args = parser.parse_args()
 
     db = EmbeddingDatabase()
-    lance_db = LanceDBClient()
 
     if args.clear_db:
         print("--- Clearing Databases ---")
         db.clear_database()
-        # You might want to clear LanceDB as well, if applicable
-        # For now, we assume it's managed separately or recreated as needed.
+
+    if args.clear_embedding_cache:
+        print("--- Clearing Embedding Cache ---")
+        db.clear_embedding_cache()
 
     if args.generate_reports:
-        generate_all_reports(db, lance_db)
+        generate_all_reports(db, top_n=args.top_n)
     else:
-        run_processing(db, lance_db)
-        generate_all_reports(db, lance_db)
+        run_processing(db)
+        generate_all_reports(db, top_n=args.top_n)
+
+    print("--- Compacting Database ---")
+    db.vacuum_database()
+    print("✅ Database compacted.")
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
     main()

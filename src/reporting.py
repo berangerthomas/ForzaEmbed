@@ -2,8 +2,8 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
+import polars as pl
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 from sklearn.manifold import TSNE
@@ -98,16 +98,10 @@ def generate_filtered_markdown(
 
     relevant_phrases = [phrases[i] for i in sorted(list(relevant_indices))]
 
-    content = f"# Filtered Result - {nom} ({type_lieu})\n\n"
-    content += f"**Run:** {run_name}\n"
-    content += f"**Base model:** {model_name}\n"
-    content += f"**Threshold:** {threshold}\n"
-    content += f"**Selected sentences:** {len(relevant_phrases)}/{len(phrases)}\n\n"
-    content += "## Raw Filtered Content\n\n"
     if relevant_phrases:
-        content += "\n\n".join(relevant_phrases)
+        content = "\n\n".join(relevant_phrases)
     else:
-        content += "No relevant sentence found."
+        content = "No relevant sentence found."
 
     safe_run_name = run_name.replace("/", "_")
     filename = os.path.join(output_dir, f"{identifiant}_{safe_run_name}_filtered.md")
@@ -132,7 +126,6 @@ def generate_radar_chart(
         print("Not enough models to generate a radar chart.")
         return
 
-    # Use the same metrics as the bar charts
     metrics = [
         "cohesion",
         "separation",
@@ -141,37 +134,68 @@ def generate_radar_chart(
         "calinski_harabasz",
         "davies_bouldin",
     ]
-    df = pd.DataFrame(evaluation_results).T[metrics]
 
-    # Metrics where a lower value is better
+    # Convert dict to a list of records for Polars, which is more robust
+    records = [
+        {"model_name": model, **results}
+        for model, results in evaluation_results.items()
+    ]
+    df = pl.DataFrame(records)
+
+    # Ensure all metrics are present, fill with a default (e.g., 0 or NaN) if not
+    for metric in metrics:
+        if metric not in df.columns:
+            df = df.with_columns(pl.lit(None, dtype=pl.Float64).alias(metric))
+
+    # Select only the metrics we need for the chart, plus model_name
+    df = df.select(["model_name"] + metrics)
+
     lower_is_better = ["separation", "davies_bouldin"]
 
     # Data normalization
-    normalized_df = df.copy()
+    normalized_df = df.clone().fill_null(0)  # Fill nulls before normalization
+
+    normalization_exprs = []
     for metric in metrics:
-        min_val = df[metric].min()
-        max_val = df[metric].max()
-        if max_val == min_val:
-            normalized_df[metric] = 1.0  # All models are equivalent
+        min_val = normalized_df[metric].min()
+        max_val = normalized_df[metric].max()
+
+        col_expr = pl.col(metric)
+
+        if min_val is None or max_val is None or max_val == min_val:
+            expr = pl.lit(0.5).alias(metric)
         else:
+            # For metrics where lower is better, the score is inverted.
+            # (max - value) / (max - min)
             if metric in lower_is_better:
-                # Inverse normalization: (max - x) / (max - min)
-                normalized_df[metric] = (max_val - df[metric]) / (max_val - min_val)
+                expr = (
+                    (pl.lit(max_val) - col_expr) / (pl.lit(max_val) - pl.lit(min_val))
+                ).alias(metric)
+            # For metrics where higher is better, the score is standard.
+            # (value - min) / (max - min)
             else:
-                # Standard normalization: (x - min) / (max - min)
-                normalized_df[metric] = (df[metric] - min_val) / (max_val - min_val)
+                expr = (
+                    (col_expr - pl.lit(min_val)) / (pl.lit(max_val) - pl.lit(min_val))
+                ).alias(metric)
+        normalization_exprs.append(expr)
+
+    if normalization_exprs:
+        normalized_df = normalized_df.with_columns(normalization_exprs)
 
     # Radar chart creation
     fig = go.Figure()
-    for model_name in normalized_df.index:
-        values = normalized_df.loc[model_name].tolist()
-        # Close the radar loop
-        values += values[:1]
+
+    # Select only numeric columns for plotting
+    numeric_df = normalized_df.select(metrics)
+
+    for i, model_name in enumerate(model_names):
+        values = numeric_df.row(i)
+        values_list = list(values) + [values[0]]  # Loop back
         metric_labels = metrics + [metrics[0]]
 
         fig.add_trace(
             go.Scatterpolar(
-                r=values,
+                r=values_list,
                 theta=metric_labels,
                 fill="toself",
                 name=model_name,
@@ -205,20 +229,19 @@ def generate_radar_chart(
     # Save the chart
     plot_filename = os.path.join(output_dir, "global_model_comparison_radar.png")
     try:
-        fig.write_image(plot_filename, width=9600, height=6400, scale=2)
+        fig.write_image(plot_filename, width=1200, height=800, scale=2)
         print(f"📊 Radar chart saved to: {plot_filename}")
         return plot_filename
     except Exception as e:
         print(f"❌ Could not save radar chart. Error: {e}")
-        print(
-            "Please ensure 'kaleido' is installed (`pip install kaleido`) for static image export."
-        )
         return None
 
 
 # Analyzes and visualizes clustering metrics for different models.
 def analyze_and_visualize_clustering_metrics(
-    evaluation_results: dict[str, dict[str, float]], output_dir: str
+    evaluation_results: dict[str, dict[str, float]],
+    output_dir: str,
+    top_n: int | None = None,
 ) -> str | None:
     """
     Analyzes and visualizes clustering metrics for each model.
@@ -226,6 +249,7 @@ def analyze_and_visualize_clustering_metrics(
     Args:
         evaluation_results (dict): Evaluation results dictionary.
         output_dir (str): Output directory for the visualization.
+        top_n (int, optional): If set, displays only the top N models for each metric.
     """
     if not evaluation_results:
         print("No evaluation results to visualize.")
@@ -253,60 +277,107 @@ def analyze_and_visualize_clustering_metrics(
         "processing_time": "Processing Time (s) (Lower is Better)",
     }
 
-    for metric in metrics:
-        if metric not in evaluation_results[list(evaluation_results.keys())[0]]:
-            continue
-        model_names = list(evaluation_results.keys())
-        values = [evaluation_results[model][metric] for model in model_names]
+    # Convert the results to a Polars DataFrame for robust manipulation
+    records = [
+        {"model_name": model, **results}
+        for model, results in evaluation_results.items()
+    ]
+    df = pl.DataFrame(records)
 
-        # Sort models by metric value
+    for metric in metrics:
+        if metric not in df.columns:
+            continue
+
+        # Filter out models where the metric is null
+        metric_df = df.filter(pl.col(metric).is_not_null())
+
+        if metric_df.height == 0:
+            continue
+
+        # Sort the DataFrame by the metric value
         descending = metric not in [
             "separation",
             "davies_bouldin",
             "processing_time",
         ]
-        sorted_indices = np.argsort(values)
-        if descending:
-            sorted_indices = sorted_indices[::-1]
+        sorted_df = metric_df.sort(metric, descending=descending)
 
-        sorted_models = [model_names[i] for i in sorted_indices]
-        sorted_values = [values[i] for i in sorted_indices]
+        # If top_n is specified, slice the DataFrame
+        if top_n:
+            sorted_df = sorted_df.head(top_n)
+
+        if sorted_df.height == 0:
+            continue
 
         try:
             plt.style.use("seaborn-v0_8-whitegrid")
-            fig, ax = plt.subplots(figsize=(96, 56))
-            palette = sns.color_palette("viridis", len(sorted_models))
-            bars = ax.bar(sorted_models, sorted_values, color=palette)
+            fig, ax = plt.subplots(figsize=(70, 40))  # Increased figure size
 
+            # --- Data Preparation for Plotting ---
+            plot_data = sorted_df.to_pandas()
+
+            # Wrap model names for better display
+            # Adjust the wrap width as needed
+            plot_data["wrapped_model_name"] = plot_data["model_name"].str.wrap(30)
+
+            # --- Plotting ---
+            barplot = sns.barplot(
+                x="wrapped_model_name",
+                y=metric,
+                data=plot_data,
+                hue="model_name",
+                palette="viridis",
+                ax=ax,
+                legend=False,
+                dodge=False,  # Ensure bars are not dodged
+            )
+
+            # --- Aesthetics and Labels ---
+            ax.set_xlabel("Model", fontsize=12, fontweight="bold")
             ax.set_ylabel(metric.replace("_", " ").title(), fontsize=12)
             ax.set_title(titles[metric], fontsize=16, fontweight="bold")
-            ax.tick_params(axis="x", rotation=45, labelsize=10)
-            fig.autofmt_xdate()
 
-            for bar in bars:
-                yval = bar.get_height()
+            # Set x-tick labels explicitly to ensure they match the bars
+            ax.set_xticks(range(len(plot_data)))
+            ax.set_xticklabels(
+                plot_data["wrapped_model_name"],
+                rotation=45,
+                ha="right",
+                fontsize=10,
+            )
+
+            # Add value labels on top of bars
+            for i, v in enumerate(sorted_df[metric]):
                 ax.text(
-                    bar.get_x() + bar.get_width() / 2.0,
-                    yval,
-                    f"{yval:.3f}",
-                    va="bottom" if yval >= 0 else "top",
+                    i,
+                    v,
+                    f"{v:.3f}",
                     ha="center",
-                    fontsize=10,
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
                 )
 
-            plt.tight_layout(pad=2.0)
+            # --- Layout and Saving ---
+            # Adjust bottom margin to make space for labels
+            plt.subplots_adjust(bottom=0.25)
+            plt.tight_layout(pad=3.0)
+
             plot_filename = os.path.join(output_dir, f"metric_{metric}_comparison.png")
-            plt.savefig(plot_filename)
+            plt.savefig(plot_filename, bbox_inches="tight")
             print(f"📊 Metric comparison plot saved to: {plot_filename}")
             plt.close(fig)
         except Exception as e:
             print(f"❌ Could not generate plot for metric {metric}. Error: {e}")
+
     return radar_chart_path
 
 
 # Analyzes and visualizes the variance of embedding similarities for different models.
 def analyze_and_visualize_variance(
-    model_embeddings: dict[str, list[np.ndarray]], output_dir: str
+    model_embeddings: dict[str, list[np.ndarray]],
+    output_dir: str,
+    top_n: int | None = None,
 ) -> str | None:
     """
     Analyzes and visualizes the variance of cosine similarities of embeddings for each model.
@@ -314,6 +385,7 @@ def analyze_and_visualize_variance(
     Args:
         model_embeddings (dict): Dictionary {model_name: list of embeddings}.
         output_dir (str): Output directory for the visualization.
+        top_n (int, optional): If set, displays only the top N models.
     """
     variances = {}
     print("\n--- Analyzing Embedding Variance ---")
@@ -329,9 +401,9 @@ def analyze_and_visualize_variance(
 
         # Concatenate all embeddings for the model into a single large array
         all_model_embeddings = np.vstack(valid_embeddings)
-        print(
-            f"Model {model_name}: Analyzing {all_model_embeddings.shape[0]} total embeddings."
-        )
+        # print(
+        #     f"Model {model_name}: Analyzing {all_model_embeddings.shape[0]} total embeddings."
+        # )
 
         # To avoid memory errors on very large datasets, sample if needed
         if all_model_embeddings.shape[0] > 2000:
@@ -357,7 +429,7 @@ def analyze_and_visualize_variance(
         # Calculate the variance of these similarity scores
         variance = np.var(similarity_values)
         variances[model_name] = variance
-        print(f"  - Variance of cosine similarities: {variance:.4f}")
+        # print(f"  - Variance of cosine similarities: {variance:.4f}")
 
     if not variances:
         print("No variances calculated. Cannot generate plot.")
@@ -371,18 +443,37 @@ def analyze_and_visualize_variance(
 
     # --- Visualization ---
     try:
-        plt.style.use("seaborn-v0_8-whitegrid")
-        fig, ax = plt.subplots(figsize=(96, 56))
-
-        # Sort models by variance in descending order for the plot
-        sorted_models = sorted(
-            variances.keys(), key=lambda model: variances[model], reverse=True
+        # Convert variances to a Polars DataFrame
+        df = pl.DataFrame(
+            {"model_name": list(variances.keys()), "variance": list(variances.values())}
         )
-        values = [variances[model] for model in sorted_models]
 
-        # Create a color palette
-        palette = sns.color_palette("viridis", len(sorted_models))
-        bars = ax.bar(sorted_models, values, color=palette)
+        # Sort the DataFrame by variance
+        sorted_df = df.sort("variance", descending=True)
+
+        # If top_n is specified, slice the DataFrame
+        if top_n:
+            sorted_df = sorted_df.head(top_n)
+
+        if sorted_df.height == 0:
+            return None
+
+        plt.style.use("seaborn-v0_8-whitegrid")
+        fig, ax = plt.subplots(figsize=(70, 40))
+
+        plot_data = sorted_df.to_pandas()
+        plot_data["wrapped_model_name"] = plot_data["model_name"].str.wrap(30)
+
+        sns.barplot(
+            x="wrapped_model_name",
+            y="variance",
+            data=plot_data,
+            hue="model_name",
+            palette="viridis",
+            ax=ax,
+            legend=False,
+            dodge=False,
+        )
 
         ax.set_ylabel("Variance of Cosine Similarities", fontsize=12)
         ax.set_title(
@@ -390,25 +481,23 @@ def analyze_and_visualize_variance(
             fontsize=16,
             fontweight="bold",
         )
-        ax.tick_params(axis="x", rotation=45, labelsize=10)
-        # Ensure all labels are visible
-        fig.autofmt_xdate()
+
+        ax.set_xticks(range(len(plot_data)))
+        ax.set_xticklabels(
+            plot_data["wrapped_model_name"],
+            rotation=45,
+            ha="right",
+            fontsize=10,
+        )
 
         # Add value labels on top of bars
-        for bar in bars:
-            yval = bar.get_height()
-            ax.text(
-                bar.get_x() + bar.get_width() / 2.0,
-                yval,
-                f"{yval:.4f}",
-                va="bottom",
-                ha="center",
-                fontsize=10,
-            )
+        for i, v in enumerate(sorted_df["variance"]):
+            ax.text(i, v, f"{v:.4f}", ha="center", va="bottom", fontsize=9)
 
-        plt.tight_layout(pad=2.0)
+        plt.subplots_adjust(bottom=0.25)
+        plt.tight_layout(pad=3.0)
         plot_filename = os.path.join(output_dir, "embedding_variance_comparison.png")
-        plt.savefig(plot_filename)
+        plt.savefig(plot_filename, bbox_inches="tight")
         print(f"\n📊 Variance comparison plot saved to: {plot_filename}")
         plt.close(fig)  # Close the figure to free memory
         return plot_filename
@@ -557,7 +646,8 @@ def generate_tsne_visualization(
         )
         tsne_results = tsne.fit_transform(all_embeddings)
 
-        df = pd.DataFrame(
+        # Create polars DataFrame
+        df = pl.DataFrame(
             {
                 "tsne-2d-one": tsne_results[:, 0],
                 "tsne-2d-two": tsne_results[:, 1],
@@ -566,13 +656,13 @@ def generate_tsne_visualization(
         )
 
         plt.style.use("seaborn-v0_8-whitegrid")
-        fig, ax = plt.subplots(figsize=(128, 96))
+        fig, ax = plt.subplots(figsize=(12, 8))  # Adjusted size
         sns.scatterplot(
             x="tsne-2d-one",
             y="tsne-2d-two",
             hue="label",
             palette=label_to_color,
-            data=df,
+            data=df.to_pandas(),
             ax=ax,
             s=50,
             alpha=0.7,
