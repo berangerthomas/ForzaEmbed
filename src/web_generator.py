@@ -87,10 +87,6 @@ def generate_main_page(
             overflow: hidden;
             transition: filter 0.3s ease;
         }}
-        .control-group.disabled {{
-            filter: grayscale(80%);
-            opacity: 0.7;
-        }}
         .label-group {{
             display: flex;
             justify-content: space-between;
@@ -412,7 +408,6 @@ def generate_main_page(
                 slider.disabled = values.length <= 1;
                 const newIndex = values.indexOf(previousValue);
                 slider.value = newIndex !== -1 ? newIndex : 0;
-                slider.parentElement.classList.toggle('disabled', slider.disabled);
             }};
 
             setupSlider(modelSlider, params.model, currentValues.model);
@@ -424,7 +419,7 @@ def generate_main_page(
         }}
 
         function initialize() {{
-            fileKeys = Object.keys(processedData.files || {{}});
+            fileKeys = Object.keys(processedData.files || {{}}).sort();
             if (fileKeys.length === 0) {{
                 console.error("No files found in processed data.");
                 return;
@@ -435,7 +430,6 @@ def generate_main_page(
                 slider.disabled = values.length <= 1;
                 const newIndex = values.indexOf(previousValue);
                 slider.value = newIndex !== -1 ? newIndex : 0;
-                slider.parentElement.classList.toggle('disabled', slider.disabled);
             }};
 
             setupSlider(fileSlider, fileKeys, fileKeys[0]);
