@@ -35,6 +35,7 @@ def generate_main_page(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Embedding Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -186,7 +187,6 @@ def generate_main_page(
         .visualization {{
             overflow-y: auto;
             line-height: 1.8;
-            min-height: 60vh;
         }}
         .heatmap-content span {{
             padding: 2px 1px;
@@ -195,28 +195,28 @@ def generate_main_page(
             font-size: 0.85em;
             line-height: 1.2;
         }}
-        .links {{
-            border: 1px solid #d1d9e0;
-            border-radius: 8px;
-            padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-top: 20px;
+        .file-links-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
         }}
-        .links h2 {{
-            margin-top: 0;
-            color: #34495e;
-            border-bottom: 2px solid #e0e6ed;
-            padding-bottom: 10px;
-        }}
-        #file-links-container a {{
+        .file-links-grid a {{
             display: block;
-            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            text-align: center;
             color: #3498db;
             text-decoration: none;
+            transition: background-color 0.2s;
         }}
-        #file-links-container a:hover {{
-            text-decoration: underline;
+        .file-links-grid a:hover {{
+            background-color: #d1d9e0;
+        }}
+        #scatter-plot-container {{
+            width: 100%;
+            height: 600px;
         }}
     </style>
 </head>
@@ -224,7 +224,7 @@ def generate_main_page(
     <div class="container">
         <h1>Interactive Embeddings Analysis</h1>
         <p style="text-align: center; margin-top: -15px; color: #555;">
-            Displaying results for {total_combinations} parameter combinations.
+            Displaying results for {{total_combinations}} parameter combinations.
         </p>
 
         <!-- Controls area -->
@@ -271,10 +271,11 @@ def generate_main_page(
             <div id="heatmap-container" class="heatmap-content"></div>
         </div>
 
-        <!-- Links area -->
-        <div class="links">
-            <h2>Generated Files</h2>
-            <div id="file-links-container"></div>
+        <!-- Links and Plot area -->
+        <div class="visualization">
+            <h2>Reports and Visualizations</h2>
+            <div id="file-links-container" class="file-links-grid"></div>
+            <div id="scatter-plot-container"></div>
         </div>
     </div>
 
@@ -297,6 +298,7 @@ def generate_main_page(
         const similarityMetricNameSpan = document.getElementById('similarity-metric-name');
         const metricsGrid = document.getElementById('metrics-grid');
         const heatmapContainer = document.getElementById('heatmap-container');
+        const scatterPlotContainer = document.getElementById('scatter-plot-container');
         const fileLinksContainer = document.getElementById('file-links-container');
 
         let fileKeys = [];
@@ -488,6 +490,7 @@ def generate_main_page(
                 fileNameSpan.textContent = 'No data for this file.';
                 metricsGrid.innerHTML = '';
                 heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
                 fileLinksContainer.innerHTML = '';
                 return;
             }}
@@ -498,6 +501,7 @@ def generate_main_page(
             if (filteredEmbeddingKeys.length === 0) {{
                 metricsGrid.innerHTML = 'No data for this selection.';
                 heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
                 fileLinksContainer.innerHTML = '';
                 return;
             }}
@@ -508,6 +512,7 @@ def generate_main_page(
             if (!embeddingData) {{
                 metricsGrid.innerHTML = 'Error: Data not found.';
                 heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
                 fileLinksContainer.innerHTML = '';
                 return;
             }}
@@ -515,26 +520,86 @@ def generate_main_page(
             updateMetrics(embeddingData.metrics, fileKey);
             updateHeatmap(embeddingData.phrases, embeddingData.similarities);
             updateFileLinks(embeddingKey, fileKey);
+            updateScatterPlot(embeddingData.scatter_plot_data);
         }}
 
         function updateFileLinks(embeddingKey, fileKey) {{
             fileLinksContainer.innerHTML = '';
+            const safeEmbeddingKey = embeddingKey.replace(/\\//g, '_');
 
-            const filteredFileName = `${{embeddingKey}}_${{fileKey}}_filtered.md`;
-            const explanatoryFileName = `${{embeddingKey}}_${{fileKey}}_explanatory.md`;
+            const filteredFileName = `${{fileKey}}_${{safeEmbeddingKey}}_filtered.md`;
+            const explanatoryFileName = `${{fileKey}}_${{safeEmbeddingKey}}_explanatory.md`;
 
             const filteredLink = document.createElement('a');
             filteredLink.href = filteredFileName;
-            filteredLink.textContent = `Filtered Report (filtered.md)`;
+            filteredLink.textContent = `Filtered Report (Markdown)`;
             filteredLink.title = filteredFileName;
+            filteredLink.target = "_blank";
 
             const explanatoryLink = document.createElement('a');
             explanatoryLink.href = explanatoryFileName;
-            explanatoryLink.textContent = `Explanatory Report (explanatory.md)`;
+            explanatoryLink.textContent = `Explanatory Report (Markdown)`;
             explanatoryLink.title = explanatoryFileName;
+            explanatoryLink.target = "_blank";
 
             fileLinksContainer.appendChild(filteredLink);
             fileLinksContainer.appendChild(explanatoryLink);
+        }}
+
+        function updateScatterPlot(plotData) {{
+            if (!plotData) {{
+                scatterPlotContainer.innerHTML = 'No scatter plot data available for this selection.';
+                return;
+            }}
+
+            const traces = [];
+            const uniqueLabels = [...new Set(plotData.labels)];
+            
+            const colors = {{
+                [`Above Threshold (${{plotData.threshold}})`]: 'red',
+                'Below Threshold': 'blue'
+            }};
+
+            uniqueLabels.forEach(label => {{
+                const trace = {{
+                    x: [],
+                    y: [],
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: label,
+                    text: [],
+                    marker: {{ 
+                        color: colors[label],
+                        size: 8,
+                        opacity: 0.7
+                    }},
+                    hovertemplate: '<b>Similarity:</b> %{{text}}<extra></extra>'
+                }};
+                
+                for (let i = 0; i < plotData.labels.length; i++) {{
+                    if (plotData.labels[i] === label) {{
+                        trace.x.push(plotData.x[i]);
+                        trace.y.push(plotData.y[i]);
+                        trace.text.push(plotData.similarities[i].toFixed(4));
+                    }}
+                }}
+                traces.push(trace);
+            }});
+
+            const layout = {{
+                title: plotData.title,
+                xaxis: {{ title: 't-SNE Dimension 1' }},
+                yaxis: {{ title: 't-SNE Dimension 2' }},
+                hovermode: 'closest',
+                showlegend: true,
+                legend: {{
+                    x: 1,
+                    xanchor: 'right',
+                    y: 1
+                }}
+            }};
+
+            Plotly.newPlot('scatter-plot-container', traces, layout, {{responsive: true}});
         }}
 
         function updateMetrics(metrics, fileKey) {{

@@ -12,6 +12,59 @@ from sklearn.metrics.pairwise import cosine_similarity
 from src.utils import extract_context_around_phrase
 
 
+# Generates data for a t-SNE scatter plot to visualize theme separation.
+def generate_similarity_scatterplot_data(
+    identifiant: str,
+    run_name: str,
+    embeddings: np.ndarray,
+    similarities: np.ndarray,
+    threshold: float,
+) -> dict | None:
+    """
+    Generates data for a t-SNE scatter plot of embeddings, colored by similarity.
+
+    Args:
+        identifiant (str): Unique identifier for the document.
+        run_name (str): The name of the processing run.
+        embeddings (np.ndarray): The embedding vectors for the document's phrases.
+        similarities (np.ndarray): The similarity scores for each phrase.
+        threshold (float): The similarity threshold for coloring points.
+
+    Returns:
+        dict | None: A dictionary containing the data for the plot, or None.
+    """
+    if embeddings is None or embeddings.shape[0] < 2:
+        return None
+
+    try:
+        tsne = TSNE(
+            n_components=2,
+            random_state=42,
+            perplexity=min(30, embeddings.shape[0] - 1),
+            learning_rate="auto",
+            init="pca",
+            n_jobs=-1,
+        )
+        tsne_results = tsne.fit_transform(embeddings)
+    except Exception as e:
+        print(f"Error during t-SNE for {identifiant} in run {run_name}: {e}")
+        return None
+
+    labels = [
+        f"Above Threshold ({threshold})" if score >= threshold else "Below Threshold"
+        for score in similarities
+    ]
+
+    return {
+        "x": tsne_results[:, 0].tolist(),
+        "y": tsne_results[:, 1].tolist(),
+        "labels": labels,
+        "similarities": similarities.tolist(),
+        "title": f"Theme Separation for {identifiant}<br>Run: {run_name}",
+        "threshold": threshold,
+    }
+
+
 # Generates an HTML file representing a similarity heatmap.
 def generate_heatmap_html(
     identifiant: str,
@@ -406,10 +459,10 @@ def analyze_and_visualize_variance(
         # )
 
         # To avoid memory errors on very large datasets, sample if needed
-        if all_model_embeddings.shape[0] > 2000:
-            print("  - Sampling 2000 embeddings to manage memory.")
+        if all_model_embeddings.shape[0] > 20000000:
+            print("  - Sampling 20000000 embeddings to manage memory.")
             indices = np.random.choice(
-                all_model_embeddings.shape[0], 2000, replace=False
+                all_model_embeddings.shape[0], 20000000, replace=False
             )
             sample_embeddings = all_model_embeddings[indices]
         else:

@@ -21,6 +21,7 @@ from src.reporting import (
     analyze_and_visualize_variance,  # Import variance analysis function
     generate_explanatory_markdown,
     generate_filtered_markdown,
+    generate_similarity_scatterplot_data,
 )
 from src.web_generator import generate_main_page
 
@@ -152,15 +153,50 @@ def _aggregate_data(db: EmbeddingDatabase, all_results: dict):
     all_models_metrics = {}
     model_embeddings_for_variance = {}
 
-    for model_name, model_results in all_results.items():
+    for model_name, model_results in tqdm(
+        all_results.items(), desc="Aggregating data for reports"
+    ):
+        model_info = db.get_model_info(model_name)
+        if not model_info:
+            continue
+        base_model_name = model_info["model_name"]
+
         for file_id, file_data in model_results.get("files", {}).items():
             file_entry = processed_data_for_interactive_page.setdefault(
                 file_id, {"embeddings": {}}
             )
+
+            # --- Generate and store scatter plot data ---
+            scatter_plot_data = None
+            if "phrases" in file_data and "similarities" in file_data:
+                phrase_hashes = [get_text_hash(p) for p in file_data["phrases"]]
+                if phrase_hashes:
+                    cached_embeddings = db.get_embeddings_by_hashes(
+                        base_model_name, phrase_hashes
+                    )
+                    ordered_embeddings = [
+                        cached_embeddings.get(h) for h in phrase_hashes
+                    ]
+                    valid_embeddings = [e for e in ordered_embeddings if e is not None]
+
+                    if valid_embeddings:
+                        embeddings_array = np.array(valid_embeddings)
+                        if embeddings_array.shape[0] == len(
+                            file_data["similarities"]
+                        ):
+                            scatter_plot_data = generate_similarity_scatterplot_data(
+                                identifiant=file_id,
+                                run_name=model_name,
+                                embeddings=embeddings_array,
+                                similarities=np.array(file_data["similarities"]),
+                                threshold=SIMILARITY_THRESHOLD,
+                            )
+
             file_entry["embeddings"][model_name] = {
                 "phrases": file_data.get("phrases", []),
                 "similarities": file_data.get("similarities", []),
                 "metrics": file_data.get("metrics", {}),
+                "scatter_plot_data": scatter_plot_data,  # Add plot data here
             }
 
         model_info = db.get_model_info(model_name)
