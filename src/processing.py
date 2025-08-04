@@ -9,7 +9,6 @@ from sklearn.metrics.pairwise import (
     manhattan_distances,
     pairwise_distances,
 )
-from tqdm import tqdm
 
 from .database import EmbeddingDatabase
 from .embedding_client import ProductionEmbeddingClient
@@ -41,7 +40,7 @@ class Processor:
         chunking_strategy: str,
         similarity_metric: str,
         processed_files: List[str],
-        show_progress: bool = True,
+        pbar: Any,  # Progress bar object
     ) -> Dict[str, Any]:
         """
         Processes a test run, handling embedding generation, similarity calculation,
@@ -56,9 +55,16 @@ class Processor:
         themes_embeddings_map, _ = self._get_or_create_embeddings(
             embedding_function, model_name, themes
         )
+
+        unprocessed_rows = [row for row in rows if row[0] not in processed_files]
+
         if not themes_embeddings_map:
-            logging.error(f"Failed to embed themes for model '{model_name}'.")
-            return {}
+            logging.error(
+                f"Failed to embed themes for model '{model_name}'. "
+                f"Skipping {len(unprocessed_rows)} files for this combination."
+            )
+            pbar.update(len(unprocessed_rows))
+            return {"results": {}}
 
         theme_hashes = [self.get_text_hash(theme) for theme in themes]
         embed_themes_list = [
@@ -66,22 +72,17 @@ class Processor:
         ]
         embed_themes = np.array(embed_themes_list)
 
-        unprocessed_rows = [row for row in rows if row[0] not in processed_files]
-
-        for item in tqdm(
-            unprocessed_rows,
-            desc=f"Processing {model_name}",
-            leave=False,
-            disable=not show_progress,
-        ):
+        for item in unprocessed_rows:
             identifiant, _, _, texte = item
             if not texte or not texte.strip():
+                pbar.update(1)
                 continue
 
             item_phrases = chunk_text(
                 texte, chunk_size, chunk_overlap, chunking_strategy
             )
             if not item_phrases:
+                pbar.update(1)
                 continue
 
             all_embeddings_map, p_time = self._get_or_create_embeddings(
@@ -98,10 +99,12 @@ class Processor:
             )
 
             if item_embed_phrases.size == 0:
+                pbar.update(1)
                 continue
 
             if embed_themes.shape[1] != item_embed_phrases.shape[1]:
                 logging.error(f"Dimension mismatch for file '{identifiant}'.")
+                pbar.update(1)
                 continue
 
             similarites = self.calculate_similarity(
@@ -124,6 +127,7 @@ class Processor:
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
                 },
             }
+            pbar.update(1)
 
         return {"results": results}
 

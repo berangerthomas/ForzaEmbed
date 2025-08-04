@@ -127,60 +127,63 @@ class ForzaEmbed:
         ]
 
         completed_count = len(valid_combinations) - len(remaining_combinations)
+        total_tasks = len(remaining_combinations) * len(all_rows)
         logging.info(
             f"Generated {len(valid_combinations)} valid combinations. "
-            f"Found {completed_count} completed. Remaining: {len(remaining_combinations)}"
+            f"Found {completed_count} completed. "
+            f"Remaining: {len(remaining_combinations)} combinations, for a total of {total_tasks} calculations."
         )
 
         if not remaining_combinations:
             logging.info("All combinations already processed!")
             return
 
-        for params in tqdm(remaining_combinations, desc="Processing combinations"):
-            (
-                model_config,
-                chunk_size,
-                chunk_overlap,
-                chunking_strategy,
-                similarity_metric,
-                theme_name,
-            ) = params
-            run_name = self._generate_run_name(*params)
-
-            processed_files = self.db.get_processed_files(run_name)
-            themes = self.config["grid_search_params"]["themes"][theme_name]
-
-            result = self.processor.run_test(
-                rows=all_rows,
-                model_config=model_config,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                themes=themes,
-                theme_name=theme_name,
-                chunking_strategy=chunking_strategy,
-                similarity_metric=similarity_metric,
-                processed_files=processed_files,
-                show_progress=False,
-            )
-
-            model_results = result.get("results", {})
-            results_to_save = [
-                (run_name, file_id, file_data)
-                for file_id, file_data in model_results.get("files", {}).items()
-                if file_data
-            ]
-            if results_to_save:
-                self.db.add_model(
-                    run_name,
-                    model_config["name"],
-                    model_config["type"],
+        with tqdm(total=total_tasks, desc="Processing files") as pbar:
+            for params in remaining_combinations:
+                (
+                    model_config,
                     chunk_size,
                     chunk_overlap,
-                    theme_name,
                     chunking_strategy,
                     similarity_metric,
+                    theme_name,
+                ) = params
+                run_name = self._generate_run_name(*params)
+
+                processed_files = self.db.get_processed_files(run_name)
+                themes = self.config["grid_search_params"]["themes"][theme_name]
+
+                result = self.processor.run_test(
+                    rows=all_rows,
+                    model_config=model_config,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                    themes=themes,
+                    theme_name=theme_name,
+                    chunking_strategy=chunking_strategy,
+                    similarity_metric=similarity_metric,
+                    processed_files=processed_files,
+                    pbar=pbar,
                 )
-                self.db.save_processing_results_batch(results_to_save)
+
+                model_results = result.get("results", {})
+                results_to_save = [
+                    (run_name, file_id, file_data)
+                    for file_id, file_data in model_results.get("files", {}).items()
+                    if file_data
+                ]
+                if results_to_save:
+                    self.db.add_model(
+                        run_name,
+                        model_config["name"],
+                        model_config["type"],
+                        chunk_size,
+                        chunk_overlap,
+                        theme_name,
+                        chunking_strategy,
+                        similarity_metric,
+                    )
+                    self.db.save_processing_results_batch(results_to_save)
         logging.info("--- Grid Search Finished ---")
 
     def _generate_run_name(
