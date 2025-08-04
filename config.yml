@@ -1,0 +1,84 @@
+# Configuration for ForzaEmbed Grid Search
+
+# Parameters for the grid search
+grid_search_params:
+  chunk_size: [10, 20, 50, 100, 250, 500, 1000]
+  chunk_overlap: [0, 5, 10, 25, 50, 100, 200]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
+  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  themes:
+    horaires_simple: ["horaires", "autre"]
+    horaires_mid: [
+        "autre",  "bibliothèque ouverte", "bibliothèque fermée",
+        "horaires d'ouverture", "heures d'ouverture", "accueil du public",
+        "jour de fermeture", "horaires et jours de la semaine",
+        "périodes d'ouverture", "mairie ouverte", "mairie fermée",
+        "fermeture exceptionnelle", "fermeture annuelle", "quand venir",
+        "nous sommes ouverts", "nous sommes fermés", "sans interruption",
+        "médiathèque ouverte", "médiathèque fermée", "piscine ouverte",
+        "piscine fermée"
+    ]
+    horaires_full: [
+        "autre", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+        "dimanche", "lun", "mar", "mer", "jeu", "ven", "sam", "dim",
+        "horaires d'ouverture", "heures d'ouverture", "accueil du public",
+        "jour de fermeture", "horaires et jours de la semaine",
+        "périodes d'ouverture", "période scolaire", "vacances scolaires",
+        "fermeture exceptionnelle", "fermeture annuelle", "jours fériés",
+        "jours spéciaux", "horaires spéciaux", "quand venir",
+        "nous sommes ouverts", "nous sommes fermés", "matin", "après-midi",
+        "soir", "matinée", "soirée", "journée continue", "pause déjeuner",
+        "pause méridienne", "sans interruption", "ouverte le lundi",
+        "ouverte le mardi", "ouverte le mercredi", "ouverte le jeudi",
+        "ouverte le vendredi", "ouverte le samedi", "ouverte le dimanche",
+        "fermée le lundi", "fermée le mardi", "fermée le mercredi",
+        "fermée le jeudi", "fermée le vendredi", "fermée le samedi",
+        "fermée le dimanche", "bibliothèque ouverte", "bibliothèque fermée",
+        "médiathèque ouverte", "médiathèque fermée", "mairie ouverte",
+        "mairie fermée", "piscine ouverte", "piscine fermée",
+        "de 9h à 12h", "de 14h à 17h", "du lundi au vendredi"
+    ]
+
+# Models to be tested in the grid search
+models_to_test:
+  - type: "api"
+    name: "nomic-embed-text"
+    base_url: "https://api.erasme.homes/v1"
+    dimensions": 768
+    timeout: 240
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    dimensions: 384
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    dimensions: 768
+  - type: "fastembed"
+    name: "intfloat/multilingual-e5-large"
+    dimensions: 1024
+  - type: "fastembed"
+    name: "jinaai/jina-embeddings-v3"
+    dimensions: 1024
+  - type: "huggingface"
+    name: "Qwen/Qwen3-Embedding-0.6B"
+    dimensions: 1024
+  - type: "huggingface"
+    name: "intfloat/multilingual-e5-large-instruct"
+    dimensions: 1024
+
+# General settings
+similarity_threshold: 0.6
+output_dir: "data/heatmaps"
+
+# Multiprocessing settings
+multiprocessing:
+  max_workers_api: 16
+  max_workers_local: null
+  maxtasksperchild: 10
+  embedding_batch_size_api: 100
+  embedding_batch_size_local: 500
+  file_batch_size: 50
+  api_batch_sizes:
+    mistral: 50
+    voyage: 100
+    openai: 100
+    default: 100
