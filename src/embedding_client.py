@@ -159,6 +159,12 @@ class ProductionEmbeddingClient:
                 tqdm.write(f"  Status code: {e.response.status_code}")
                 tqdm.write(f"  URL: {getattr(e.response, 'url', 'unknown')}")
                 tqdm.write(f"  Response content: {e.response.text}")
+            # Also log the full response for debugging
+            if hasattr(e, "response") and e.response is not None:
+                try:
+                    tqdm.write(f"  Full response JSON: {e.response.json()}")
+                except json.JSONDecodeError:
+                    tqdm.write("  Could not decode JSON from response.")
             return [], 0.0  # Return empty embeddings
 
         if self.expected_dimension and embeddings:
