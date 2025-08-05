@@ -1,70 +1,29 @@
 # ForzaEmbed
 
-**A Python framework for text embedding model evaluation and comparison.**
+ForzaEmbed is a Python framework for benchmarking text embedding models and text processing strategies. It performs a grid search over a variety of parameters, including chunking strategies, embedding models, and similarity metrics, to find a suitable configuration for a given dataset.
 
----
+![Demo](docs/demo.gif)
 
-## Overview
+## Features
 
-**ForzaEmbed** is a modular Python framework designed for evaluating, comparing, and visualizing text embedding models. The framework provides a complete pipeline from data ingestion to interactive web-based exploration and static reporting, with a focus on document analysis workflows.
+- **Grid Search:** Systematically tests combinations of chunking strategies, chunk sizes, overlaps, embedding models, and similarity metrics.
+- **Model Support:** Supports various embedding models through a configuration file, including API-based services and local models from Hugging Face and FastEmbed.
+- **Chunking Strategies:** Includes multiple chunking methods: `langchain`, `raw`, `semchunk`, `nltk`, and `spacy`.
+- **Similarity Metrics:** Evaluates performance using `cosine`, `euclidean`, `manhattan`, `dot_product`, and `chebyshev` similarity metrics.
+- **Caching:** Caches generated embeddings to accelerate subsequent runs.
+- **Resumable Workflows:** Can resume interrupted grid searches.
+- **Reporting:** Generates reports, including text heatmaps and CSV files, to visualize and compare the performance of different parameter combinations.
+- **Command-Line Interface:** Provides a CLI to run the pipeline, manage the database, and generate reports.
 
-The system implements caching mechanisms and batch processing to minimize redundant computations and API calls during evaluation processes.
+## How It Works
 
----
+ForzaEmbed follows a systematic process to evaluate embedding configurations:
 
-## Demo
-
-![ForzaEmbed Demo](docs/demo.gif)
-
----
-
-## Key Features
-
-- **Caching System:**  
-  An integrated SQLite database stores all phrase embeddings. Once computed, embeddings are preserved across sessions, reducing processing time and API costs for subsequent runs.
-- **Batch Processing:**  
-  API calls for new embeddings and database operations are batched to optimize network usage and I/O operations.
-- **Persistent Storage:**  
-  Test configurations and results are maintained in the database. The pipeline identifies previously completed runs, allowing incremental processing when adding new models or parameters.
-- **Multiple Embedding Model Support:**  
-  Compatible with local models (e.g., SentenceTransformers), FastEmbed, and remote API-based models (OpenAI, Mistral, VoyageAI).
-- **Configurable Analysis:**  
-  Customizable chunking strategies, chunk size/overlap parameters, and similarity metrics (cosine, euclidean, manhattan) through centralized configuration.
-- **Theme-based Semantic Analysis:**  
-  Custom "themes" (semantic queries) can be defined to categorize and extract relevant information from documents.
-- **Interactive Dashboard:**  
-  Generates HTML dashboards for exploring results, comparing model metrics, and visualizing similarity heatmaps.
-- **Automated Reporting:**  
-  Produces Markdown reports and static comparison plots (radar, bar, variance analysis).
-
----
-
-## Architecture & Workflow
-
-The project centers around a workflow orchestrated by a SQLite database.
-
-```
-1. Input
-   - data/markdown/*.md
-
-2. Processing (`python main.py --run-all`)
-   - Chunks text from Markdown files.
-   - Queries chunk embeddings from cache (ForzaEmbed.db).
-   - Batch-embeds uncached chunks via embedding client.
-   - Stores new embeddings in the database.
-   - Calculates similarity, runs analysis, and saves results to the database.
-
-3. Reporting (`python main.py --generate-reports`)
-   - Loads processed results from the database.
-   - Generates interactive dashboard, static plots, and Markdown reports.
-
-4. Outputs
-   - data/heatmaps/ForzaEmbed.db  (Central database with all results)
-   - data/heatmaps/index.html     (Main interactive dashboard)
-   - data/heatmaps/...            (Generated reports and plots)
-```
-
----
+1.  **Data Loading:** Loads text data from a directory of markdown files.
+2.  **Grid Search:** Iterates through a predefined grid of parameters from the `config.yml` file.
+3.  **Processing:** For each combination of parameters, the tool processes the text, generates embeddings, and calculates similarity scores.
+4.  **Database Storage:** All results are stored in a SQLite database.
+5.  **Report Generation:** After the grid search is complete, ForzaEmbed generates reports and visualizations.
 
 ## Installation
 
@@ -74,77 +33,69 @@ The project centers around a workflow orchestrated by a SQLite database.
     cd ForzaEmbed
     ```
 
-2.  **Install dependencies:**  
-    This project uses `uv` for dependency management.
+2.  **Install dependencies:**
+    This project uses `uv` for package management.
     ```bash
     pip install uv
     uv sync
     ```
 
-3.  **Configure API Keys:**  
-    For API-based models, create a `.env` file in the root directory by copying the example:
-    ```bash
-    cp .env.example .env
-    ```
-    Then, add your API keys to the `.env` file.
-
----
-
 ## Usage
 
-### 1. Add Your Data
-Place your Markdown files (`.md`) in the `data/markdown/` directory.
+ForzaEmbed is controlled via the command line.
 
-### 2. Run the Pipeline
-Execute the main script. On the first run, this processes all documents with all configured models.
+### Running the Grid Search
+
+To run the full grid search and reporting pipeline, use the `--run` flag:
 
 ```bash
-python main.py --run-all
+python main.py --run
 ```
 
-On subsequent executions, the script skips configurations already present in the database, processing only new ones.
+This command will resume the grid search if it was previously interrupted. To start from scratch, use the `--no-resume` flag.
 
-### 3. Regenerate Reports
-To regenerate reports from existing database data without re-processing:
+### Generating Reports
+
+To regenerate reports from a completed grid search, use the `--generate-reports` flag:
+
 ```bash
 python main.py --generate-reports
 ```
 
-### 4. Explore the Results
-Open the generated dashboard in your browser:
-```
-data/heatmaps/index.html
-```
+You can limit the comparison charts to the top N models using the `--top-n` argument:
 
-### Resetting the Project
-To start from scratch, delete the database file and run the pipeline again:
 ```bash
-rm data/heatmaps/ForzaEmbed.db
+python main.py --generate-reports --top-n 10
 ```
 
----
+### Command-Line Options
+
+| Argument              | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `--db-path`           | Path to the SQLite database file.                                        |
+| `--config-path`       | Path to the YAML configuration file.                                     |
+| `--data-source`       | Path to the directory containing markdown files.                         |
+| `--run`               | Run the full grid search and reporting pipeline.                         |
+| `--generate-reports`  | Only generate reports from existing data.                                |
+| `--no-resume`         | Start the grid search from scratch.                                      |
+| `--clear-db`          | Clear the main database before running.                                  |
+| `--clear-cache`       | Clear the embedding cache before running.                                |
+| `--top-n`             | Limit comparison charts to the top N models.                             |
+| `--refresh-metrics`   | Refresh evaluation metrics for all existing runs.                        |
 
 ## Configuration
 
-Configuration is centralized in `src/config.py`:
+The behavior of ForzaEmbed is controlled by the `config.yml` file, which is divided into several sections:
 
--   **Models:** Define models to test in `MODELS_TO_TEST`.
--   **Themes:** Specify semantic search themes in `GRID_SEARCH_PARAMS["themes"]`.
--   **Grid Search:** Configure chunk size, overlap, and similarity metrics in `GRID_SEARCH_PARAMS`.
--   **API Keys:** Manage API keys in the `.env` file.
-
----
+-   **`grid_search_params`**: Defines the parameters for the grid search, such as `chunk_size`, `chunk_overlap`, `chunking_strategy`, and `similarity_metrics`.
+-   **`models_to_test`**: A list of embedding models to be evaluated. You can specify the `type` (e.g., `api`, `fastembed`, `huggingface`), `name`, and other model-specific parameters.
+-   **`general_settings`**: General configuration options, such as the `similarity_threshold` and `output_dir`.
+-   **`multiprocessing`**: Settings to configure multiprocessing.
 
 ## Contributing
 
-Contributions are welcome through the standard fork-and-pull-request workflow. Before submitting, format your code with Ruff:
-
-```bash
-ruff format .
-```
-
----
+Contributions are welcome. If you have suggestions for improvements or find any issues, please open an issue or submit a pull request.
 
 ## License
 
-This project is licensed under the GNU GENERAL PUBLIC License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
