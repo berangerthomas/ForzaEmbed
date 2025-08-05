@@ -12,10 +12,7 @@ from sklearn.metrics.pairwise import (
 
 from .database import EmbeddingDatabase
 from .embedding_client import ProductionEmbeddingClient
-from .evaluation_metrics import (
-    calculate_clustering_metrics,
-    calculate_cohesion_separation,
-)
+from .evaluation_metrics import calculate_all_metrics
 from .utils import chunk_text
 
 
@@ -73,7 +70,14 @@ class Processor:
         embed_themes = np.array(embed_themes_list)
 
         for item in unprocessed_rows:
-            identifiant, _, _, texte = item
+            identifiant, name, location_type, texte = item
+            file_info = f"{identifiant} {location_type[:5]} {name[-30:]}"
+            grid_params = (
+                f"cs{chunk_size} co{chunk_overlap} {similarity_metric[:3]} "
+                f"{chunking_strategy} {theme_name[-13:]}"
+            )
+            description = f"{file_info} | {model_name[-30:]} | {grid_params}"
+            pbar.set_description(description[:100])
             if not texte or not texte.strip():
                 pbar.update(1)
                 continue
@@ -112,17 +116,15 @@ class Processor:
             )
             labels = np.argmax(similarites, axis=0)
 
-            cohesion_sep = calculate_cohesion_separation(item_embed_phrases, labels)
-            clustering_metrics = calculate_clustering_metrics(
-                item_embed_phrases, labels
+            all_metrics = calculate_all_metrics(
+                embed_themes, item_embed_phrases, labels
             )
 
             results["files"][identifiant] = {
                 "phrases": item_phrases,
                 "similarities": similarites.max(axis=0),
                 "metrics": {
-                    **cohesion_sep,
-                    **clustering_metrics,
+                    **all_metrics,
                     "processing_time": p_time,
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
                 },
@@ -242,3 +244,78 @@ class Processor:
             return 1 / (1 + distances)
         else:
             raise ValueError(f"Unknown similarity metric: {metric}")
+
+    def refresh_all_metrics(self):
+        """
+        Recalculates and updates evaluation metrics for all runs in the database.
+        """
+        all_run_names = self.db.get_all_run_names()
+        logging.info(f"Found {len(all_run_names)} runs to refresh.")
+
+        for run_name in all_run_names:
+            logging.info(f"Refreshing metrics for run: {run_name}")
+            run_details = self.db.get_run_details(run_name)
+            if not run_details:
+                logging.warning(f"Could not find details for run: {run_name}")
+                continue
+
+            # Get themes for the run
+            theme_name = run_details["theme_name"]
+            themes = self.config["grid_search_params"]["themes"].get(theme_name)
+            if not themes:
+                logging.warning(f"Themes '{theme_name}' not found in config.")
+                continue
+
+            # Get theme embeddings
+            embedding_function = self._get_embedding_function(
+                {"type": run_details["model_type"], "name": run_details["model_name"]}
+            )
+            themes_embeddings_map, _ = self._get_or_create_embeddings(
+                embedding_function, run_details["model_name"], themes
+            )
+            theme_hashes = [self.get_text_hash(theme) for theme in themes]
+            embed_themes_list = [
+                themes_embeddings_map[h]
+                for h in theme_hashes
+                if h in themes_embeddings_map
+            ]
+            embed_themes = np.array(embed_themes_list)
+
+            # Get all processed files for the run
+            processed_files_data = self.db.get_all_processing_results_for_run(run_name)
+
+            for file_id, file_data in processed_files_data.items():
+                item_phrases = file_data["phrases"]
+                if not item_phrases:
+                    continue
+
+                # Get phrase embeddings
+                all_embeddings_map, _ = self._get_or_create_embeddings(
+                    embedding_function, run_details["model_name"], item_phrases
+                )
+                phrase_hashes = {p: self.get_text_hash(p) for p in item_phrases}
+                item_embed_phrases = np.array(
+                    [
+                        all_embeddings_map[h]
+                        for p in item_phrases
+                        if (h := phrase_hashes[p]) in all_embeddings_map
+                    ]
+                )
+
+                if item_embed_phrases.size == 0:
+                    continue
+
+                # Recalculate similarities and metrics
+                similarites = self.calculate_similarity(
+                    embed_themes,
+                    item_embed_phrases,
+                    run_details["similarity_metric"],
+                )
+                labels = np.argmax(similarites, axis=0)
+                all_metrics = calculate_all_metrics(
+                    embed_themes, item_embed_phrases, labels
+                )
+
+                # Update the database
+                self.db.update_metrics_for_file(run_name, file_id, all_metrics)
+        logging.info("Finished refreshing all metrics.")
