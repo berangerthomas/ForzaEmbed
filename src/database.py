@@ -214,7 +214,9 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             # Delete existing chart of this type
-            cursor.execute("DELETE FROM global_charts WHERE chart_type = ?", (chart_type,))
+            cursor.execute(
+                "DELETE FROM global_charts WHERE chart_type = ?", (chart_type,)
+            )
             # Insert the new chart path
             cursor.execute(
                 """
@@ -472,7 +474,9 @@ class EmbeddingDatabase:
         for text_hash, vector in embeddings.items():
             # Use the base_model_name for the cache key
             cache_key = f"{base_model_name}:{text_hash}"
-            vector_blob = msgpack.packb(vector, default=numpy_default, use_bin_type=True)
+            vector_blob = msgpack.packb(
+                vector, default=numpy_default, use_bin_type=True
+            )
             dimension = len(vector) if len(vector.shape) == 1 else vector.shape[1]
             items_to_insert.append(
                 (cache_key, base_model_name, text_hash, vector_blob, dimension)
@@ -491,4 +495,59 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM embedding_cache")
+            conn.commit()
+
+    def get_run_details(self, run_name: str) -> Optional[Dict[str, Any]]:
+        """Retrieves detailed information for a specific run."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM models WHERE name = ?", (run_name,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_all_processing_results_for_run(
+        self, model_name: str
+    ) -> Dict[str, Dict[str, Any]]:
+        """Retrieves all processing results for a specific model run."""
+        results = {}
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT file_id, results_blob FROM processing_results WHERE model_name = ?",
+                (model_name,),
+            )
+            for file_id, results_blob in cursor.fetchall():
+                results[file_id] = msgpack.unpackb(
+                    results_blob, object_hook=decode_numpy, raw=False
+                )
+        return results
+
+    def update_metrics_for_file(
+        self, model_name: str, file_id: str, metrics: Dict[str, Any]
+    ):
+        """Updates the metrics for a specific file in a model run."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # First, retrieve the existing blob
+            cursor.execute(
+                "SELECT results_blob FROM processing_results WHERE model_name = ? AND file_id = ?",
+                (model_name, file_id),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return  # Or handle error
+
+            # Deserialize, update, and re-serialize
+            results_data = msgpack.unpackb(row[0], object_hook=decode_numpy, raw=False)
+            results_data["metrics"].update(metrics)
+            updated_blob = msgpack.packb(
+                results_data, default=numpy_default, use_bin_type=True
+            )
+
+            # Update the blob in the database
+            cursor.execute(
+                "UPDATE processing_results SET results_blob = ? WHERE model_name = ? AND file_id = ?",
+                (updated_blob, model_name, file_id),
+            )
             conn.commit()

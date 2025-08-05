@@ -60,6 +60,11 @@ def main():
         default=None,
         help="Limit comparison charts to the top N models.",
     )
+    parser.add_argument(
+        "--refresh-metrics",
+        action="store_true",
+        help="Refresh evaluation metrics for all existing runs.",
+    )
     args = parser.parse_args()
 
     # Instantiate the main application class
@@ -77,6 +82,8 @@ def main():
         app.generate_reports(top_n=args.top_n)
     elif args.generate_reports:
         app.generate_reports(top_n=args.top_n)
+    elif args.refresh_metrics:
+        app.refresh_metrics()
     else:
         logging.info(
             "No main action specified. Use --run to start the pipeline or "

@@ -223,6 +223,14 @@ class ForzaEmbed:
         """
         self.report_generator.generate_all(top_n=top_n)
 
+    def refresh_metrics(self):
+        """
+        Refreshes all evaluation metrics for all runs in the database.
+        """
+        logging.info("--- Starting Metric Refresh ---")
+        self.processor.refresh_all_metrics()
+        logging.info("--- Metric Refresh Finished ---")
+
     def clear_database(self):
         """Clears all data from the main database."""
         logging.warning("Clearing the main database...")
