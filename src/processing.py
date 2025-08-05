@@ -71,12 +71,12 @@ class Processor:
 
         for item in unprocessed_rows:
             identifiant, name, location_type, texte = item
-            file_info = f"{identifiant} {location_type[:5]} {name[-30:]}"
+            file_info = f"{identifiant} {location_type[:3]} {name[-20:]}"
             grid_params = (
                 f"cs{chunk_size} co{chunk_overlap} {similarity_metric[:3]} "
                 f"{chunking_strategy} {theme_name[-13:]}"
             )
-            description = f"{file_info} | {model_name[-30:]} | {grid_params}"
+            description = f"{file_info} | {model_name[-20:]} | {grid_params}"
             pbar.set_description(description[:100])
             if not texte or not texte.strip():
                 pbar.update(1)
@@ -120,6 +120,46 @@ class Processor:
                 embed_themes, item_embed_phrases, labels
             )
 
+            scatter_plot_data = None
+            if item_embed_phrases.shape[0] > 1:
+                try:
+                    from sklearn.manifold import TSNE
+
+                    tsne = TSNE(
+                        n_components=2,
+                        perplexity=min(30, item_embed_phrases.shape[0] - 1),
+                        random_state=42,
+                        max_iter=300,
+                    )
+                    tsne_results = tsne.fit_transform(item_embed_phrases)
+
+                    similarity_scores = similarites.max(axis=0)
+                    threshold = self.config.get("similarity_threshold", 0.6)
+
+                    scatter_labels = [
+                        f"Above Threshold ({threshold})"
+                        if s >= threshold
+                        else "Below Threshold"
+                        for s in similarity_scores
+                    ]
+
+                    scatter_plot_data = {
+                        "x": tsne_results[:, 0].tolist(),
+                        "y": tsne_results[:, 1].tolist(),
+                        "labels": scatter_labels,
+                        "similarities": similarity_scores.tolist(),
+                        "title": f"t-SNE Visualization for {identifiant}",
+                        "threshold": threshold,
+                    }
+                except ImportError:
+                    logging.warning(
+                        "scikit-learn is not installed. Skipping t-SNE plot generation."
+                    )
+                except Exception as e:
+                    logging.error(
+                        f"Error during t-SNE calculation for {identifiant}: {e}"
+                    )
+
             results["files"][identifiant] = {
                 "phrases": item_phrases,
                 "similarities": similarites.max(axis=0),
@@ -128,6 +168,7 @@ class Processor:
                     "processing_time": p_time,
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
                 },
+                "scatter_plot_data": scatter_plot_data,
             }
             pbar.update(1)
 

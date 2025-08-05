@@ -42,8 +42,9 @@ class ReportGenerator:
             model_embeddings_for_variance,
         ) = self._aggregate_data(all_results)
 
-        # Placeholder for web generator
-        # self._generate_main_web_page(processed_data_for_interactive_page, len(all_results))
+        self._generate_main_web_page(
+            processed_data_for_interactive_page, len(all_results)
+        )
 
         self._generate_file_reports(all_results)
         self._generate_global_reports(
@@ -54,7 +55,7 @@ class ReportGenerator:
 
     def _aggregate_data(self, all_results: dict):
         """Aggregates data from results for reporting."""
-        processed_data_for_interactive_page = {}
+        processed_data_for_interactive_page = {"files": {}}
         all_models_metrics = {}
         model_embeddings_for_variance = {}
 
@@ -67,13 +68,14 @@ class ReportGenerator:
             base_model_name = model_info["model_name"]
 
             for file_id, file_data in model_results.get("files", {}).items():
-                file_entry = processed_data_for_interactive_page.setdefault(
+                file_entry = processed_data_for_interactive_page["files"].setdefault(
                     file_id, {"embeddings": {}}
                 )
                 file_entry["embeddings"][model_name] = {
                     "phrases": file_data.get("phrases", []),
                     "similarities": file_data.get("similarities", []),
                     "metrics": file_data.get("metrics", {}),
+                    "scatter_plot_data": file_data.get("scatter_plot_data"),
                 }
 
             metrics_list = [
@@ -94,6 +96,12 @@ class ReportGenerator:
             all_models_metrics,
             model_embeddings_for_variance,
         )
+
+    def _generate_main_web_page(self, processed_data, total_combinations):
+        """Generates the main interactive web page."""
+        from .web_generator import generate_main_page
+
+        generate_main_page(processed_data, str(self.output_dir), total_combinations)
 
     def _generate_file_reports(self, all_results):
         """Generates individual Markdown reports for each file."""
@@ -148,17 +156,28 @@ class ReportGenerator:
             return None
 
         num_metrics = len(metrics_to_plot)
-        plt.figure(figsize=(18, 5 * num_metrics))
+        plt.figure(figsize=(20, 8 * num_metrics))
 
         for i, metric in enumerate(metrics_to_plot, 1):
-            plt.subplot(num_metrics, 1, i)
-            sns.barplot(x=df.index, y=df[metric], palette="viridis")
-            plt.title(f"Model Comparison - {metric.replace('_', ' ').title()}")
-            plt.ylabel(metric.replace("_", " ").title())
-            plt.xlabel("Model")
-            plt.xticks(rotation=45, ha="right")
-            plt.tight_layout()
+            ax = plt.subplot(num_metrics, 1, i)
+            sns.barplot(
+                x=df.index,
+                y=df[metric],
+                ax=ax,
+                palette="viridis",
+                hue=df.index,
+                legend=False,
+            )
+            ax.set_title(
+                f"Model Comparison - {metric.replace('_', ' ').title()}", pad=20
+            )
+            ax.set_ylabel(metric.replace("_", " ").title())
+            ax.set_xlabel("Model")
+            plt.setp(
+                ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+            )
 
+        plt.tight_layout(pad=3.0, h_pad=5.0)
         plot_path = self.output_dir / "global_clustering_metrics_comparison.png"
         plt.savefig(plot_path)
         plt.close()
