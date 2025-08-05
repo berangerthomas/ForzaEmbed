@@ -126,6 +126,12 @@ class ReportGenerator:
 
         if "discriminant_score" in df.columns:
             df = df.sort_values(by="discriminant_score", ascending=False)
+
+        # Export metrics to CSV
+        csv_path = self.output_dir / "global_metrics_comparison.csv"
+        df.to_csv(csv_path)
+        logging.info(f"Exported global metrics to {csv_path}")
+
         if top_n:
             df = df.head(top_n)
 
