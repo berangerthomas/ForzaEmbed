@@ -28,4 +28,5 @@ dependencies = [
     "plotly>=6.2.0",
     "kaleido>=1.0.0",
     "pyarrow>=21.0.0",
+    "joblib>=1.4.2",
 ]

@@ -40,6 +40,10 @@ class EmbeddingDatabase:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.init_database()
 
+    def get_db_modification_time(self) -> float:
+        """Returns the last modification time of the database file."""
+        return os.path.getmtime(self.db_path)
+
     def init_database(self):
         """Initializes the database with the necessary tables."""
         with sqlite3.connect(self.db_path) as conn:
