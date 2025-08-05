@@ -30,11 +30,13 @@ def load_markdown_files(
         for file_path in directory.glob("*.md"):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-                # Simple parsing of metadata from filename (e.g., "ID_Name_Type.md")
+                # Parsing metadata from filename (e.g., "ID_Type_Libelle.md")
                 parts = file_path.stem.split("_", 2)
                 identifier = parts[0]
-                name = parts[1] if len(parts) > 1 else "Unknown"
-                location_type = parts[2] if len(parts) > 2 else "Unknown"
+                location_type = parts[1] if len(parts) > 1 else "Unknown"
+                name = (
+                    parts[2].replace("_", " ") if len(parts) > 2 else "Unknown"
+                )  # This is the libellé
                 all_rows.append((identifier, name, location_type, content))
     elif isinstance(data_source, list) and all(
         isinstance(item, str) for item in data_source
