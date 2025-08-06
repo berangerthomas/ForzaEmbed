@@ -231,15 +231,14 @@ def generate_main_page(
         minified_css = cssmin(css_content)
 
         js_content = f"const processedData = {data_json};\n"
-        js_content += """
+        js_content += r"""
         const metricTooltips = {
-            'internal_coherence_score': "Internal Coherence Score (ICS). Assesses the stability and predictability of the similarity measurement system. A lower score is better, indicating higher coherence. (ICS < 0.1: Excellent, 0.1 <= ICS < 0.5: Good, ICS >= 0.5: Poor).",
-            'local_density_index': "Local Density Index (LDI). Assesses if an embedding's nearest neighbors belong to the same theme. A higher score is better, indicating a strong thematic structure. (LDI = 1.0: Perfect, LDI > 0.8: Good, LDI < 0.5: Poor).",
-            'robustness_score': "Robustness Score (RS). Tests the stability of the system by adding random noise. A higher score (closer to 1.0) is better, indicating the system is not significantly affected by minor perturbations. (RS > 0.95: Very Robust, 0.80 <= RS <= 0.95: Acceptable, RS < 0.80: Fragile).",
-            'cohesion': "Cohesion. Measures the average similarity between embeddings within the same theme. A higher score (close to 1) is desirable, indicating that texts of the same theme are semantically close.",
-            'separation': "Separation. Measures the average similarity between embeddings from different themes. A lower score (close to 0) is desirable, indicating that different themes are well-distinguished.",
-            'discriminant_score': "Discriminant Score. The ratio of cohesion to separation (Cohesion / Separation). A higher score is desirable, indicating a good balance of dense and well-separated topics.",
-            'silhouette': "Silhouette Score. Measures how similar an object is to its own cluster compared to other clusters. Ranges from -1 to 1. A high value (close to 1) indicates dense and well-separated clusters. 0 is at the boundary, -1 indicates misclassification."
+            'internal_coherence_score': "Internal Coherence Score (ICS). Assesses the stability and predictability of the similarity measurement system. A lower score is better, indicating higher coherence. (ICS < 0.1: Excellent, > 0.5: Poor).",
+            'local_density_index': "Local Density Index (LDI). Assesses if an embedding's nearest neighbors belong the same theme. A higher score is better, indicating a strong thematic structure. (LDI > 0.8: Good, < 0.5: Poor).",
+            'robustness_score': "Robustness Score (RS). Tests the system's stability against random noise. A higher score (closer to 1.0) is better, indicating it is not affected by minor perturbations. (RS > 0.95: Very Robust, < 0.80: Fragile).",
+            'intra_cluster_distance_normalized': "Intra-Cluster Quality (Cohesion). Measures how close the texts of the same theme are to each other. A higher score (close to 1) is better. (> 0.8: Excellent)",
+            'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how distinct different themes are from each other. A higher score (close to 1) is better. (> 0.7: Excellent)",
+            'silhouette_score': "Silhouette Score. A global measure of clustering quality, combining cohesion and separation. Ranges from -1 to 1. A high value (close to 1) indicates dense and well-separated clusters."
         };
 
         const fileSlider = document.getElementById('file-slider');
@@ -293,6 +292,28 @@ def generate_main_page(
             { r: 253, g: 174, b: 97 },
             { r: 215, g: 25, b: 28 }    // High similarity
         ]);
+
+        function getMetricColor(metricKey, value) {
+            // Couleurs basées sur le type de métrique et sa valeur
+            const metricRanges = {
+                'internal_coherence_score': { min: 0, max: 1, invert: true }, // Plus bas = mieux
+                'local_density_index': { min: 0, max: 1, invert: false },     // Plus haut = mieux
+                'robustness_score': { min: 0, max: 1, invert: false },        // Plus haut = mieux
+                'intra_cluster_distance_normalized': { min: 0, max: 1, invert: false },
+                'inter_cluster_distance_normalized': { min: 0, max: 1, invert: false },
+                'silhouette_score': { min: -1, max: 1, invert: false }        // Plus haut = mieux
+            };
+
+            const range = metricRanges[metricKey] || { min: 0, max: 1, invert: false };
+            let normalizedValue = (value - range.min) / (range.max - range.min);
+            
+            if (range.invert) {
+                normalizedValue = 1 - normalizedValue;
+            }
+            
+            // Utiliser la même palette que pour la heatmap
+            return cmap_heatmap(Math.max(0, Math.min(1, normalizedValue)));
+        }
 
         function parseEmbeddingKey(key) {
             const m_part_index = key.lastIndexOf('_m');
@@ -432,140 +453,107 @@ def generate_main_page(
         }
 
         function updateView(fileKey, repopulate = false) {
+            console.log('updateView called with:', fileKey, 'repopulate:', repopulate);
+            
             if (repopulate) {
                 populateAndSetupSliders(fileKey);
             }
 
+            // Effacer immédiatement tous les conteneurs pour éviter les états incohérents
+            clearAllDisplays();
+
             const fileData = processedData.files[fileKey];
+            console.log('fileData:', fileData);
             
             if (!fileData) {
                 fileNameSpan.textContent = 'No data for this file.';
-                metricsGrid.innerHTML = '';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
+                showEmptyState('No data available for this file.');
                 return;
             }
 
             fileNameSpan.textContent = fileKey;
             filterEmbeddings();
+            console.log('filteredEmbeddingKeys:', filteredEmbeddingKeys);
 
             if (filteredEmbeddingKeys.length === 0) {
-                metricsGrid.innerHTML = 'No data for this selection.';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
-                updateScatterPlot(null); // Explicitly clear the plot
+                showEmptyState('No data for this parameter combination.');
                 return;
             }
 
             const embeddingKey = filteredEmbeddingKeys[0];
             const embeddingData = fileData.embeddings[embeddingKey];
+            console.log('embeddingData:', embeddingData);
 
             if (!embeddingData) {
-                metricsGrid.innerHTML = 'Error: Data not found.';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
-                updateScatterPlot(null); // Explicitly clear the plot
+                showEmptyState('Error: Embedding data not found.');
                 return;
             }
 
-            updateMetrics(embeddingData.metrics);
-            updateHeatmap(embeddingData.phrases, embeddingData.similarities);
-            updateFileLinks(embeddingKey, fileKey);
-            updateScatterPlot(embeddingData.scatter_plot_data);
-        }
+            // Vérifier la cohérence des données avant mise à jour
+            const hasMetrics = embeddingData.metrics && Object.keys(embeddingData.metrics).length > 0;
+            const hasHeatmapData = embeddingData.phrases && embeddingData.similarities && 
+                                   embeddingData.phrases.length > 0 && embeddingData.similarities.length > 0;
+            const hasScatterData = embeddingData.scatter_plot_data && 
+                                   embeddingData.scatter_plot_data.x && 
+                                   embeddingData.scatter_plot_data.y && 
+                                   embeddingData.scatter_plot_data.x.length > 0;
 
-        function getMetricColor(metricName, value) {
-            const good = { r: 43, g: 131, b: 186 };
-            const neutral = { r: 255, g: 255, b: 191 };
-            const bad = { r: 215, g: 25, b: 28 };
+            console.log('Data availability:', { hasMetrics, hasHeatmapData, hasScatterData });
 
-            let score = 0.5; // Default to neutral
-
-            switch (metricName) {
-                // Lower is better
-                case 'internal_coherence_score':
-                    if (value < 0.1) score = 1.0; // Excellent
-                    else if (value < 0.5) score = 0.7; // Good
-                    else score = 0.1; // Poor
-                    break;
-                case 'separation':
-                    if (value < 0.2) score = 1.0;
-                    else if (value < 0.5) score = 0.6;
-                    else score = 0.2;
-                    break;
-
-                // Higher is better
-                case 'robustness_score':
-                    if (value > 0.95) score = 1.0; // Very Robust
-                    else if (value > 0.8) score = 0.7; // Acceptable
-                    else score = 0.1; // Fragile
-                    break;
-                case 'local_density_index':
-                    if (value > 0.8) score = 1.0; // Good
-                    else if (value > 0.5) score = 0.6;
-                    else score = 0.1; // Poor
-                    break;
-                case 'silhouette': // Range -1 to 1
-                    score = (value + 1) / 2;
-                    break;
-                case 'cohesion':
-                    if (value > 0.7) score = 1.0;
-                    else if (value > 0.4) score = 0.6;
-                    else score = 0.2;
-                    break;
-                case 'discriminant_score':
-                    if (value > 2.0) score = 1.0;
-                    else if (value > 1.0) score = 0.7;
-                    else score = 0.2;
-                    break;
+            // Mise à jour atomique : soit tout, soit rien
+            if (hasMetrics && hasHeatmapData) {
+                updateMetrics(embeddingData.metrics);
+                updateHeatmap(embeddingData.phrases, embeddingData.similarities);
+                updateFileLinks(embeddingKey, fileKey);
                 
-                default:
-                    score = 0.5; // Neutral for unknown metrics
+                if (hasScatterData) {
+                    updateScatterPlot(embeddingData.scatter_plot_data);
+                } else {
+                    updateScatterPlot(null);
+                }
+            } else {
+                // Données incomplètes - afficher un message d'erreur cohérent
+                let missingParts = [];
+                if (!hasMetrics) missingParts.push('metrics');
+                if (!hasHeatmapData) missingParts.push('heatmap data');
+                if (!hasScatterData) missingParts.push('scatter plot data');
+                
+                console.log('Missing data parts:', missingParts);
+                showEmptyState(`Incomplete data for this combination. Missing: ${missingParts.join(', ')}.`);
             }
-
-            const colors = [bad, neutral, good];
-            const i = Math.min(Math.floor(score * (colors.length - 1)), colors.length - 2);
-            const t = (score * (colors.length - 1)) % 1;
-            const r = Math.round(colors[i].r * (1 - t) + colors[i+1].r * t);
-            const g = Math.round(colors[i].g * (1 - t) + colors[i+1].g * t);
-            const b = Math.round(colors[i].b * (1 - t) + colors[i+1].b * t);
-            
-            return {
-                rgb: `rgb(${r},${g},${b})`,
-                isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
-            };
         }
 
-        function updateFileLinks(embeddingKey, fileKey) {
+        function clearAllDisplays() {
+            metricsGrid.innerHTML = '';
+            heatmapContainer.innerHTML = '';
             fileLinksContainer.innerHTML = '';
-            const safeEmbeddingKey = embeddingKey.replace(/\\//g, '_');
+            // Purger immédiatement le graphique Plotly
+            try {
+                Plotly.purge('scatter-plot-container');
+                scatterPlotContainer.innerHTML = '';
+            } catch (e) {
+                // En cas d'erreur, forcer le nettoyage
+                scatterPlotContainer.innerHTML = '';
+            }
+        }
 
-            const filteredFileName = `${fileKey}_${safeEmbeddingKey}_filtered.md`;
-            const explanatoryFileName = `${fileKey}_${safeEmbeddingKey}_explanatory.md`;
-
-            const filteredLink = document.createElement('a');
-            filteredLink.href = filteredFileName;
-            filteredLink.textContent = `Filtered Report (Markdown)`;
-            filteredLink.title = filteredFileName;
-            filteredLink.target = "_blank";
-
-            const explanatoryLink = document.createElement('a');
-            explanatoryLink.href = explanatoryFileName;
-            explanatoryLink.textContent = `Explanatory Report (Markdown)`;
-            explanatoryLink.title = explanatoryFileName;
-            explanatoryLink.target = "_blank";
-
-            fileLinksContainer.appendChild(filteredLink);
-            fileLinksContainer.appendChild(explanatoryLink);
+        function showEmptyState(message) {
+            metricsGrid.innerHTML = `<div style="padding: 20px; text-align: center; color: #666; grid-column: 1 / -1;">${message}</div>`;
+            heatmapContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #666;">${message}</div>`;
+            fileLinksContainer.innerHTML = '';
+            scatterPlotContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #666;">${message}</div>`;
         }
 
         function updateScatterPlot(plotData) {
-            Plotly.purge('scatter-plot-container');
-            if (!plotData) {
-                scatterPlotContainer.innerHTML = 'No scatter plot data available for this selection.';
+            // Toujours purger complètement le conteneur Plotly d'abord
+            try {
+                Plotly.purge('scatter-plot-container');
+            } catch (e) {
+                console.warn('Warning: Could not purge Plotly container:', e);
+            }
+            
+            if (!plotData || !plotData.x || !plotData.y || plotData.x.length === 0) {
+                scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No scatter plot data available for this selection.</div>';
                 return;
             }
 
@@ -586,7 +574,7 @@ def generate_main_page(
                     name: label,
                     text: [],
                     marker: { 
-                        color: colors[label],
+                        color: colors[label] || 'gray',
                         size: 8,
                         opacity: 0.7
                     },
@@ -603,8 +591,13 @@ def generate_main_page(
                 traces.push(trace);
             });
 
+            if (traces.length === 0) {
+                scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No valid traces for scatter plot.</div>';
+                return;
+            }
+
             const layout = {
-                title: plotData.title,
+                title: plotData.title || 't-SNE Visualization',
                 xaxis: { title: 't-SNE Dimension 1' },
                 yaxis: { title: 't-SNE Dimension 2' },
                 hovermode: 'closest',
@@ -616,14 +609,24 @@ def generate_main_page(
                 }
             };
 
-            Plotly.newPlot('scatter-plot-container', traces, layout, {responsive: true});
+            // Créer le nouveau graphique avec gestion d'erreur améliorée
+            Plotly.newPlot('scatter-plot-container', traces, layout, {responsive: true})
+                .catch(err => {
+                    console.error('Error creating scatter plot:', err);
+                    scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Error displaying scatter plot.</div>';
+                });
         }
 
         function updateMetrics(metrics) {
             metricsGrid.innerHTML = '';
-            if (!metrics) return;
+            if (!metrics || Object.keys(metrics).length === 0) {
+                metricsGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; grid-column: 1 / -1;">No metrics available.</div>';
+                return;
+            }
 
             for (const [key, value] of Object.entries(metrics)) {
+                if (value === null || value === undefined) continue;
+                
                 const metricItem = document.createElement('div');
                 metricItem.className = 'metric-item';
                 metricItem.title = metricTooltips[key] || 'No description available.';
@@ -639,7 +642,7 @@ def generate_main_page(
                 const labelSpan = document.createElement('div');
                 labelSpan.className = 'label';
                 labelSpan.style.color = colorInfo.isDark ? '#ecf0f1' : '#7f8c8d';
-                labelSpan.textContent = key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
+                labelSpan.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
                 metricItem.appendChild(valueSpan);
                 metricItem.appendChild(labelSpan);
@@ -649,7 +652,15 @@ def generate_main_page(
 
         function updateHeatmap(phrases, similarities) {
             heatmapContainer.innerHTML = '';
-            if (!phrases || !similarities) return;
+            if (!phrases || !similarities || phrases.length === 0 || similarities.length === 0) {
+                heatmapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No heatmap data available.</div>';
+                return;
+            }
+
+            if (phrases.length !== similarities.length) {
+                heatmapContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Error: Mismatch between phrases and similarities data.</div>';
+                return;
+            }
 
             const content = document.createElement('p');
 
@@ -666,6 +677,11 @@ def generate_main_page(
                 content.appendChild(span);
             });
             heatmapContainer.appendChild(content);
+        }
+
+        function updateFileLinks(embeddingKey, fileKey) {
+            // Cette fonction peut être vide si les liens de fichiers ne sont pas utilisés
+            fileLinksContainer.innerHTML = '';
         }
 
         document.addEventListener('DOMContentLoaded', initialize);

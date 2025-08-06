@@ -51,50 +51,82 @@ ics_mauvais = calculate_ics(scores_incohérent)  # ≈ 0.64 (médiocre)
 
 ---
 
-## 2. SILHOUETTE SCORE MODIFIÉE (SSM)
+## 2. SILHOUETTE SCORE DÉCOMPOSÉ
 
 ### 🎯 Définition Simple
-La silhouette mesure si les éléments similaires sont effectivement regroupés ensemble et si les éléments différents sont bien séparés. C'est comme évaluer si les invités d'une fête se regroupent naturellement par centres d'intérêt.
+Le score silhouette mesure si les éléments similaires sont effectivement regroupés ensemble et si les éléments différents sont bien séparés. Dans notre version décomposée, nous séparons cette mesure en deux composantes normalisées pour une meilleure interprétation.
 
-### 📐 Formule Mathématique
+### 📐 Formules Mathématiques
+
+**Score Silhouette Standard** :
 ```
-SSM = (1/n) × Σᵢ₌₁ⁿ [(bᵢ - aᵢ) / max(aᵢ, bᵢ)]
+s(i) = (b(i) - a(i)) / max(a(i), b(i))
 ```
+
+**Composantes Normalisées** :
+- **Distance Intra-Cluster Normalisée** : `1 - (moyenne(a(i)) / distance_max)`
+- **Distance Inter-Cluster Normalisée** : `moyenne(b(i)) / distance_max`
+
 Où :
-- `aᵢ` = distance moyenne aux éléments du même groupe
-- `bᵢ` = distance moyenne aux éléments du groupe le plus proche
+- `a(i)` = distance moyenne aux éléments du même cluster
+- `b(i)` = distance moyenne aux éléments du cluster le plus proche
 
 ### 🔍 Interprétation Intuitive
-**Analogie du parking** :
-- Vous voulez que les voitures de même type se garent ensemble
-- `aᵢ` : distance moyenne aux voitures du même type (doit être petite)
-- `bᵢ` : distance aux autres types (doit être grande)
-- Score élevé : bonne séparation entre types
 
-**Échelle d'interprétation** :
-- **+1** : Parfaitement classé (très loin des autres groupes, très proche du sien)
-- **0** : À la frontière entre groupes (ambigu)
-- **-1** : Mal classé (plus proche des autres groupes que du sien)
+**Distance Intra-Cluster Normalisée (0-1, plus élevé = meilleur)** :
+- Mesure la **cohésion** au sein des clusters
+- **0.9** : Excellent - les points du même thème sont très proches
+- **0.5** : Moyen - cohésion modérée
+- **0.1** : Problématique - points dispersés même dans le cluster
+
+**Distance Inter-Cluster Normalisée (0-1, plus élevé = meilleur)** :
+- Mesure la **séparation** entre clusters différents  
+- **0.8** : Excellent - clusters bien distincts
+- **0.5** : Moyen - séparation modérée
+- **0.2** : Problématique - clusters se chevauchent
+
+**Score Silhouette (-1 à +1, plus élevé = meilleur)** :
+- **+0.7 à +1** : Excellente structure de clustering
+- **+0.3 à +0.7** : Structure acceptable
+- **0 à +0.3** : Structure faible
+- **< 0** : Structure problématique
 
 ### 💡 Application Pratique
 
-**Exemple visuel** : Imaginez 3 thèmes (Sport, Cuisine, Technologie) et leurs distances :
+**Exemple de calcul** :
 
 ```python
-# Pour un embedding du thème "Sport"
-distances_meme_theme = [0.1, 0.15, 0.12]  # Autres embeddings sport
-distances_autres_themes = [0.7, 0.8, 0.65]  # Cuisine, Techno
+# Imaginons 3 thèmes avec leurs distances moyennes
+# Pour un point du thème "Sport"
 
-a_i = np.mean(distances_meme_theme)    # 0.123
-b_i = np.mean(distances_autres_themes) # 0.717
+# Distances aux autres points "Sport"
+intra_distances = [0.1, 0.15, 0.12]  # Moyenne: 0.123
+# Distance max possible dans l'espace: 2.0
 
-silhouette_score = (b_i - a_i) / max(a_i, b_i)  # (0.717-0.123)/0.717 ≈ 0.83
+# Distances aux clusters "Cuisine" et "Technologie"  
+inter_distances_cuisine = [0.7, 0.8, 0.75]     # Moyenne: 0.75
+inter_distances_techno = [0.9, 0.85, 0.88]     # Moyenne: 0.877
+# Distance au cluster le plus proche: min(0.75, 0.877) = 0.75
+
+# Calculs
+a_i = 0.123  # distance intra-cluster
+b_i = 0.75   # distance inter-cluster minimum
+
+# Métriques normalisées
+intra_normalized = 1 - (0.123 / 2.0) = 0.94  # Excellent
+inter_normalized = 0.75 / 2.0 = 0.375        # Moyen
+
+# Score silhouette
+silhouette = (0.75 - 0.123) / max(0.123, 0.75) = 0.84  # Excellent
 ```
 
-**Score de 0.83** : Excellent ! L'embedding "Sport" est bien plus proche de son propre thème que des autres.
+**Interprétation** : Ce point "Sport" montre une excellente cohésion interne (0.94) mais une séparation modérée (0.375). Le score silhouette global reste excellent (0.84).
 
-### ✅ Pourquoi Cette Métrique ?
-**Pertinence** : Dans votre cas, cette métrique vérifie si votre système de similarité sait distinguer les thèmes. Si deux thèmes sont vraiment différents, leurs embeddings devraient être moins similaires entre eux qu'à l'intérieur de chaque thème.
+### ✅ Pourquoi Ces Métriques ?
+**Avantages de la décomposition** :
+1. **Diagnostic précis** : Identifier si le problème vient de la cohésion ou de la séparation
+2. **Normalisation** : Valeurs 0-1 plus faciles à interpréter
+3. **Amélioration ciblée** : Savoir sur quoi travailler en priorité
 
 ---
 
@@ -456,7 +488,7 @@ else:
 - Objectif : Vérifier que votre système n'est pas chaotique
 
 **Étape 2 : Structure des Données**
-- Calculez SSM et LDI
+- Calculez les métriques de silhouette décomposées et LDI
 - Objectif : Vérifier que vos données ont une structure sensée
 
 **Étape 3 : Fiabilité**
@@ -472,11 +504,11 @@ else:
 ```python
 def compute_quality_score(metrics):
     weights = {
-        'coherence': 0.25,      # ICS inversé et normalisé
-        'separation': 0.25,     # Silhouette Score
-        'stability': 0.20,      # Bootstrap (incertitude inversée)
-        'robustness': 0.20,     # Test de perturbation
-        'structure': 0.10       # Densité locale
+        'coherence': 0.20,                            # ICS inversé et normalisé
+        'intra_cluster_quality': 0.25,                # Distance intra-cluster normalisée
+        'inter_cluster_separation': 0.25,             # Distance inter-cluster normalisée  
+        'silhouette': 0.15,                          # Score silhouette
+        'robustness': 0.15                           # Test de perturbation
     }
     
     # Normalisation et inversion si nécessaire
@@ -501,9 +533,10 @@ def compute_quality_score(metrics):
 Ces métriques forment un ensemble complémentaire pour évaluer votre système de similarité :
 
 1. **Cohérence** : Votre système est-il stable ?
-2. **Séparation** : Distingue-t-il bien les différents thèmes ?
-3. **Structure** : Les données ont-elles une organisation logique ?
-4. **Fiabilité** : Pouvez-vous faire confiance aux résultats ?
-5. **Robustesse** : Le système résiste-t-il aux perturbations ?
+2. **Cohésion Intra-Cluster** : Les éléments similaires sont-ils bien groupés ?
+3. **Séparation Inter-Cluster** : Les éléments différents sont-ils bien distingués ?
+4. **Score Silhouette Global** : Qualité globale du clustering
+5. **Fiabilité** : Pouvez-vous faire confiance aux résultats ?
+6. **Robustesse** : Le système résiste-t-il aux perturbations ?
 
 En combinant ces approches, vous obtenez une évaluation complète et fiable de la qualité de vos calculs de similarité, même sans vérité terrain.

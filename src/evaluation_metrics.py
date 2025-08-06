@@ -3,7 +3,7 @@
 from typing import Dict, List
 
 import numpy as np
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
@@ -159,70 +159,97 @@ def robustness_score(
     return float(rs)
 
 
-def calculate_cohesion_separation(
-    embeddings: np.ndarray, labels: np.ndarray
+def calculate_silhouette_metrics(
+    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
 ) -> Dict[str, float]:
-    """Calculates cohesion, separation, and a discriminant score.
+    """Calculates silhouette-based clustering metrics with normalized components.
 
-    - Cohesion: Measures the average similarity between embeddings within the
-      same theme. A higher score indicates that chunks of the same theme are
-      semantically close.
-    - Separation: Measures the average similarity between embeddings from
-      different themes. A lower score indicates that different themes are
-      well-distinguished.
-    - Discriminant Score: The ratio of cohesion to separation. A higher score
-      indicates better overall clustering quality.
+    This function decomposes the silhouette score into its constituent parts:
+    intra-cluster distance (cohesion) and inter-cluster distance (separation),
+    providing normalized versions for better interpretability.
 
     Args:
         embeddings (np.ndarray): The embeddings of the text chunks.
         labels (np.ndarray): The theme label for each chunk.
+        metric (str): Distance metric to use for calculations.
 
     Returns:
-        Dict[str, float]: A dictionary containing cohesion, separation, and
-        a combined discriminant score.
+        Dict[str, float]: Dictionary containing:
+            - intra_cluster_distance_normalized: Normalized intra-cluster quality (0-1, higher is better)
+            - inter_cluster_distance_normalized: Normalized inter-cluster separation (0-1, higher is better)
+            - silhouette_score: Standard silhouette score (-1 to 1, higher is better)
     """
-    unique_labels = np.unique(labels)
-    if len(unique_labels) < 2:
+    if len(np.unique(labels)) < 2:
         return {
-            "cohesion": 0.0,
-            "separation": 0.0,
-            "discriminant_score": 0.0,
+            "intra_cluster_distance_normalized": 0.0,
+            "inter_cluster_distance_normalized": 0.0,
+            "silhouette_score": -1.0,
         }
 
-    # Cohesion: Average similarity within each theme
-    cohesion_scores: List[float] = []
-    for label in unique_labels:
-        theme_embeddings = embeddings[labels == label]
-        if len(theme_embeddings) > 1:
-            similarity_matrix = cosine_similarity(theme_embeddings)
-            # Use upper triangle to avoid diagonal and duplicates
-            indices = np.triu_indices_from(similarity_matrix, k=1)
-            if similarity_matrix[indices].size > 0:
-                cohesion_scores.append(float(np.mean(similarity_matrix[indices])))
+    # Calculate distance matrix
+    distance_matrix = pairwise_distances(embeddings, metric=metric)
 
-    avg_cohesion = np.mean(cohesion_scores) if cohesion_scores else 0.0
+    n_samples = len(embeddings)
+    a_values = []  # intra-cluster distances
+    b_values = []  # inter-cluster distances
 
-    # Separation: Average similarity between different themes
-    separation_scores: List[float] = []
-    for i in range(len(unique_labels)):
-        for j in range(i + 1, len(unique_labels)):
-            label1 = unique_labels[i]
-            label2 = unique_labels[j]
-            embeddings1 = embeddings[labels == label1]
-            embeddings2 = embeddings[labels == label2]
-            if embeddings1.size > 0 and embeddings2.size > 0:
-                similarity_matrix = cosine_similarity(embeddings1, embeddings2)
-                separation_scores.append(float(np.mean(similarity_matrix)))
+    unique_labels = np.unique(labels)
 
-    avg_separation = np.mean(separation_scores) if separation_scores else 0.0
+    for i in range(n_samples):
+        current_label = labels[i]
 
-    # Discriminant Score
-    discriminant_score = avg_cohesion / avg_separation if avg_separation > 1e-8 else 0.0
+        # a(i): Average intra-cluster distance
+        same_cluster_mask = (labels == current_label) & (np.arange(n_samples) != i)
+        if np.sum(same_cluster_mask) > 0:
+            a_i = np.mean(distance_matrix[i][same_cluster_mask])
+        else:
+            a_i = 0.0
+        a_values.append(a_i)
+
+        # b(i): Average distance to nearest different cluster
+        b_i = np.inf
+        for other_label in unique_labels:
+            if other_label != current_label:
+                other_cluster_mask = labels == other_label
+                if np.sum(other_cluster_mask) > 0:
+                    mean_dist_to_other = np.mean(distance_matrix[i][other_cluster_mask])
+                    b_i = min(b_i, mean_dist_to_other)
+
+        if b_i == np.inf:
+            b_i = 0.0
+        b_values.append(b_i)
+
+    a_values = np.array(a_values)
+    b_values = np.array(b_values)
+
+    # Calculate silhouette score
+    silhouette_values = []
+    for i in range(n_samples):
+        if max(a_values[i], b_values[i]) > 0:
+            s_i = (b_values[i] - a_values[i]) / max(a_values[i], b_values[i])
+        else:
+            s_i = 0.0
+        silhouette_values.append(s_i)
+
+    silhouette_computed = np.mean(silhouette_values)
+
+    # Normalize metrics for interpretability
+    max_possible_distance = (
+        np.max(distance_matrix) if np.max(distance_matrix) > 0 else 1.0
+    )
+
+    # Intra-cluster quality: 1 - (average_distance / max_distance)
+    # Higher values indicate better cohesion (points closer within clusters)
+    intra_normalized = 1 - (np.mean(a_values) / max_possible_distance)
+
+    # Inter-cluster separation: average_distance / max_distance
+    # Higher values indicate better separation (clusters farther apart)
+    inter_normalized = np.mean(b_values) / max_possible_distance
 
     return {
-        "cohesion": float(avg_cohesion),
-        "separation": float(avg_separation),
-        "discriminant_score": float(discriminant_score),
+        "intra_cluster_distance_normalized": float(max(0.0, intra_normalized)),
+        "inter_cluster_distance_normalized": float(inter_normalized),
+        "silhouette_score": float(silhouette_computed),
     }
 
 
@@ -234,33 +261,34 @@ def calculate_clustering_metrics(
     This function computes several well-known metrics to evaluate the quality
     of the thematic clustering of document chunks.
 
-    - Silhouette Score: Measures how similar an object is to its own cluster
-      (cohesion) compared to other clusters (separation). Score ranges from
-      -1 to 1, where a high value indicates dense and well-separated clusters.
-    - Local Density Index (LDI): Custom metric to assess local neighborhood
-      purity.
-
     Args:
         embeddings (np.ndarray): The embeddings of the text chunks.
         labels (np.ndarray): The theme label for each chunk.
         metric (str): Similarity metric used for theme assignment (not used for clustering evaluation).
 
     Returns:
-        Dict[str, float]: A dictionary with Silhouette, and LDI scores.
+        Dict[str, float]: A dictionary with silhouette-based and LDI scores.
     """
     unique_labels = np.unique(labels)
     if len(unique_labels) < 2 or len(embeddings) <= len(unique_labels):
         return {
-            "silhouette": -1.0,
+            "intra_cluster_distance_normalized": 0.0,
+            "inter_cluster_distance_normalized": 0.0,
+            "silhouette_score": -1.0,
             "local_density_index": 0.0,
         }
 
+    # Calculate silhouette metrics
+    silhouette_metrics = calculate_silhouette_metrics(
+        embeddings, labels, metric="cosine"
+    )
+
+    # Calculate LDI
+    ldi = local_density_index(embeddings, labels, metric="minkowski", p=2)
+
     return {
-        # Always use cosine for both metrics as they evaluate clustering quality in embedding space
-        "silhouette": float(silhouette_score(embeddings, labels, metric="cosine")),
-        "local_density_index": float(
-            local_density_index(embeddings, labels, metric="minkowski", p=2)
-        ),
+        **silhouette_metrics,
+        "local_density_index": float(ldi),
     }
 
 
@@ -285,11 +313,7 @@ def calculate_all_metrics(
     """
     all_metrics: Dict[str, float] = {}
 
-    # Cohesion and Separation based metrics
-    cohesion_sep_metrics = calculate_cohesion_separation(doc_embeddings, doc_labels)
-    all_metrics.update(cohesion_sep_metrics)
-
-    # Standard clustering metrics
+    # Standard clustering metrics (includes silhouette-based metrics)
     clustering_metrics = calculate_clustering_metrics(doc_embeddings, doc_labels)
     all_metrics.update(clustering_metrics)
 

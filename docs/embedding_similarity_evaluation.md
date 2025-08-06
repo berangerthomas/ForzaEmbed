@@ -48,36 +48,67 @@ Où ∠ représente l'angle cosinus entre le vecteur de référence et le centro
 
 ## 3. Analyse de Distribution et Séparabilité
 
-### 3.1 Indice de Silhouette Adapté
+### 3.1 Indice de Silhouette Adapté et Décomposé
 
-**Silhouette Score Modifiée (SSM)**:
+**Silhouette Score avec Composantes Normalisées**:
+
+Le score silhouette traditionnel est décomposé en ses composantes fondamentales pour une meilleure interprétation :
+
 ```
 SSM = (1/n) × Σᵢ₌₁ⁿ [(bᵢ - aᵢ) / max(aᵢ, bᵢ)]
 ```
 
-Où :
-- aᵢ = distance moyenne intra-cluster pour l'embedding i
-- bᵢ = distance moyenne au cluster le plus proche
+**Composantes Normalisées** :
+- **Distance Intra-Cluster Normalisée** : `1 - (moyenne(aᵢ) / distance_max)`
+  - Mesure la qualité de cohésion interne (0-1, plus élevé = meilleur)
+  - Valeur proche de 1 : points très proches au sein des clusters
+- **Distance Inter-Cluster Normalisée** : `moyenne(bᵢ) / distance_max`
+  - Mesure la qualité de séparation (0-1, plus élevé = meilleur)  
+  - Valeur proche de 1 : clusters bien séparés
 
 **Implémentation** :
 ```python
-def modified_silhouette_score(embeddings, similarity_matrix):
-    n = len(embeddings)
-    scores = []
+def calculate_silhouette_metrics(embeddings, labels, metric="cosine"):
+    # Calcul de la matrice des distances
+    distance_matrix = pairwise_distances(embeddings, metric=metric)
     
-    for i in range(n):
-        # Distance intra-cluster (même thème)
-        intra_distances = similarity_matrix[i, same_theme_indices]
-        a_i = np.mean(intra_distances)
-        
-        # Distance inter-cluster (autres thèmes)
-        inter_distances = similarity_matrix[i, other_theme_indices]
-        b_i = np.mean(inter_distances)
-        
-        silhouette_i = (b_i - a_i) / max(a_i, b_i)
-        scores.append(silhouette_i)
+    a_values = []  # distances intra-cluster
+    b_values = []  # distances inter-cluster
     
-    return np.mean(scores)
+    for i in range(len(embeddings)):
+        current_label = labels[i]
+        
+        # a(i): distance moyenne intra-cluster
+        same_cluster_mask = (labels == current_label) & (np.arange(len(embeddings)) != i)
+        if np.sum(same_cluster_mask) > 0:
+            a_i = np.mean(distance_matrix[i][same_cluster_mask])
+        else:
+            a_i = 0.0
+        a_values.append(a_i)
+        
+        # b(i): distance moyenne au cluster le plus proche
+        b_i = np.inf
+        for other_label in np.unique(labels):
+            if other_label != current_label:
+                other_cluster_mask = labels == other_label
+                if np.sum(other_cluster_mask) > 0:
+                    mean_dist = np.mean(distance_matrix[i][other_cluster_mask])
+                    b_i = min(b_i, mean_dist)
+        b_values.append(b_i if b_i != np.inf else 0.0)
+    
+    # Normalisation
+    max_distance = np.max(distance_matrix)
+    intra_normalized = 1 - (np.mean(a_values) / max_distance)
+    inter_normalized = np.mean(b_values) / max_distance
+    
+    # Score silhouette standard
+    silhouette = np.mean([(b-a)/max(a,b) for a,b in zip(a_values, b_values) if max(a,b) > 0])
+    
+    return {
+        "intra_cluster_distance_normalized": intra_normalized,
+        "inter_cluster_distance_normalized": inter_normalized, 
+        "silhouette_score": silhouette
+    }
 ```
 
 ### 3.2 Métrique de Densité Locale
@@ -259,7 +290,9 @@ class EmbeddingSimilarityEvaluator:
 | Métrique | Excellent | Bon | Acceptable | Médiocre |
 |----------|-----------|-----|------------|----------|
 | Cohérence (ICS) | < 0.1 | 0.1-0.3 | 0.3-0.5 | > 0.5 |
-| Silhouette Modifiée | > 0.7 | 0.5-0.7 | 0.3-0.5 | < 0.3 |
+| Distance Intra-Cluster Normalisée | > 0.8 | 0.6-0.8 | 0.4-0.6 | < 0.4 |
+| Distance Inter-Cluster Normalisée | > 0.7 | 0.5-0.7 | 0.3-0.5 | < 0.3 |
+| Score Silhouette | > 0.7 | 0.5-0.7 | 0.3-0.5 | < 0.3 |
 | Robustesse | > 0.9 | 0.8-0.9 | 0.7-0.8 | < 0.7 |
 | Stabilité Bootstrap | σ < 0.05 | 0.05-0.1 | 0.1-0.2 | > 0.2 |
 
@@ -286,4 +319,4 @@ L'évaluation de la qualité des similarités d'embeddings sans vérité terrain
 3. **Robustesse aux perturbations** pour tester la sensibilité
 4. **Analyse comparative** pour contextualiser les résultats
 
-**Recommandation pratique** : Utilisez un score composite pondéré intégrant au minimum 4-5 métriques différentes, avec validation croisée et analyse de sensibilité pour obtenir une évaluation robuste de la qualité de vos calculs de similarité.
+**Recommandation pratique** : Utilisez un score composite pondéré intégrant les métriques de silhouette décomposées, la cohérence interne, la robustesse et l'analyse de densité locale pour obtenir une évaluation robuste de la qualité de vos calculs de similarité.

@@ -7,6 +7,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import seaborn as sns
 from tqdm import tqdm
 
@@ -34,7 +35,7 @@ class ReportGenerator:
         db_mod_time = self.db.get_db_modification_time()
 
         use_cache = cache_path.exists() and cache_path.stat().st_mtime > db_mod_time
-        
+
         all_results = {}
         aggregated_data = None
 
@@ -337,3 +338,86 @@ class ReportGenerator:
             plot_paths.append(radar_path)
 
         return plot_paths
+
+
+def get_metrics_columns():
+    """Return the list of metrics columns for database queries."""
+    return [
+        "intra_cluster_distance_normalized",
+        "inter_cluster_distance_normalized",
+        "silhouette_score",
+        "local_density_index",
+        "internal_coherence_score",
+        "robustness_score",
+    ]
+
+
+def get_metrics_info():
+    """Return information about metrics including names, descriptions, and whether higher is better."""
+    return {
+        "intra_cluster_distance_normalized": {
+            "name": "Intra-Cluster Quality",
+            "description": "Normalized intra-cluster distance (cohesion within themes)",
+            "higher_is_better": True,
+            "range": "0-1",
+        },
+        "inter_cluster_distance_normalized": {
+            "name": "Inter-Cluster Separation",
+            "description": "Normalized inter-cluster distance (separation between themes)",
+            "higher_is_better": True,
+            "range": "0-1",
+        },
+        "silhouette_score": {
+            "name": "Silhouette Score",
+            "description": "Overall clustering quality measure",
+            "higher_is_better": True,
+            "range": "-1 to 1",
+        },
+        "local_density_index": {
+            "name": "Local Density Index",
+            "description": "Proportion of neighbors sharing the same theme",
+            "higher_is_better": True,
+            "range": "0-1",
+        },
+        "internal_coherence_score": {
+            "name": "Internal Coherence Score",
+            "description": "Stability of similarity measurements",
+            "higher_is_better": False,
+            "range": "0+",
+        },
+        "robustness_score": {
+            "name": "Robustness Score",
+            "description": "Stability against noise and perturbations",
+            "higher_is_better": True,
+            "range": "0-1",
+        },
+    }
+
+
+def create_detailed_charts(df, filename_base, metrics_info):
+    """Create detailed charts for each metric."""
+    charts = []
+
+    for metric, info in metrics_info.items():
+        if metric in df.columns:
+            fig = px.box(
+                df,
+                x="model_name",
+                y=metric,
+                title=f"{info['name']} by Model - {filename_base}",
+                labels={
+                    metric: f"{info['name']} ({info['range']})",
+                    "model_name": "Model",
+                },
+            )
+
+            # Color scheme based on whether higher is better
+            if info["higher_is_better"]:
+                colorscale = "Viridis"  # Green for good
+            else:
+                colorscale = "Viridis_r"  # Red for good (inverted)
+
+            fig.update_traces(marker_color="lightblue")
+            charts.append(fig.to_html(full_html=False, include_plotlyjs=False))
+
+    return charts

@@ -77,7 +77,7 @@ class Processor:
                 f"{chunking_strategy} {theme_name[-13:]}"
             )
             description = f"{file_info} | {model_name[-20:]} | {grid_params}"
-            pbar.set_description(description[:100])
+            pbar.set_description(description[:150])
             if not texte or not texte.strip():
                 pbar.update(1)
                 continue
