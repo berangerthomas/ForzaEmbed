@@ -214,14 +214,18 @@ class ForzaEmbed:
                 completed_combinations.add(run_name)
         return completed_combinations
 
-    def generate_reports(self, top_n: Optional[int] = None):
+    def generate_reports(
+        self, all_combinations: bool = False, single_file: bool = False
+    ):
         """
         Generates all reports and visualizations.
 
         Args:
-            top_n (int, optional): Limits charts to the top N models.
+            all_combinations (bool): If True, uses all combinations for charts.
+            single_file (bool): If True, generates a single HTML file.
         """
-        self.report_generator.generate_all(top_n=top_n)
+        top_n = None if all_combinations else 25
+        self.report_generator.generate_all(top_n=top_n, single_file=single_file)
 
     def refresh_metrics(self):
         """
@@ -250,4 +254,4 @@ if __name__ == "__main__":
     app = ForzaEmbed()
     # Note: Provide a default data source for direct script execution
     app.run_grid_search(data_source="data/markdown")
-    app.generate_reports(top_n=10)
+    app.generate_reports(all_combinations=True)

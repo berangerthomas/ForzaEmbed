@@ -41,11 +41,6 @@ grid_search_params:
 
 # Models to be tested in the grid search
 models_to_test:
-  - type: "api"
-    name: "nomic-embed-text"
-    base_url: "https://api.erasme.homes/v1"
-    dimensions": 768
-    timeout: 240
   - type: "fastembed"
     name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     dimensions: 384
@@ -64,6 +59,11 @@ models_to_test:
   - type: "huggingface"
     name: "intfloat/multilingual-e5-large-instruct"
     dimensions: 1024
+  - type: "api"
+    name: "nomic-embed-text"
+    base_url: "https://api.erasme.homes/v1"
+    dimensions": 768
+    timeout: 240
 
 # General settings
 similarity_threshold: 0.6

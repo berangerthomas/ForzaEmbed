@@ -37,16 +37,4 @@ These metrics are industry standards for evaluating unsupervised clustering mode
     *   **Close to 0**: The text is at the boundary between two topics.
     *   **Close to -1**: The text is probably misclassified and is closer to another topic.
 *   **Practical Application**: The Silhouette score is excellent for fine-grained analysis at the text level. It helps identify "ambiguous" or misclassified documents that may require manual review or reprocessing. A high average score for the entire dataset indicates good clustering quality.
-
-### Calinski-Harabasz Score
-
-*   **Definition**: Also known as the "Variance Ratio Criterion", this score evaluates the quality of clustering by comparing the dispersion between topics (inter-cluster variance) to the dispersion within topics (intra-cluster variance).
-*   **Interpretation**: A **higher score is better**. It means that the topics are dense and well separated from each other.
-*   **Practical Application**: This is a fast and effective metric for judging the overall quality of a partitioning. It is particularly useful for comparing models: an embedding model that produces a higher Calinski-Harabasz score is generally better at separating concepts.
-
-### Davies-Bouldin Score
-
-*   **Definition**: This score measures the average "similarity" of each topic with its closest topic. Similarity is defined as the ratio of the sum of intra-topic distances to the inter-topic distance.
-*   **Interpretation**: A **lower score is better**, with 0 as the perfect score. A low score indicates that the topics are well separated, even from their closest neighbors.
-*   **Practical Application**: Similar to the Calinski-Harabasz score, it evaluates cluster separation. It is particularly sensitive to clusters that touch each other. A low Davies-Bouldin score gives us confidence that even the most similar topics in our corpus are sufficiently distinct to be treated separately.
-
+s

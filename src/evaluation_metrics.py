@@ -3,11 +3,7 @@
 from typing import Dict, List
 
 import numpy as np
-from sklearn.metrics import (
-    calinski_harabasz_score,
-    davies_bouldin_score,
-    silhouette_score,
-)
+from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
@@ -60,52 +56,12 @@ def coherence_score(ref_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> f
     return float(np.mean(coherence_scores)) if coherence_scores else 0.0
 
 
-def angular_stability(ref_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> float:
-    """Calculates the Angular Stability (AS).
-
-    This metric measures whether the reference theme embeddings "point" in the
-    same general direction as the document's overall embedding representation.
-    It computes the average angle between each reference embedding and the
-    centroid of the document embeddings.
-
-    Interpretation (angles in radians, with degree equivalents):
-        - 0 to 0.52 (~0-30°): Excellent alignment. Themes are very
-          relevant to the document.
-        - 0.52 to 1.05 (~30-60°): Good alignment. Themes are relevant.
-        - 1.05 to 1.57 (~60-90°): Weak alignment. Themes are not very
-          relevant.
-        - > 1.57 (>90°): Opposition. Themes might be contradictory to the
-          document's content.
-        A lower angle indicates better alignment.
-
-    Formula:
-        AS = (1/|E_ref|) * Σ ∠(e_i, centroid(E_doc))
-        Where:
-        - |E_ref|: The number of reference embeddings.
-        - e_i: A single reference embedding.
-        - centroid(E_doc): The mean vector (centroid) of the document
-          embeddings.
-        - ∠(a, b): The angle between vectors 'a' and 'b'.
-
-    Args:
-        ref_embeddings (np.ndarray): Embeddings for the reference themes.
-        doc_embeddings (np.ndarray): Embeddings for the document chunks.
-
-    Returns:
-        float: The average angle in radians. A lower value is better.
-    """
-    if doc_embeddings.size == 0 or ref_embeddings.size == 0:
-        return float("inf")
-    doc_centroid = np.mean(doc_embeddings, axis=0).reshape(1, -1)
-    similarities = cosine_similarity(ref_embeddings, doc_centroid).flatten()
-    # Clip to avoid domain errors with arccos for values slightly out of [-1, 1]
-    clipped_similarities = np.clip(similarities, -1.0, 1.0)
-    angles = np.arccos(clipped_similarities)
-    return float(np.mean(angles))
-
-
 def local_density_index(
-    embeddings: np.ndarray, labels: np.ndarray, k: int = 5
+    embeddings: np.ndarray,
+    labels: np.ndarray,
+    k: int = 5,
+    metric: str = "cosine",
+    p: int = 2,
 ) -> float:
     """Calculates the Local Density Index (LDI).
 
@@ -136,13 +92,14 @@ def local_density_index(
         embeddings (np.ndarray): The embeddings of the text chunks.
         labels (np.ndarray): The theme label for each chunk.
         k (int): The number of nearest neighbors to consider.
+        p (int): The power parameter for the Minkowski distance.
 
     Returns:
         float: The Local Density Index score, between 0 and 1.
     """
     if len(embeddings) < k + 1:
         return 0.0
-    nbrs = NearestNeighbors(n_neighbors=k + 1, metric="cosine").fit(embeddings)
+    nbrs = NearestNeighbors(n_neighbors=k + 1, metric=metric, p=p).fit(embeddings)
     indices = nbrs.kneighbors(embeddings, return_distance=False)
     same_theme_count = 0
     for i, neighbors in enumerate(indices):
@@ -270,7 +227,7 @@ def calculate_cohesion_separation(
 
 
 def calculate_clustering_metrics(
-    embeddings: np.ndarray, labels: np.ndarray
+    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
 ) -> Dict[str, float]:
     """Calculates standard clustering evaluation metrics.
 
@@ -280,36 +237,30 @@ def calculate_clustering_metrics(
     - Silhouette Score: Measures how similar an object is to its own cluster
       (cohesion) compared to other clusters (separation). Score ranges from
       -1 to 1, where a high value indicates dense and well-separated clusters.
-    - Calinski-Harabasz Score: The ratio of between-cluster dispersion to
-      within-cluster dispersion. A higher score indicates better-defined
-      clusters.
-    - Davies-Bouldin Score: The average similarity of each cluster with its
-      most similar cluster. A lower score indicates better separation.
     - Local Density Index (LDI): Custom metric to assess local neighborhood
       purity.
 
     Args:
         embeddings (np.ndarray): The embeddings of the text chunks.
         labels (np.ndarray): The theme label for each chunk.
+        metric (str): Similarity metric used for theme assignment (not used for clustering evaluation).
 
     Returns:
-        Dict[str, float]: A dictionary with Silhouette, Calinski-Harabasz,
-        Davies-Bouldin, and LDI scores.
+        Dict[str, float]: A dictionary with Silhouette, and LDI scores.
     """
     unique_labels = np.unique(labels)
     if len(unique_labels) < 2 or len(embeddings) <= len(unique_labels):
         return {
             "silhouette": -1.0,
-            "calinski_harabasz": 0.0,
-            "davies_bouldin": float("inf"),
             "local_density_index": 0.0,
         }
 
     return {
+        # Always use cosine for both metrics as they evaluate clustering quality in embedding space
         "silhouette": float(silhouette_score(embeddings, labels, metric="cosine")),
-        "calinski_harabasz": float(calinski_harabasz_score(embeddings, labels)),
-        "davies_bouldin": float(davies_bouldin_score(embeddings, labels)),
-        "local_density_index": float(local_density_index(embeddings, labels)),
+        "local_density_index": float(
+            local_density_index(embeddings, labels, metric="minkowski", p=2)
+        ),
     }
 
 
@@ -346,7 +297,6 @@ def calculate_all_metrics(
     all_metrics["internal_coherence_score"] = coherence_score(
         ref_embeddings, doc_embeddings
     )
-    all_metrics["angular_stability"] = angular_stability(ref_embeddings, doc_embeddings)
     all_metrics["robustness_score"] = robustness_score(ref_embeddings, doc_embeddings)
 
     return all_metrics

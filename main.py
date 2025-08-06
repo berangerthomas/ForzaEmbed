@@ -55,15 +55,19 @@ def main():
         help="Clear the embedding cache before running.",
     )
     parser.add_argument(
-        "--top-n",
-        type=int,
-        default=None,
-        help="Limit comparison charts to the top N models.",
+        "--all-combinations",
+        action="store_true",
+        help="Generate charts with all combinations instead of the top 25.",
     )
     parser.add_argument(
         "--refresh-metrics",
         action="store_true",
         help="Refresh evaluation metrics for all existing runs.",
+    )
+    parser.add_argument(
+        "--single-file",
+        action="store_true",
+        help="Generate a single HTML file for all markdown files.",
     )
     args = parser.parse_args()
 
@@ -79,9 +83,13 @@ def main():
     if args.run:
         resume = not args.no_resume
         app.run_grid_search(data_source=args.data_source, resume=resume)
-        app.generate_reports(top_n=args.top_n)
+        app.generate_reports(
+            all_combinations=args.all_combinations, single_file=args.single_file
+        )
     elif args.generate_reports:
-        app.generate_reports(top_n=args.top_n)
+        app.generate_reports(
+            all_combinations=args.all_combinations, single_file=args.single_file
+        )
     elif args.refresh_metrics:
         app.refresh_metrics()
     else:

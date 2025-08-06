@@ -25,7 +25,7 @@ class ReportGenerator:
         self.similarity_threshold = config.get("similarity_threshold", 0.6)
         self.file_metadata = {}  # To be loaded when needed
 
-    def generate_all(self, top_n: int | None = None):
+    def generate_all(self, top_n: int | None = None, single_file: bool = False):
         """
         Generates all reports from the data in the database.
         """
@@ -71,7 +71,7 @@ class ReportGenerator:
         ) = aggregated_data
 
         self._generate_main_web_page(
-            processed_data_for_interactive_page, total_combinations
+            processed_data_for_interactive_page, total_combinations, single_file
         )
         self._generate_file_reports(all_results)
         self._generate_global_reports(
@@ -122,17 +122,44 @@ class ReportGenerator:
                 }
                 all_models_metrics[model_name] = avg_metrics
 
+        optimized_data = self._optimize_data_for_web(
+            processed_data_for_interactive_page
+        )
+
         return (
-            processed_data_for_interactive_page,
+            optimized_data,
             all_models_metrics,
             model_embeddings_for_variance,
         )
 
-    def _generate_main_web_page(self, processed_data, total_combinations):
+    def _optimize_data_for_web(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Optimizes the data structure for web output by rounding floats.
+        """
+
+        def round_floats(obj):
+            if isinstance(obj, list):
+                return [round_floats(v) for v in obj]
+            if isinstance(obj, dict):
+                return {k: round_floats(v) for k, v in obj.items()}
+            if isinstance(obj, float):
+                return round(obj, 4)
+            return obj
+
+        return round_floats(data)
+
+    def _generate_main_web_page(
+        self, processed_data, total_combinations, single_file: bool = False
+    ):
         """Generates the main interactive web page."""
         from .web_generator import generate_main_page
 
-        generate_main_page(processed_data, str(self.output_dir), total_combinations)
+        generate_main_page(
+            processed_data,
+            str(self.output_dir),
+            total_combinations,
+            single_file=single_file,
+        )
 
     def _generate_file_reports(self, all_results):
         """Generates individual Markdown reports for each file."""
@@ -160,9 +187,13 @@ class ReportGenerator:
         metric: str,
         output_path: Path,
         higher_is_better: bool,
+        top_n: int | None = None,
     ) -> None:
         """Generates and saves a sorted bar plot for a single metric."""
         sorted_df = df.sort_values(by=metric, ascending=not higher_is_better)
+
+        if top_n:
+            sorted_df = sorted_df.head(top_n)
 
         plt.figure(figsize=(18, 12))
         ax = sns.barplot(
@@ -202,7 +233,6 @@ class ReportGenerator:
             "silhouette": True,
             "cohesion": False,
             "separation": True,
-            "davies_bouldin": False,
         }
 
         plot_metrics = [m for m in metrics_for_radar if m in df.columns]
@@ -283,8 +313,6 @@ class ReportGenerator:
             "separation": True,
             "discriminant_score": True,
             "silhouette": True,
-            "calinski_harabasz": True,
-            "davies_bouldin": False,
         }
 
         metrics_to_plot = [m for m in metric_preferences if m in df.columns]
@@ -295,7 +323,11 @@ class ReportGenerator:
         for metric in metrics_to_plot:
             plot_path = self.output_dir / f"global_{metric}_comparison.png"
             self._plot_single_metric(
-                df, metric, plot_path, higher_is_better=metric_preferences[metric]
+                df,
+                metric,
+                plot_path,
+                higher_is_better=metric_preferences[metric],
+                top_n=top_n,
             )
             plot_paths.append(plot_path)
 

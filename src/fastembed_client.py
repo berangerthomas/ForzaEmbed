@@ -24,11 +24,8 @@ class FastEmbedClient:
     @staticmethod
     def get_embeddings(
         texts: list[str], model_name: str, expected_dimension: int | None = None
-    ) -> tuple[list[list[float]], float]:
-        import time
-
+    ) -> list[list[float]]:
         instance = FastEmbedClient.get_instance(model_name)
-        start_time = time.time()
         embeddings = list(instance.embed(texts))
 
         if expected_dimension and embeddings:
@@ -38,5 +35,4 @@ class FastEmbedClient:
                     f"Expected dimension {expected_dimension}, but got {actual_dimension} for model {model_name}"
                 )
 
-        end_time = time.time()
-        return embeddings, end_time - start_time
+        return embeddings

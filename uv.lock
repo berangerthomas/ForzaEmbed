@@ -219,6 +219,12 @@ wheels = [
 ]
 
 [[package]]
+name = "cssmin"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/d8/dc9da69bb186303f7ab41adef0a5b6d34da2fdba006827620877760241c3/cssmin-0.2.0.tar.gz", hash = "sha256:e012f0cc8401efcf2620332339011564738ae32be8c84b2e43ce8beaec1067b6", size = 3228, upload-time = "2013-10-14T15:40:29.854Z" }
+
+[[package]]
 name = "cycler"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -338,10 +344,12 @@ version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "cssmin" },
     { name = "dotenv" },
     { name = "fastapi" },
     { name = "fastembed" },
     { name = "joblib" },
+    { name = "jsmin" },
     { name = "kaleido" },
     { name = "langchain" },
     { name = "markdownify" },
@@ -366,10 +374,12 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4" },
+    { name = "cssmin" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi" },
     { name = "fastembed" },
     { name = "joblib", specifier = ">=1.4.2" },
+    { name = "jsmin" },
     { name = "kaleido", specifier = ">=1.0.0" },
     { name = "langchain", specifier = ">=0.3.27" },
     { name = "markdownify" },
@@ -536,6 +546,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/dc/fe/0f5a938c541055534
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7d/4f/1195bbac8e0c2acc5f740661631d8d750dc38d4a32b23ee5df3cde6f4e0d/joblib-1.5.1-py3-none-any.whl", hash = "sha256:4719a31f054c7d766948dcd83e9613686b27114f190f717cec7eaa2084f8a74a", size = 307746, upload-time = "2025-05-23T12:04:35.124Z" },
 ]
+
+[[package]]
+name = "jsmin"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/73/e01e4c5e11ad0494f4407a3f623ad4d87714909f50b17a06ed121034ff6e/jsmin-3.0.1.tar.gz", hash = "sha256:c0959a121ef94542e807a674142606f7e90214a2b3d1eb17300244bbb5cc2bfc", size = 13925, upload-time = "2022-01-16T20:35:59.13Z" }
 
 [[package]]
 name = "jsonpatch"

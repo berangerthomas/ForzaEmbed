@@ -49,7 +49,7 @@ class Processor:
 
         embedding_function = self._get_embedding_function(model_config)
 
-        themes_embeddings_map, _ = self._get_or_create_embeddings(
+        themes_embeddings_map = self._get_or_create_embeddings(
             embedding_function, model_name, themes
         )
 
@@ -89,7 +89,7 @@ class Processor:
                 pbar.update(1)
                 continue
 
-            all_embeddings_map, p_time = self._get_or_create_embeddings(
+            all_embeddings_map = self._get_or_create_embeddings(
                 embedding_function, model_name, item_phrases
             )
 
@@ -137,9 +137,7 @@ class Processor:
                     threshold = self.config.get("similarity_threshold", 0.6)
 
                     scatter_labels = [
-                        f"Above Threshold ({threshold})"
-                        if s >= threshold
-                        else "Below Threshold"
+                        "Above Threshold" if s >= threshold else "Below Threshold"
                         for s in similarity_scores
                     ]
 
@@ -165,7 +163,6 @@ class Processor:
                 "similarities": similarites.max(axis=0),
                 "metrics": {
                     **all_metrics,
-                    "processing_time": p_time,
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
                 },
                 "scatter_plot_data": scatter_plot_data,
@@ -185,6 +182,7 @@ class Processor:
                 # Placeholder for future client factory
                 from .fastembed_client import FastEmbedClient
                 from .huggingface_client import get_huggingface_embeddings
+                from .sentencetransformers_client import SentenceTransformersClient
 
                 if model_type == "fastembed":
                     return FastEmbedClient.get_embeddings(
@@ -198,7 +196,13 @@ class Processor:
                         model_name=model_name,
                         expected_dimension=model_config.get("dimensions"),
                     )
-                return [], 0.0
+                elif model_type == "sentence_transformers":
+                    return SentenceTransformersClient.get_embeddings(
+                        texts,
+                        model_name=model_name,
+                        expected_dimension=model_config.get("dimensions"),
+                    )
+                return []
 
             return get_embeddings
         else:  # API models
@@ -224,7 +228,7 @@ class Processor:
         embedding_function: Callable,
         base_model_name: str,
         phrases: List[str],
-    ) -> Tuple[Dict[str, np.ndarray], float]:
+    ) -> Dict[str, np.ndarray]:
         """
         Retrieves embeddings from cache or generates and caches them.
         """
@@ -238,10 +242,8 @@ class Processor:
             if h not in existing_embeddings
         ]
 
-        total_processing_time = 0.0
         if phrases_to_embed:
-            new_embeddings_list, processing_time = embedding_function(phrases_to_embed)
-            total_processing_time = processing_time
+            new_embeddings_list = embedding_function(phrases_to_embed)
 
             if new_embeddings_list:
                 new_embeddings_map = {
@@ -256,7 +258,7 @@ class Processor:
             for p, h in phrase_hashes.items()
             if h in existing_embeddings
         }
-        return all_embeddings_for_phrases, total_processing_time
+        return all_embeddings_for_phrases
 
     @staticmethod
     def get_text_hash(text: str) -> str:
@@ -311,7 +313,7 @@ class Processor:
             embedding_function = self._get_embedding_function(
                 {"type": run_details["model_type"], "name": run_details["model_name"]}
             )
-            themes_embeddings_map, _ = self._get_or_create_embeddings(
+            themes_embeddings_map = self._get_or_create_embeddings(
                 embedding_function, run_details["model_name"], themes
             )
             theme_hashes = [self.get_text_hash(theme) for theme in themes]
@@ -331,7 +333,7 @@ class Processor:
                     continue
 
                 # Get phrase embeddings
-                all_embeddings_map, _ = self._get_or_create_embeddings(
+                all_embeddings_map = self._get_or_create_embeddings(
                     embedding_function, run_details["model_name"], item_phrases
                 )
                 phrase_hashes = {p: self.get_text_hash(p) for p in item_phrases}
@@ -354,7 +356,9 @@ class Processor:
                 )
                 labels = np.argmax(similarites, axis=0)
                 all_metrics = calculate_all_metrics(
-                    embed_themes, item_embed_phrases, labels
+                    embed_themes,
+                    item_embed_phrases,
+                    labels,
                 )
 
                 # Update the database

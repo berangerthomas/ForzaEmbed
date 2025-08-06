@@ -74,9 +74,6 @@ class EmbeddingDatabase:
                     separation REAL,
                     discriminant_score REAL,
                     silhouette REAL,
-                    calinski_harabasz REAL,
-                    davies_bouldin REAL,
-                    processing_time REAL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (model_name) REFERENCES models (name)
                 )
@@ -184,8 +181,8 @@ class EmbeddingDatabase:
                 """
                 INSERT INTO evaluation_metrics 
                 (model_name, cohesion, separation, discriminant_score, 
-                 silhouette, calinski_harabasz, davies_bouldin, processing_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 silhouette)
+                VALUES (?, ?, ?, ?, ?)
             """,
                 (
                     model_name,
@@ -193,9 +190,6 @@ class EmbeddingDatabase:
                     metrics.get("separation"),
                     metrics.get("discriminant_score"),
                     metrics.get("silhouette"),
-                    metrics.get("calinski_harabasz"),
-                    metrics.get("davies_bouldin"),
-                    metrics.get("processing_time"),
                 ),
             )
             conn.commit()
@@ -339,8 +333,7 @@ class EmbeddingDatabase:
                 """
                 SELECT m.name, m.base_model_name, m.type, m.chunk_size, m.chunk_overlap, m.theme_name, m.chunking_strategy,
                        e.cohesion, e.separation, e.discriminant_score,
-                       e.silhouette, e.calinski_harabasz, e.davies_bouldin,
-                       e.processing_time
+                       e.silhouette
                 FROM models m
                 LEFT JOIN evaluation_metrics e ON m.name = e.model_name
                 ORDER BY m.name
@@ -362,9 +355,6 @@ class EmbeddingDatabase:
                         "separation": row[8],
                         "discriminant_score": row[9],
                         "silhouette": row[10],
-                        "calinski_harabasz": row[11],
-                        "davies_bouldin": row[12],
-                        "processing_time": row[13],
                     }
                 )
 

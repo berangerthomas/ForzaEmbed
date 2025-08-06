@@ -3,6 +3,8 @@ import os
 from typing import Any, Dict
 
 import numpy as np
+from cssmin import cssmin
+from jsmin import jsmin
 
 
 class NumpyJSONEncoder(json.JSONEncoder):
@@ -19,42 +21,49 @@ class NumpyJSONEncoder(json.JSONEncoder):
 
 
 def generate_main_page(
-    processed_data: Dict[str, Any], output_dir: str, total_combinations: int
+    processed_data: Dict[str, Any],
+    output_dir: str,
+    total_combinations: int,
+    single_file: bool = False,
 ):
     """
     Generates the main interactive web page for heatmap visualization.
+    By default, creates one HTML file per markdown file.
+    If single_file is True, creates a single index.html for all files.
     """
 
-    # Serialize the data to inject into JavaScript
-    data_json = json.dumps(processed_data, indent=4, cls=NumpyJSONEncoder)
+    generation_jobs = []
+    if single_file:
+        generation_jobs.append({"data": processed_data, "filename": "index.html"})
+    else:
+        for file_key, file_data in processed_data["files"].items():
+            base_name = os.path.splitext(file_key)[0]
+            job_data = {"files": {file_key: file_data}}
+            generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
 
-    html_content = f"""
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Embedding Analysis</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body {{
+    for job in generation_jobs:
+        # Minify JSON, CSS, and JS
+        data_json = json.dumps(job["data"], cls=NumpyJSONEncoder)
+
+        css_content = """
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f7f9;
             color: #333;
-        }}
-        .container {{
+        }
+        .container {
             display: flex;
             flex-direction: column;
             width: 100%;
-        }}
-        h1 {{
+        }
+        h1 {
             text-align: center;
             color: #2c3e50;
             margin-bottom: 20px;
-        }}
-        .controls {{
+        }
+        .controls {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
@@ -68,47 +77,47 @@ def generate_main_page(
             position: sticky;
             top: 20px;
             z-index: 1000;
-        }}
-        .metrics, .visualization {{
+        }
+        .metrics, .visualization {
             border: 1px solid #d1d9e0;
             border-radius: 8px;
             padding: 20px;
             background-color: #ffffff;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             margin-bottom: 20px;
-        }}
-        .controls h2, .metrics h2, .visualization h2 {{
+        }
+        .controls h2, .metrics h2, .visualization h2 {
             margin-top: 0;
             color: #34495e;
             border-bottom: 2px solid #e0e6ed;
             padding-bottom: 10px;
-        }}
-        .control-group {{
+        }
+        .control-group {
             margin-bottom: 0;
             overflow: hidden;
             transition: filter 0.3s ease;
-        }}
-        .label-group {{
+        }
+        .label-group {
             display: flex;
             justify-content: space-between;
             margin-top: 8px;
-        }}
-        .control-group label {{
+        }
+        .control-group label {
             font-weight: bold;
             font-size: 0.9em;
             display: flex;
             align-items: center;
-        }}
-        .label-text {{
+        }
+        .label-text {
             white-space: nowrap;
             margin-right: 0.5em;
-        }}
-        .slider-container {{
+        }
+        .slider-container {
             flex-grow: 1;
             display: flex;
             align-items: center;
-        }}
-        input[type="range"] {{
+        }
+        input[type="range"] {
             flex-grow: 1;
             -webkit-appearance: none;
             appearance: none;
@@ -119,8 +128,8 @@ def generate_main_page(
             opacity: 0.9;
             transition: opacity .2s;
             border-radius: 5px;
-        }}
-        input[type="range"]::-webkit-slider-thumb {{
+        }
+        input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 20px;
@@ -129,26 +138,26 @@ def generate_main_page(
             cursor: pointer;
             border-radius: 50%;
             border: 2px solid #fff;
-        }}
-        input[type="range"]::-moz-range-thumb {{
+        }
+        input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
             background: #3498db;
             cursor: pointer;
             border-radius: 50%;
             border: 2px solid #fff;
-        }}
-        input[type="range"]:disabled::-webkit-slider-thumb {{
+        }
+        input[type="range"]:disabled::-webkit-slider-thumb {
             background: #bdc3c7;
-        }}
-        input[type="range"]:disabled::-moz-range-thumb {{
+        }
+        input[type="range"]:disabled::-moz-range-thumb {
             background: #bdc3c7;
-        }}
-        input[type="range"]:disabled {{
+        }
+        input[type="range"]:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }}
-        .label-value {{
+        }
+        .label-value {
             font-weight: bold;
             color: #2980b9;
             white-space: nowrap;
@@ -157,51 +166,51 @@ def generate_main_page(
             text-align: right;
             flex-grow: 1;
             min-width: 0;
-        }}
-        .metrics {{
+        }
+        .metrics {
             flex-shrink: 0;
-        }}
-        .metrics-grid {{
+        }
+        .metrics-grid {
             display: flex;
             flex-direction: row;
             gap: 15px;
             overflow-x: auto;
             padding-bottom: 10px;
-        }}
-        .metric-item {{
+        }
+        .metric-item {
             flex: 0 0 100px;
             background-color: #ecf0f1;
             padding: 15px;
             border-radius: 5px;
             text-align: center;
-        }}
-        .metric-item .value {{
+        }
+        .metric-item .value {
             font-size: 1.5em;
             font-weight: bold;
             color: #2c3e50;
-        }}
-        .metric-item .label {{
+        }
+        .metric-item .label {
             font-size: 0.9em;
             color: #7f8c8d;
-        }}
-        .visualization {{
+        }
+        .visualization {
             overflow-y: auto;
             line-height: 1.8;
-        }}
-        .heatmap-content span {{
+        }
+        .heatmap-content span {
             padding: 2px 1px;
             border-radius: 3px;
             cursor: pointer;
             font-size: 0.85em;
             line-height: 1.2;
-        }}
-        .file-links-grid {{
+        }
+        .file-links-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 20px;
-        }}
-        .file-links-grid a {{
+        }
+        .file-links-grid a {
             display: block;
             padding: 10px;
             background-color: #e9ecef;
@@ -210,15 +219,468 @@ def generate_main_page(
             color: #3498db;
             text-decoration: none;
             transition: background-color 0.2s;
-        }}
-        .file-links-grid a:hover {{
+        }
+        .file-links-grid a:hover {
             background-color: #d1d9e0;
-        }}
-        #scatter-plot-container {{
+        }
+        #scatter-plot-container {
             width: 100%;
             height: 600px;
-        }}
-    </style>
+        }
+        """
+        minified_css = cssmin(css_content)
+
+        js_content = f"const processedData = {data_json};\n"
+        js_content += """
+        const metricTooltips = {
+            'internal_coherence_score': "Internal Coherence Score (ICS). Assesses the stability and predictability of the similarity measurement system. A lower score is better, indicating higher coherence. (ICS < 0.1: Excellent, 0.1 <= ICS < 0.5: Good, ICS >= 0.5: Poor).",
+            'local_density_index': "Local Density Index (LDI). Assesses if an embedding's nearest neighbors belong to the same theme. A higher score is better, indicating a strong thematic structure. (LDI = 1.0: Perfect, LDI > 0.8: Good, LDI < 0.5: Poor).",
+            'robustness_score': "Robustness Score (RS). Tests the stability of the system by adding random noise. A higher score (closer to 1.0) is better, indicating the system is not significantly affected by minor perturbations. (RS > 0.95: Very Robust, 0.80 <= RS <= 0.95: Acceptable, RS < 0.80: Fragile).",
+            'cohesion': "Cohesion. Measures the average similarity between embeddings within the same theme. A higher score (close to 1) is desirable, indicating that texts of the same theme are semantically close.",
+            'separation': "Separation. Measures the average similarity between embeddings from different themes. A lower score (close to 0) is desirable, indicating that different themes are well-distinguished.",
+            'discriminant_score': "Discriminant Score. The ratio of cohesion to separation (Cohesion / Separation). A higher score is desirable, indicating a good balance of dense and well-separated topics.",
+            'silhouette': "Silhouette Score. Measures how similar an object is to its own cluster compared to other clusters. Ranges from -1 to 1. A high value (close to 1) indicates dense and well-separated clusters. 0 is at the boundary, -1 indicates misclassification."
+        };
+
+        const fileSlider = document.getElementById('file-slider');
+        const fileNameSpan = document.getElementById('file-name');
+        const modelSlider = document.getElementById('model-slider');
+        const modelNameSpan = document.getElementById('model-name');
+        const chunkSizeSlider = document.getElementById('chunk-size-slider');
+        const chunkSizeValueSpan = document.getElementById('chunk-size-value');
+        const chunkOverlapSlider = document.getElementById('chunk-overlap-slider');
+        const chunkOverlapValueSpan = document.getElementById('chunk-overlap-value');
+        const themeSlider = document.getElementById('theme-slider');
+        const themeNameSpan = document.getElementById('theme-name');
+        const chunkingStrategySlider = document.getElementById('chunking-strategy-slider');
+        const chunkingStrategyNameSpan = document.getElementById('chunking-strategy-name');
+        const similarityMetricSlider = document.getElementById('similarity-metric-slider');
+        const similarityMetricNameSpan = document.getElementById('similarity-metric-name');
+        const metricsGrid = document.getElementById('metrics-grid');
+        const heatmapContainer = document.getElementById('heatmap-container');
+        const scatterPlotContainer = document.getElementById('scatter-plot-container');
+        const fileLinksContainer = document.getElementById('file-links-container');
+
+        let fileKeys = [];
+        let allEmbeddingKeys = [];
+        let filteredEmbeddingKeys = [];
+        const params = {
+            model: [],
+            cs: [],
+            co: [],
+            t: [],
+            s: [],
+            m: []
+        };
+
+        const createCmap = (colorSet) => (score) => {
+            if (typeof score !== 'number' || isNaN(score)) score = 0.5;
+            const i = Math.min(Math.floor(score * (colorSet.length - 1)), colorSet.length - 2);
+            const t = (score * (colorSet.length - 1)) % 1;
+            const r = Math.round(colorSet[i].r * (1 - t) + colorSet[i+1].r * t);
+            const g = Math.round(colorSet[i].g * (1 - t) + colorSet[i+1].g * t);
+            const b = Math.round(colorSet[i].b * (1 - t) + colorSet[i+1].b * t);
+            return {
+                rgb: `rgb(${r},${g},${b})`,
+                isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
+            };
+        };
+
+        const cmap_heatmap = createCmap([
+            { r: 43, g: 131, b: 186 }, // Low similarity
+            { r: 171, g: 221, b: 164 },
+            { r: 255, g: 255, b: 191 }, // Neutral
+            { r: 253, g: 174, b: 97 },
+            { r: 215, g: 25, b: 28 }    // High similarity
+        ]);
+
+        function parseEmbeddingKey(key) {
+            const m_part_index = key.lastIndexOf('_m');
+            const m = key.slice(m_part_index + 2);
+            const key_without_m = key.slice(0, m_part_index);
+
+            const s_part_index = key_without_m.lastIndexOf('_s');
+            const s = key_without_m.slice(s_part_index + 2);
+            const key_without_s = key_without_m.slice(0, s_part_index);
+
+            const t_part_index = key_without_s.lastIndexOf('_t');
+            const t = key_without_s.slice(t_part_index + 2);
+            const key_without_t = key_without_s.slice(0, t_part_index);
+
+            const co_part_index = key_without_t.lastIndexOf('_co');
+            const co = key_without_t.slice(co_part_index + 3);
+            const key_without_co = key_without_t.slice(0, co_part_index);
+
+            const cs_part_index = key_without_co.lastIndexOf('_cs');
+            const cs = key_without_co.slice(cs_part_index + 3);
+            const model = key_without_co.slice(0, cs_part_index);
+            
+            return { model, cs, co, t, s, m };
+        }
+
+        function populateAndSetupSliders(fileKey) {
+            if (!fileKey || !processedData.files[fileKey]) return;
+
+            const currentValues = {
+                model: params.model[modelSlider.value],
+                cs: params.cs[chunkSizeSlider.value],
+                co: params.co[chunkOverlapSlider.value],
+                t: params.t[themeSlider.value],
+                s: params.s[chunkingStrategySlider.value],
+                m: params.m[similarityMetricSlider.value]
+            };
+
+            const paramSets = {
+                model: new Set(),
+                cs: new Set(),
+                co: new Set(),
+                t: new Set(),
+                s: new Set(),
+                m: new Set()
+            };
+
+            allEmbeddingKeys = Object.keys(processedData.files[fileKey].embeddings);
+            allEmbeddingKeys.forEach(key => {
+                const p = parseEmbeddingKey(key);
+                paramSets.model.add(p.model);
+                paramSets.cs.add(p.cs);
+                paramSets.co.add(p.co);
+                paramSets.t.add(p.t);
+                paramSets.s.add(p.s);
+                paramSets.m.add(p.m);
+            });
+
+            params.model = [...paramSets.model].sort();
+            params.cs = [...paramSets.cs].sort((a, b) => a - b);
+            params.co = [...paramSets.co].sort((a, b) => a - b);
+            params.t = [...paramSets.t].sort();
+            params.s = [...paramSets.s].sort();
+            params.m = [...paramSets.m].sort();
+
+            const setupSlider = (slider, values, previousValue) => {
+                slider.max = values.length > 0 ? values.length - 1 : 0;
+                slider.disabled = values.length <= 1;
+                const newIndex = values.indexOf(previousValue);
+                slider.value = newIndex !== -1 ? newIndex : 0;
+            };
+
+            setupSlider(modelSlider, params.model, currentValues.model);
+            setupSlider(chunkSizeSlider, params.cs, currentValues.cs);
+            setupSlider(chunkOverlapSlider, params.co, currentValues.co);
+            setupSlider(themeSlider, params.t, currentValues.t);
+            setupSlider(chunkingStrategySlider, params.s, currentValues.s);
+            setupSlider(similarityMetricSlider, params.m, currentValues.m);
+        }
+
+        function initialize() {
+            fileKeys = Object.keys(processedData.files || {}).sort();
+            if (fileKeys.length === 0) {
+                console.error("No files found in processed data.");
+                return;
+            }
+
+            const setupSlider = (slider, values, previousValue) => {
+                slider.max = values.length > 0 ? values.length - 1 : 0;
+                slider.disabled = values.length <= 1;
+                const newIndex = values.indexOf(previousValue);
+                slider.value = newIndex !== -1 ? newIndex : 0;
+            };
+
+            setupSlider(fileSlider, fileKeys, fileKeys[0]);
+
+            const initialFileKey = fileKeys[0];
+            updateView(initialFileKey, true);
+
+            fileSlider.addEventListener('input', (e) => {
+                const fileKey = fileKeys[parseInt(e.target.value, 10)];
+                updateView(fileKey, true);
+            });
+
+            const otherSliders = [modelSlider, chunkSizeSlider, chunkOverlapSlider, themeSlider, chunkingStrategySlider, similarityMetricSlider];
+            otherSliders.forEach(slider => {
+                slider.addEventListener('input', () => {
+                    const fileKey = fileKeys[parseInt(fileSlider.value, 10)];
+                    updateView(fileKey);
+                });
+            });
+        }
+
+        function filterEmbeddings() {
+            const selectedModel = params.model[modelSlider.value];
+            const selectedCS = params.cs[chunkSizeSlider.value];
+            const selectedCO = params.co[chunkOverlapSlider.value];
+            const selectedT = params.t[themeSlider.value];
+            const selectedS = params.s[chunkingStrategySlider.value];
+            const selectedM = params.m[similarityMetricSlider.value];
+
+            modelNameSpan.textContent = selectedModel || 'N/A';
+            chunkSizeValueSpan.textContent = selectedCS || 'N/A';
+            chunkOverlapValueSpan.textContent = selectedCO || 'N/A';
+            themeNameSpan.textContent = selectedT || 'N/A';
+            chunkingStrategyNameSpan.textContent = selectedS || 'N/A';
+            similarityMetricNameSpan.textContent = selectedM || 'N/A';
+
+            filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {
+                const p = parseEmbeddingKey(key);
+                return p.model === selectedModel &&
+                       p.cs === selectedCS &&
+                       p.co === selectedCO &&
+                       p.t === selectedT &&
+                       p.s === selectedS &&
+                       p.m === selectedM;
+            });
+        }
+
+        function updateView(fileKey, repopulate = false) {
+            if (repopulate) {
+                populateAndSetupSliders(fileKey);
+            }
+
+            const fileData = processedData.files[fileKey];
+            
+            if (!fileData) {
+                fileNameSpan.textContent = 'No data for this file.';
+                metricsGrid.innerHTML = '';
+                heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
+                return;
+            }
+
+            fileNameSpan.textContent = fileKey;
+            filterEmbeddings();
+
+            if (filteredEmbeddingKeys.length === 0) {
+                metricsGrid.innerHTML = 'No data for this selection.';
+                heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
+                updateScatterPlot(null); // Explicitly clear the plot
+                return;
+            }
+
+            const embeddingKey = filteredEmbeddingKeys[0];
+            const embeddingData = fileData.embeddings[embeddingKey];
+
+            if (!embeddingData) {
+                metricsGrid.innerHTML = 'Error: Data not found.';
+                heatmapContainer.innerHTML = '';
+                scatterPlotContainer.innerHTML = '';
+                fileLinksContainer.innerHTML = '';
+                updateScatterPlot(null); // Explicitly clear the plot
+                return;
+            }
+
+            updateMetrics(embeddingData.metrics);
+            updateHeatmap(embeddingData.phrases, embeddingData.similarities);
+            updateFileLinks(embeddingKey, fileKey);
+            updateScatterPlot(embeddingData.scatter_plot_data);
+        }
+
+        function getMetricColor(metricName, value) {
+            const good = { r: 43, g: 131, b: 186 };
+            const neutral = { r: 255, g: 255, b: 191 };
+            const bad = { r: 215, g: 25, b: 28 };
+
+            let score = 0.5; // Default to neutral
+
+            switch (metricName) {
+                // Lower is better
+                case 'internal_coherence_score':
+                    if (value < 0.1) score = 1.0; // Excellent
+                    else if (value < 0.5) score = 0.7; // Good
+                    else score = 0.1; // Poor
+                    break;
+                case 'separation':
+                    if (value < 0.2) score = 1.0;
+                    else if (value < 0.5) score = 0.6;
+                    else score = 0.2;
+                    break;
+
+                // Higher is better
+                case 'robustness_score':
+                    if (value > 0.95) score = 1.0; // Very Robust
+                    else if (value > 0.8) score = 0.7; // Acceptable
+                    else score = 0.1; // Fragile
+                    break;
+                case 'local_density_index':
+                    if (value > 0.8) score = 1.0; // Good
+                    else if (value > 0.5) score = 0.6;
+                    else score = 0.1; // Poor
+                    break;
+                case 'silhouette': // Range -1 to 1
+                    score = (value + 1) / 2;
+                    break;
+                case 'cohesion':
+                    if (value > 0.7) score = 1.0;
+                    else if (value > 0.4) score = 0.6;
+                    else score = 0.2;
+                    break;
+                case 'discriminant_score':
+                    if (value > 2.0) score = 1.0;
+                    else if (value > 1.0) score = 0.7;
+                    else score = 0.2;
+                    break;
+                
+                default:
+                    score = 0.5; // Neutral for unknown metrics
+            }
+
+            const colors = [bad, neutral, good];
+            const i = Math.min(Math.floor(score * (colors.length - 1)), colors.length - 2);
+            const t = (score * (colors.length - 1)) % 1;
+            const r = Math.round(colors[i].r * (1 - t) + colors[i+1].r * t);
+            const g = Math.round(colors[i].g * (1 - t) + colors[i+1].g * t);
+            const b = Math.round(colors[i].b * (1 - t) + colors[i+1].b * t);
+            
+            return {
+                rgb: `rgb(${r},${g},${b})`,
+                isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
+            };
+        }
+
+        function updateFileLinks(embeddingKey, fileKey) {
+            fileLinksContainer.innerHTML = '';
+            const safeEmbeddingKey = embeddingKey.replace(/\\//g, '_');
+
+            const filteredFileName = `${fileKey}_${safeEmbeddingKey}_filtered.md`;
+            const explanatoryFileName = `${fileKey}_${safeEmbeddingKey}_explanatory.md`;
+
+            const filteredLink = document.createElement('a');
+            filteredLink.href = filteredFileName;
+            filteredLink.textContent = `Filtered Report (Markdown)`;
+            filteredLink.title = filteredFileName;
+            filteredLink.target = "_blank";
+
+            const explanatoryLink = document.createElement('a');
+            explanatoryLink.href = explanatoryFileName;
+            explanatoryLink.textContent = `Explanatory Report (Markdown)`;
+            explanatoryLink.title = explanatoryFileName;
+            explanatoryLink.target = "_blank";
+
+            fileLinksContainer.appendChild(filteredLink);
+            fileLinksContainer.appendChild(explanatoryLink);
+        }
+
+        function updateScatterPlot(plotData) {
+            Plotly.purge('scatter-plot-container');
+            if (!plotData) {
+                scatterPlotContainer.innerHTML = 'No scatter plot data available for this selection.';
+                return;
+            }
+
+            const traces = [];
+            const uniqueLabels = [...new Set(plotData.labels)];
+            
+            const colors = {
+                'Above Threshold': 'red',
+                'Below Threshold': 'blue'
+            };
+
+            uniqueLabels.forEach(label => {
+                const trace = {
+                    x: [],
+                    y: [],
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: label,
+                    text: [],
+                    marker: { 
+                        color: colors[label],
+                        size: 8,
+                        opacity: 0.7
+                    },
+                    hovertemplate: '<b>Similarity:</b> %{text}<extra></extra>'
+                };
+                
+                for (let i = 0; i < plotData.labels.length; i++) {
+                    if (plotData.labels[i] === label) {
+                        trace.x.push(plotData.x[i]);
+                        trace.y.push(plotData.y[i]);
+                        trace.text.push(plotData.similarities[i].toFixed(4));
+                    }
+                }
+                traces.push(trace);
+            });
+
+            const layout = {
+                title: plotData.title,
+                xaxis: { title: 't-SNE Dimension 1' },
+                yaxis: { title: 't-SNE Dimension 2' },
+                hovermode: 'closest',
+                showlegend: true,
+                legend: {
+                    x: 1,
+                    xanchor: 'right',
+                    y: 1
+                }
+            };
+
+            Plotly.newPlot('scatter-plot-container', traces, layout, {responsive: true});
+        }
+
+        function updateMetrics(metrics) {
+            metricsGrid.innerHTML = '';
+            if (!metrics) return;
+
+            for (const [key, value] of Object.entries(metrics)) {
+                const metricItem = document.createElement('div');
+                metricItem.className = 'metric-item';
+                metricItem.title = metricTooltips[key] || 'No description available.';
+                
+                const colorInfo = getMetricColor(key, value);
+                metricItem.style.backgroundColor = colorInfo.rgb;
+                
+                const valueSpan = document.createElement('div');
+                valueSpan.className = 'value';
+                valueSpan.style.color = colorInfo.isDark ? '#fff' : '#2c3e50';
+                valueSpan.textContent = typeof value === 'number' ? value.toFixed(4) : value;
+                
+                const labelSpan = document.createElement('div');
+                labelSpan.className = 'label';
+                labelSpan.style.color = colorInfo.isDark ? '#ecf0f1' : '#7f8c8d';
+                labelSpan.textContent = key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
+
+                metricItem.appendChild(valueSpan);
+                metricItem.appendChild(labelSpan);
+                metricsGrid.appendChild(metricItem);
+            }
+        }
+
+        function updateHeatmap(phrases, similarities) {
+            heatmapContainer.innerHTML = '';
+            if (!phrases || !similarities) return;
+
+            const content = document.createElement('p');
+
+            phrases.forEach((phrase, index) => {
+                const score = similarities[index] || 0;
+                const colorInfo = cmap_heatmap(score);
+                
+                const span = document.createElement('span');
+                span.style.backgroundColor = colorInfo.rgb;
+                span.style.color = colorInfo.isDark ? '#fff' : '#333';
+                span.textContent = phrase + '. ';
+                span.title = `Similarity: ${score.toFixed(3)}`;
+                
+                content.appendChild(span);
+            });
+            heatmapContainer.appendChild(content);
+        }
+
+        document.addEventListener('DOMContentLoaded', initialize);
+        """
+        minified_js = jsmin(js_content)
+
+        html_content = f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedding Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>{minified_css}</style>
 </head>
 <body>
     <div class="container">
@@ -279,407 +741,11 @@ def generate_main_page(
         </div>
     </div>
 
-    <script>
-        const processedData = {data_json};
-
-        const fileSlider = document.getElementById('file-slider');
-        const fileNameSpan = document.getElementById('file-name');
-        const modelSlider = document.getElementById('model-slider');
-        const modelNameSpan = document.getElementById('model-name');
-        const chunkSizeSlider = document.getElementById('chunk-size-slider');
-        const chunkSizeValueSpan = document.getElementById('chunk-size-value');
-        const chunkOverlapSlider = document.getElementById('chunk-overlap-slider');
-        const chunkOverlapValueSpan = document.getElementById('chunk-overlap-value');
-        const themeSlider = document.getElementById('theme-slider');
-        const themeNameSpan = document.getElementById('theme-name');
-        const chunkingStrategySlider = document.getElementById('chunking-strategy-slider');
-        const chunkingStrategyNameSpan = document.getElementById('chunking-strategy-name');
-        const similarityMetricSlider = document.getElementById('similarity-metric-slider');
-        const similarityMetricNameSpan = document.getElementById('similarity-metric-name');
-        const metricsGrid = document.getElementById('metrics-grid');
-        const heatmapContainer = document.getElementById('heatmap-container');
-        const scatterPlotContainer = document.getElementById('scatter-plot-container');
-        const fileLinksContainer = document.getElementById('file-links-container');
-
-        let fileKeys = [];
-        let allEmbeddingKeys = [];
-        let filteredEmbeddingKeys = [];
-        const params = {{
-            model: [],
-            cs: [],
-            co: [],
-            t: [],
-            s: [],
-            m: []
-        }};
-
-        const createCmap = (colorSet) => (score) => {{
-            if (typeof score !== 'number' || isNaN(score)) score = 0.5;
-            const i = Math.min(Math.floor(score * (colorSet.length - 1)), colorSet.length - 2);
-            const t = (score * (colorSet.length - 1)) % 1;
-            const r = Math.round(colorSet[i].r * (1 - t) + colorSet[i+1].r * t);
-            const g = Math.round(colorSet[i].g * (1 - t) + colorSet[i+1].g * t);
-            const b = Math.round(colorSet[i].b * (1 - t) + colorSet[i+1].b * t);
-            return {{
-                rgb: `rgb(${{r}},${{g}},${{b}})`,
-                isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
-            }};
-        }};
-
-        const cmap_metrics = createCmap([
-            {{ r: 215, g: 25, b: 28 }},    // Bad
-            {{ r: 253, g: 174, b: 97 }},
-            {{ r: 255, g: 255, b: 191 }}, // Neutral
-            {{ r: 171, g: 221, b: 164 }},
-            {{ r: 43, g: 131, b: 186 }}  // Good
-        ]);
-
-        const cmap_heatmap = createCmap([
-            {{ r: 43, g: 131, b: 186 }}, // Low similarity
-            {{ r: 171, g: 221, b: 164 }},
-            {{ r: 255, g: 255, b: 191 }}, // Neutral
-            {{ r: 253, g: 174, b: 97 }},
-            {{ r: 215, g: 25, b: 28 }}    // High similarity
-        ]);
-
-        function parseEmbeddingKey(key) {{
-            const m_part_index = key.lastIndexOf('_m');
-            const m = key.slice(m_part_index + 2);
-            const key_without_m = key.slice(0, m_part_index);
-
-            const s_part_index = key_without_m.lastIndexOf('_s');
-            const s = key_without_m.slice(s_part_index + 2);
-            const key_without_s = key_without_m.slice(0, s_part_index);
-
-            const t_part_index = key_without_s.lastIndexOf('_t');
-            const t = key_without_s.slice(t_part_index + 2);
-            const key_without_t = key_without_s.slice(0, t_part_index);
-
-            const co_part_index = key_without_t.lastIndexOf('_co');
-            const co = key_without_t.slice(co_part_index + 3);
-            const key_without_co = key_without_t.slice(0, co_part_index);
-
-            const cs_part_index = key_without_co.lastIndexOf('_cs');
-            const cs = key_without_co.slice(cs_part_index + 3);
-            const model = key_without_co.slice(0, cs_part_index);
-            
-            return {{ model, cs, co, t, s, m }};
-        }}
-
-        function populateAndSetupSliders(fileKey) {{
-            if (!fileKey || !processedData.files[fileKey]) return;
-
-            const currentValues = {{
-                model: params.model[modelSlider.value],
-                cs: params.cs[chunkSizeSlider.value],
-                co: params.co[chunkOverlapSlider.value],
-                t: params.t[themeSlider.value],
-                s: params.s[chunkingStrategySlider.value],
-                m: params.m[similarityMetricSlider.value]
-            }};
-
-            const paramSets = {{
-                model: new Set(),
-                cs: new Set(),
-                co: new Set(),
-                t: new Set(),
-                s: new Set(),
-                m: new Set()
-            }};
-
-            allEmbeddingKeys = Object.keys(processedData.files[fileKey].embeddings);
-            allEmbeddingKeys.forEach(key => {{
-                const p = parseEmbeddingKey(key);
-                paramSets.model.add(p.model);
-                paramSets.cs.add(p.cs);
-                paramSets.co.add(p.co);
-                paramSets.t.add(p.t);
-                paramSets.s.add(p.s);
-                paramSets.m.add(p.m);
-            }});
-
-            params.model = [...paramSets.model].sort();
-            params.cs = [...paramSets.cs].sort((a, b) => a - b);
-            params.co = [...paramSets.co].sort((a, b) => a - b);
-            params.t = [...paramSets.t].sort();
-            params.s = [...paramSets.s].sort();
-            params.m = [...paramSets.m].sort();
-
-            const setupSlider = (slider, values, previousValue) => {{
-                slider.max = values.length > 0 ? values.length - 1 : 0;
-                slider.disabled = values.length <= 1;
-                const newIndex = values.indexOf(previousValue);
-                slider.value = newIndex !== -1 ? newIndex : 0;
-            }};
-
-            setupSlider(modelSlider, params.model, currentValues.model);
-            setupSlider(chunkSizeSlider, params.cs, currentValues.cs);
-            setupSlider(chunkOverlapSlider, params.co, currentValues.co);
-            setupSlider(themeSlider, params.t, currentValues.t);
-            setupSlider(chunkingStrategySlider, params.s, currentValues.s);
-            setupSlider(similarityMetricSlider, params.m, currentValues.m);
-        }}
-
-        function initialize() {{
-            fileKeys = Object.keys(processedData.files || {{}}).sort();
-            if (fileKeys.length === 0) {{
-                console.error("No files found in processed data.");
-                return;
-            }}
-
-            const setupSlider = (slider, values, previousValue) => {{
-                slider.max = values.length > 0 ? values.length - 1 : 0;
-                slider.disabled = values.length <= 1;
-                const newIndex = values.indexOf(previousValue);
-                slider.value = newIndex !== -1 ? newIndex : 0;
-            }};
-
-            setupSlider(fileSlider, fileKeys, fileKeys[0]);
-
-            const initialFileKey = fileKeys[0];
-            updateView(initialFileKey, true);
-
-            fileSlider.addEventListener('input', (e) => {{
-                const fileKey = fileKeys[parseInt(e.target.value, 10)];
-                updateView(fileKey, true);
-            }});
-
-            const otherSliders = [modelSlider, chunkSizeSlider, chunkOverlapSlider, themeSlider, chunkingStrategySlider, similarityMetricSlider];
-            otherSliders.forEach(slider => {{
-                slider.addEventListener('input', () => {{
-                    const fileKey = fileKeys[parseInt(fileSlider.value, 10)];
-                    updateView(fileKey);
-                }});
-            }});
-        }}
-
-        function filterEmbeddings() {{
-            const selectedModel = params.model[modelSlider.value];
-            const selectedCS = params.cs[chunkSizeSlider.value];
-            const selectedCO = params.co[chunkOverlapSlider.value];
-            const selectedT = params.t[themeSlider.value];
-            const selectedS = params.s[chunkingStrategySlider.value];
-            const selectedM = params.m[similarityMetricSlider.value];
-
-            modelNameSpan.textContent = selectedModel || 'N/A';
-            chunkSizeValueSpan.textContent = selectedCS || 'N/A';
-            chunkOverlapValueSpan.textContent = selectedCO || 'N/A';
-            themeNameSpan.textContent = selectedT || 'N/A';
-            chunkingStrategyNameSpan.textContent = selectedS || 'N/A';
-            similarityMetricNameSpan.textContent = selectedM || 'N/A';
-
-            filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {{
-                const p = parseEmbeddingKey(key);
-                return p.model === selectedModel &&
-                       p.cs === selectedCS &&
-                       p.co === selectedCO &&
-                       p.t === selectedT &&
-                       p.s === selectedS &&
-                       p.m === selectedM;
-            }});
-        }}
-
-        function updateView(fileKey, repopulate = false) {{
-            if (repopulate) {{
-                populateAndSetupSliders(fileKey);
-            }}
-
-            const fileData = processedData.files[fileKey];
-            
-            if (!fileData) {{
-                fileNameSpan.textContent = 'No data for this file.';
-                metricsGrid.innerHTML = '';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
-                return;
-            }}
-
-            fileNameSpan.textContent = fileKey;
-            filterEmbeddings();
-
-            if (filteredEmbeddingKeys.length === 0) {{
-                metricsGrid.innerHTML = 'No data for this selection.';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
-                return;
-            }}
-
-            const embeddingKey = filteredEmbeddingKeys[0];
-            const embeddingData = fileData.embeddings[embeddingKey];
-
-            if (!embeddingData) {{
-                metricsGrid.innerHTML = 'Error: Data not found.';
-                heatmapContainer.innerHTML = '';
-                scatterPlotContainer.innerHTML = '';
-                fileLinksContainer.innerHTML = '';
-                return;
-            }}
-
-            updateMetrics(embeddingData.metrics, fileKey);
-            updateHeatmap(embeddingData.phrases, embeddingData.similarities);
-            updateFileLinks(embeddingKey, fileKey);
-            updateScatterPlot(embeddingData.scatter_plot_data);
-        }}
-
-        function updateFileLinks(embeddingKey, fileKey) {{
-            fileLinksContainer.innerHTML = '';
-            const safeEmbeddingKey = embeddingKey.replace(/\\//g, '_');
-
-            const filteredFileName = `${{fileKey}}_${{safeEmbeddingKey}}_filtered.md`;
-            const explanatoryFileName = `${{fileKey}}_${{safeEmbeddingKey}}_explanatory.md`;
-
-            const filteredLink = document.createElement('a');
-            filteredLink.href = filteredFileName;
-            filteredLink.textContent = `Filtered Report (Markdown)`;
-            filteredLink.title = filteredFileName;
-            filteredLink.target = "_blank";
-
-            const explanatoryLink = document.createElement('a');
-            explanatoryLink.href = explanatoryFileName;
-            explanatoryLink.textContent = `Explanatory Report (Markdown)`;
-            explanatoryLink.title = explanatoryFileName;
-            explanatoryLink.target = "_blank";
-
-            fileLinksContainer.appendChild(filteredLink);
-            fileLinksContainer.appendChild(explanatoryLink);
-        }}
-
-        function updateScatterPlot(plotData) {{
-            if (!plotData) {{
-                scatterPlotContainer.innerHTML = 'No scatter plot data available for this selection.';
-                return;
-            }}
-
-            const traces = [];
-            const uniqueLabels = [...new Set(plotData.labels)];
-            
-            const colors = {{
-                [`Above Threshold (${{plotData.threshold}})`]: 'red',
-                'Below Threshold': 'blue'
-            }};
-
-            uniqueLabels.forEach(label => {{
-                const trace = {{
-                    x: [],
-                    y: [],
-                    mode: 'markers',
-                    type: 'scatter',
-                    name: label,
-                    text: [],
-                    marker: {{ 
-                        color: colors[label],
-                        size: 8,
-                        opacity: 0.7
-                    }},
-                    hovertemplate: '<b>Similarity:</b> %{{text}}<extra></extra>'
-                }};
-                
-                for (let i = 0; i < plotData.labels.length; i++) {{
-                    if (plotData.labels[i] === label) {{
-                        trace.x.push(plotData.x[i]);
-                        trace.y.push(plotData.y[i]);
-                        trace.text.push(plotData.similarities[i].toFixed(4));
-                    }}
-                }}
-                traces.push(trace);
-            }});
-
-            const layout = {{
-                title: plotData.title,
-                xaxis: {{ title: 't-SNE Dimension 1' }},
-                yaxis: {{ title: 't-SNE Dimension 2' }},
-                hovermode: 'closest',
-                showlegend: true,
-                legend: {{
-                    x: 1,
-                    xanchor: 'right',
-                    y: 1
-                }}
-            }};
-
-            Plotly.newPlot('scatter-plot-container', traces, layout, {{responsive: true}});
-        }}
-
-        function updateMetrics(metrics, fileKey) {{
-            metricsGrid.innerHTML = '';
-            if (!metrics) return;
-
-            const lowerIsBetter = ["separation", "davies_bouldin", "processing_time"];
-            
-            const normalized = {{}};
-            for (const key of Object.keys(metrics)) {{
-                const allValues = filteredEmbeddingKeys
-                    .map(ek => processedData.files[fileKey]?.embeddings[ek]?.metrics?.[key])
-                    .filter(v => typeof v === 'number' && isFinite(v));
-                
-                if (allValues.length === 0) {{
-                    normalized[key] = 0.5;
-                    continue;
-                }}
-
-                const min = Math.min(...allValues);
-                const max = Math.max(...allValues);
-                let score = (metrics[key] - min) / (max - min || 1);
-                if (lowerIsBetter.includes(key)) {{
-                    score = 1 - score;
-                }}
-                normalized[key] = isNaN(score) ? 0.5 : score;
-            }}
-
-            for (const [key, value] of Object.entries(metrics)) {{
-                const metricItem = document.createElement('div');
-                metricItem.className = 'metric-item';
-                
-                const normValue = normalized[key];
-                const colorInfo = cmap_metrics(normValue);
-                metricItem.style.backgroundColor = colorInfo.rgb;
-                
-                const valueSpan = document.createElement('div');
-                valueSpan.className = 'value';
-                valueSpan.style.color = colorInfo.isDark ? '#fff' : '#2c3e50';
-                valueSpan.textContent = typeof value === 'number' ? value.toFixed(4) : value;
-                
-                const labelSpan = document.createElement('div');
-                labelSpan.className = 'label';
-                labelSpan.style.color = colorInfo.isDark ? '#ecf0f1' : '#7f8c8d';
-                labelSpan.textContent = key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
-
-                metricItem.appendChild(valueSpan);
-                metricItem.appendChild(labelSpan);
-                metricsGrid.appendChild(metricItem);
-            }}
-        }}
-
-        function updateHeatmap(phrases, similarities) {{
-            heatmapContainer.innerHTML = '';
-            if (!phrases || !similarities) return;
-
-            const content = document.createElement('p');
-
-            phrases.forEach((phrase, index) => {{
-                const score = similarities[index] || 0;
-                const colorInfo = cmap_heatmap(score);
-                
-                const span = document.createElement('span');
-                span.style.backgroundColor = colorInfo.rgb;
-                span.style.color = colorInfo.isDark ? '#fff' : '#333';
-                span.textContent = phrase + '. ';
-                span.title = `Similarity: ${{score.toFixed(3)}}`;
-                
-                content.appendChild(span);
-            }});
-            heatmapContainer.appendChild(content);
-        }}
-
-        document.addEventListener('DOMContentLoaded', initialize);
-    </script>
+    <script>{minified_js}</script>
 </body>
 </html>
 """
-
-    output_path = os.path.join(output_dir, "index.html")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print(f"Generated main page at: {output_path}")
+        output_path = os.path.join(output_dir, job["filename"])
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        print(f"Generated main page at: {output_path}")

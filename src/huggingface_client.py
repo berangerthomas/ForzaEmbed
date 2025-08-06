@@ -1,4 +1,3 @@
-import time
 from typing import List, Tuple
 
 import torch
@@ -23,7 +22,7 @@ def mean_pooling(model_output, attention_mask):
 
 def get_huggingface_embeddings(
     texts: List[str], model_name: str, expected_dimension: int | None = None
-) -> Tuple[List[List[float]], float]:
+) -> List[List[float]]:
     """
     Generates embeddings for a list of texts using a generic Hugging Face model.
 
@@ -32,9 +31,8 @@ def get_huggingface_embeddings(
         model_name (str): The name of the Hugging Face model to use.
 
     Returns:
-        A tuple containing the list of embeddings and the processing time.
+        The list of embeddings.
     """
-    start_time = time.time()
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModel.from_pretrained(model_name)
@@ -66,9 +64,8 @@ def get_huggingface_embeddings(
                     f"Expected dimension {expected_dimension}, but got {actual_dimension} for model {model_name}"
                 )
 
-        processing_time = time.time() - start_time
-        return normalized_embeddings.tolist(), processing_time
+        return normalized_embeddings.tolist()
 
     except Exception as e:
         tqdm.write(f"❌ Error getting Hugging Face embeddings for {model_name}: {e}")
-        return [], 0.0
+        return []

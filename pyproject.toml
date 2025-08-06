@@ -29,4 +29,6 @@ dependencies = [
     "kaleido>=1.0.0",
     "pyarrow>=21.0.0",
     "joblib>=1.4.2",
+    "jsmin",
+    "cssmin",
 ]

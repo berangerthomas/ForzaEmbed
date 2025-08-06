@@ -1,6 +1,5 @@
 import json
 import os
-import time
 from typing import List
 
 import requests
@@ -49,34 +48,32 @@ class ProductionEmbeddingClient:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
 
     # Retrieves embeddings for a list of texts via the API.
-    def get_embeddings(self, texts: List[str]) -> tuple[List[List[float]], float]:
+    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
         Retrieves embeddings for a list of texts via the API with automatic batch splitting.
         """
         if not texts:
-            return [], 0.0
+            return []
 
         # Start with full batch, will be subdivided if needed
         return self._get_embeddings_with_retry(texts, initial_batch_size=len(texts))
 
     def _get_embeddings_with_retry(
         self, texts: List[str], initial_batch_size: int, max_retries: int = 3
-    ) -> tuple[List[List[float]], float]:
+    ) -> List[List[float]]:
         """
         Internal method to handle batch subdivision and retries.
         """
         batch_size = min(initial_batch_size, len(texts))
         total_embeddings = []
-        total_time = 0.0
 
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i : i + batch_size]
 
             for attempt in range(max_retries):
                 try:
-                    embeddings, processing_time = self._single_api_call(batch_texts)
+                    embeddings = self._single_api_call(batch_texts)
                     total_embeddings.extend(embeddings)
-                    total_time += processing_time
                     break  # Success, move to next batch
 
                 except requests.exceptions.HTTPError as e:
@@ -103,13 +100,12 @@ class ProductionEmbeddingClient:
                                 )
 
                                 # Recursively process with smaller batches
-                                sub_embeddings, sub_time = (
+                                sub_embeddings = (
                                     self._get_embeddings_with_retry(
                                         batch_texts, new_batch_size, max_retries
                                     )
                                 )
                                 total_embeddings.extend(sub_embeddings)
-                                total_time += sub_time
                                 break  # Success with subdivision
                             else:
                                 # Other 400 error, don't retry
@@ -132,20 +128,16 @@ class ProductionEmbeddingClient:
                             )
                             error_msg += f"\n  Response content: {e.response.text}"
                         tqdm.write(error_msg)
-                        return [], 0.0
-                    else:
-                        # Wait before retry
-                        time.sleep(2**attempt)  # Exponential backoff
+                        return []
 
-        return total_embeddings, total_time
+        return total_embeddings
 
-    def _single_api_call(self, texts: List[str]) -> tuple[List[List[float]], float]:
+    def _single_api_call(self, texts: List[str]) -> List[List[float]]:
         """
         Makes a single API call without retry logic.
         """
         url = f"{self.base_url}/embeddings"
         payload = {"model": self.model, "input": texts}
-        start_time = time.time()
 
         try:
             # Make the API request
@@ -165,7 +157,7 @@ class ProductionEmbeddingClient:
                     tqdm.write(f"  Full response JSON: {e.response.json()}")
                 except json.JSONDecodeError:
                     tqdm.write("  Could not decode JSON from response.")
-            return [], 0.0  # Return empty embeddings
+            return []  # Return empty embeddings
 
         if self.expected_dimension and embeddings:
             actual_dimension = len(embeddings[0])
@@ -174,5 +166,4 @@ class ProductionEmbeddingClient:
                     f"Expected dimension {self.expected_dimension}, but got {actual_dimension} for model {self.model}"
                 )
 
-        end_time = time.time()
-        return embeddings, end_time - start_time
+        return embeddings
