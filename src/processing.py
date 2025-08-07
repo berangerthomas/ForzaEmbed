@@ -113,61 +113,34 @@ class Processor:
                 pbar.update(1)
                 continue
 
+            # Calculate similarities and labels
             similarites = self.calculate_similarity(
                 embed_themes, item_embed_phrases, similarity_metric
             )
             labels = np.argmax(similarites, axis=0)
 
+            # Calculate metrics
             all_metrics = calculate_all_metrics(
                 embed_themes,
                 item_embed_phrases,
                 labels,
-                similarity_metric=similarity_metric,  # Pass the metric parameter
+                similarity_metric="cosine",  # Default metric for evaluation
             )
 
-            scatter_plot_data = None
-            if item_embed_phrases.shape[0] > 1:
-                try:
-                    from sklearn.manifold import TSNE
-
-                    tsne = TSNE(
-                        n_components=2,
-                        perplexity=min(30, item_embed_phrases.shape[0] - 1),
-                        random_state=42,
-                        max_iter=300,
-                    )
-                    tsne_results = tsne.fit_transform(item_embed_phrases)
-
-                    similarity_scores = similarites.max(axis=0)
-                    threshold = self.config.get("similarity_threshold", 0.6)
-
-                    scatter_labels = [
-                        "Above Threshold" if s >= threshold else "Below Threshold"
-                        for s in similarity_scores
-                    ]
-
-                    scatter_plot_data = {
-                        "x": tsne_results[:, 0].tolist(),
-                        "y": tsne_results[:, 1].tolist(),
-                        "labels": scatter_labels,
-                        "similarities": similarity_scores.tolist(),
-                        "title": f"t-SNE Visualization for {identifiant}",
-                        "threshold": threshold,
-                    }
-                except ImportError:
-                    logging.warning(
-                        "scikit-learn is not installed. Skipping t-SNE plot generation."
-                    )
-                except Exception as e:
-                    logging.error(
-                        f"Error during t-SNE calculation for {identifiant}: {e}"
-                    )
+            # Generate t-SNE coordinates
+            # Use a unique key for t-SNE data based on model and parameters
+            tsne_key = f"{model_config['name']}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
+            scatter_plot_data = self._get_or_create_tsne_data(
+                item_embed_phrases,
+                tsne_key,
+                identifiant,
+                similarites,
+                self.config.get("similarity_threshold", 0.6),
+            )
 
             results["files"][identifiant] = {
                 "phrases": item_phrases,
-                "similarities": similarites.max(
-                    axis=0
-                ).tolist(),  # Ensure it's a list of floats
+                "similarities": similarites.max(axis=0).tolist(),
                 "metrics": {
                     **all_metrics,
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
@@ -294,6 +267,80 @@ class Processor:
             return 1 / (1 + distances)
         else:
             raise ValueError(f"Unknown similarity metric: {metric}")
+
+    def _get_or_create_tsne_data(
+        self,
+        embeddings: np.ndarray,
+        tsne_key: str,
+        file_id: str,
+        similarities: np.ndarray,
+        threshold: float,
+    ) -> Dict[str, Any] | None:
+        """
+        Calcule ou récupère les coordonnées t-SNE pour une combinaison donnée.
+        Les coordonnées sont indépendantes du theme_set et similarity_metric.
+        """
+        if embeddings.shape[0] <= 1:
+            return None
+
+        # Vérifier si les coordonnées t-SNE existent déjà
+        cached_tsne = self.db.get_tsne_coordinates(tsne_key, file_id)
+
+        if cached_tsne is not None:
+            # Utiliser les coordonnées existantes mais recalculer les labels selon les nouvelles similarités
+            similarity_scores = similarities.max(axis=0)
+            scatter_labels = [
+                "Above Threshold" if s >= threshold else "Below Threshold"
+                for s in similarity_scores
+            ]
+
+            return {
+                "x": cached_tsne["x"],
+                "y": cached_tsne["y"],
+                "labels": scatter_labels,
+                "similarities": similarity_scores.tolist(),
+                "title": f"t-SNE Visualization for {file_id}",
+                "threshold": threshold,
+            }
+
+        # Calculer de nouvelles coordonnées t-SNE
+        try:
+            from sklearn.manifold import TSNE
+
+            tsne = TSNE(
+                n_components=2,
+                perplexity=min(30, embeddings.shape[0] - 1),
+                random_state=42,
+                max_iter=300,
+            )
+            tsne_results = tsne.fit_transform(embeddings)
+
+            # Sauvegarder les coordonnées pour réutilisation
+            tsne_coords = {
+                "x": tsne_results[:, 0].tolist(),
+                "y": tsne_results[:, 1].tolist(),
+            }
+            self.db.save_tsne_coordinates(tsne_key, file_id, tsne_coords)
+
+            # Calculer les labels selon les similarités actuelles
+            similarity_scores = similarities.max(axis=0)
+            scatter_labels = [
+                "Above Threshold" if s >= threshold else "Below Threshold"
+                for s in similarity_scores
+            ]
+
+            return {
+                "x": tsne_coords["x"],
+                "y": tsne_coords["y"],
+                "labels": scatter_labels,
+                "similarities": similarity_scores.tolist(),
+                "title": f"t-SNE Visualization for {file_id}",
+                "threshold": threshold,
+            }
+
+        except Exception as e:
+            logging.error(f"Error during t-SNE calculation for {file_id}: {e}")
+            return None
 
     def refresh_all_metrics(self):
         """

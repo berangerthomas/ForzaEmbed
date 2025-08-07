@@ -240,6 +240,7 @@ class ForzaEmbed:
         """Clears all data from the main database."""
         logging.warning("Clearing the main database...")
         self.db.clear_database()
+        self.db.clear_tsne_cache()
         logging.info("Main database cleared.")
 
     def clear_embedding_cache(self):

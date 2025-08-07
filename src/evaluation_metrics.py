@@ -293,8 +293,6 @@ def calculate_all_metrics(
     ref_embeddings: np.ndarray,
     doc_embeddings: np.ndarray,
     doc_labels: np.ndarray,
-    similarity_metric: str = "cosine",
-    use_silhouette_decomposition: bool = True,
 ) -> Dict[str, float]:
     """Calculates and combines all evaluation metrics.
 
@@ -325,34 +323,19 @@ def calculate_all_metrics(
     all_metrics["robustness_score"] = robustness_score(ref_embeddings, doc_embeddings)
 
     # Enhanced silhouette analysis
-    if use_silhouette_decomposition:
-        silhouette_analysis = enhanced_silhouette_analysis(
-            doc_embeddings, doc_labels, similarity_metric
-        )
-        global_metrics = silhouette_analysis["global_metrics"]
+    silhouette_analysis = enhanced_silhouette_analysis(doc_embeddings, doc_labels)
+    global_metrics = silhouette_analysis["global_metrics"]
 
-        all_metrics.update(
-            {
-                "silhouette_score": global_metrics["silhouette_score"],
-                "intra_cluster_distance_normalized": global_metrics[
-                    "intra_cluster_quality"
-                ],
-                "inter_cluster_distance_normalized": global_metrics[
-                    "inter_cluster_separation"
-                ],
-            }
-        )
-    else:
-        # Fallback to simple silhouette score
-        try:
-            score = silhouette_score(
-                doc_embeddings, doc_labels, metric=similarity_metric
-            )
-            all_metrics["silhouette_score"] = float(score)
-        except:
-            all_metrics["silhouette_score"] = -1.0
-
-        all_metrics["intra_cluster_distance_normalized"] = 0.0
-        all_metrics["inter_cluster_distance_normalized"] = 0.0
+    all_metrics.update(
+        {
+            "silhouette_score": global_metrics["silhouette_score"],
+            "intra_cluster_distance_normalized": global_metrics[
+                "intra_cluster_quality"
+            ],
+            "inter_cluster_distance_normalized": global_metrics[
+                "inter_cluster_separation"
+            ],
+        }
+    )
 
     return all_metrics

@@ -227,6 +227,18 @@ class EmbeddingDatabase:
                 )
             """)
 
+            # Nouvelle table pour stocker les coordonnées t-SNE
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tsne_coordinates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tsne_key TEXT NOT NULL,
+                    file_id TEXT NOT NULL,
+                    coordinates BLOB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(tsne_key, file_id)
+                )
+            """)
+
             conn.commit()
 
     def add_model(
@@ -528,6 +540,7 @@ class EmbeddingDatabase:
             cursor.execute("DELETE FROM processing_results")
             cursor.execute("DELETE FROM models")
             cursor.execute("DELETE FROM embedding_cache")
+            cursor.execute("DELETE FROM tsne_coordinates")
             conn.commit()
 
     def get_all_run_names(self) -> list[str]:
@@ -627,6 +640,45 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM embedding_cache")
+            conn.commit()
+
+    def save_tsne_coordinates(
+        self, tsne_key: str, file_id: str, coordinates: Dict[str, List[float]]
+    ):
+        """Sauvegarde les coordonnées t-SNE pour une combinaison donnée."""
+        coordinates_blob = msgpack.packb(coordinates, use_bin_type=True)
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO tsne_coordinates (tsne_key, file_id, coordinates)
+                VALUES (?, ?, ?)
+                """,
+                (tsne_key, file_id, coordinates_blob),
+            )
+            conn.commit()
+
+    def get_tsne_coordinates(
+        self, tsne_key: str, file_id: str
+    ) -> Optional[Dict[str, List[float]]]:
+        """Récupère les coordonnées t-SNE pour une combinaison donnée."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT coordinates FROM tsne_coordinates WHERE tsne_key = ? AND file_id = ?",
+                (tsne_key, file_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                return msgpack.unpackb(row[0], raw=False)
+            return None
+
+    def clear_tsne_cache(self):
+        """Vide le cache des coordonnées t-SNE."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM tsne_coordinates")
             conn.commit()
 
     def get_run_details(self, run_name: str) -> Optional[Dict[str, Any]]:

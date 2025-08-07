@@ -9,7 +9,7 @@ from sklearn.metrics import pairwise_distances, silhouette_samples, silhouette_s
 
 
 def decompose_silhouette_score(
-    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
+    embeddings: np.ndarray, labels: np.ndarray
 ) -> Dict[str, float]:
     """
     Décompose le score silhouette en ses composantes a(i) et b(i).
@@ -22,13 +22,17 @@ def decompose_silhouette_score(
     Args:
         embeddings: Matrice des embeddings (n_samples, n_features)
         labels: Labels des clusters (n_samples,)
-        metric: Métrique de distance ('cosine', 'euclidean', etc.)
 
     Returns:
         Dict contenant les moyennes de a(i), b(i) et le score silhouette
     """
 
-    if len(np.unique(labels)) < 2:
+    n_samples = len(embeddings)
+    unique_labels = np.unique(labels)
+    n_clusters = len(unique_labels)
+
+    # Validation stricte : besoin d'au moins 2 clusters ET suffisamment d'échantillons
+    if n_clusters < 2 or n_samples <= n_clusters:
         return {
             "mean_intra_cluster_distance": 0.0,
             "mean_inter_cluster_distance": 0.0,
@@ -37,14 +41,15 @@ def decompose_silhouette_score(
             "inter_cluster_separation": 0.0,  # normalized b(i)
         }
 
+    # Utiliser toujours 'cosine' pour l'analyse silhouette
+    clustering_metric = "cosine"
+
     # Calcul de la matrice des distances
-    distance_matrix = pairwise_distances(embeddings, metric=metric)
+    distance_matrix = pairwise_distances(embeddings, metric=clustering_metric)
 
     n_samples = len(embeddings)
     a_values = []  # cohésion intra-cluster
     b_values = []  # séparation inter-cluster
-
-    unique_labels = np.unique(labels)
 
     for i in range(n_samples):
         current_label = labels[i]
@@ -74,7 +79,7 @@ def decompose_silhouette_score(
     b_values = np.array(b_values)
 
     # Calcul du score silhouette pour vérification
-    silhouette_computed = silhouette_score(embeddings, labels, metric=metric)
+    silhouette_computed = silhouette_score(embeddings, labels, metric=clustering_metric)
 
     # Normalisation pour obtenir des métriques interprétables (0-1)
     max_possible_distance = np.max(distance_matrix)
@@ -105,21 +110,31 @@ def decompose_silhouette_score(
 
 
 def analyze_silhouette_by_cluster(
-    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
+    embeddings: np.ndarray, labels: np.ndarray
 ) -> Dict[int, Dict[str, float]]:
     """
     Analyse détaillée du score silhouette par cluster.
+
+    Args:
+        embeddings: Matrice des embeddings
+        labels: Labels des clusters
 
     Returns:
         Dict avec pour chaque cluster ses statistiques silhouette
     """
 
-    if len(np.unique(labels)) < 2:
+    n_samples = len(embeddings)
+    unique_labels = np.unique(labels)
+    n_clusters = len(unique_labels)
+
+    # Validation stricte : même condition que decompose_silhouette_score
+    if n_clusters < 2 or n_samples <= n_clusters:
         return {}
 
     sample_scores: np.ndarray = np.array(
-        silhouette_samples(embeddings, labels, metric=metric)
+        silhouette_samples(embeddings, labels, metric="cosine")
     )
+
     unique_labels = np.unique(labels)
 
     cluster_analysis = {}
@@ -144,188 +159,24 @@ def analyze_silhouette_by_cluster(
 
 
 def enhanced_silhouette_analysis(
-    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
+    embeddings: np.ndarray, labels: np.ndarray
 ) -> Dict[str, Any]:
     """
     Analyse complète du clustering avec décomposition silhouette.
+
+    Note: Utilise toujours 'cosine' comme métrique pour l'analyse de clustering,
+    indépendamment de la métrique de similarité utilisée pour l'évaluation des embeddings.
+
+    Args:
+        embeddings: Matrice des embeddings
+        labels: Labels des clusters
+        metric: Métrique de similarité (ignorée pour l'analyse silhouette)
 
     Returns:
         Analyse détaillée avec métriques globales et par cluster
     """
 
-    global_decomp = decompose_silhouette_score(embeddings, labels, metric)
-    cluster_analysis = analyze_silhouette_by_cluster(embeddings, labels, metric)
+    global_decomp = decompose_silhouette_score(embeddings, labels)
+    cluster_analysis = analyze_silhouette_by_cluster(embeddings, labels)
 
-    # Diagnostics supplémentaires
-    diagnostics = {
-        "limiting_factor": "N/A",
-        "improvement_suggestion": "N/A",
-        "balance_ratio": 0.0,
-        "problematic_clusters": [],
-    }
-
-    if len(cluster_analysis) > 0:
-        intra_quality = global_decomp.get("intra_cluster_quality", 0.0)
-        inter_separation = global_decomp.get("inter_cluster_separation", 0.0)
-
-        if intra_quality < inter_separation:
-            diagnostics["limiting_factor"] = "cohésion intra-cluster"
-            diagnostics["improvement_suggestion"] = (
-                "Améliorer la compacité des clusters"
-            )
-        else:
-            diagnostics["limiting_factor"] = "séparation inter-cluster"
-            diagnostics["improvement_suggestion"] = (
-                "Améliorer la séparation entre clusters"
-            )
-
-        if inter_separation > 0:
-            diagnostics["balance_ratio"] = intra_quality / inter_separation
-
-        problematic_clusters = [
-            cid
-            for cid, stats in cluster_analysis.items()
-            if stats.get("mean_silhouette", 0.0) < 0.3
-        ]
-        diagnostics["problematic_clusters"] = problematic_clusters
-
-    return {
-        "global_metrics": global_decomp,
-        "cluster_analysis": cluster_analysis,
-        "diagnostics": diagnostics,
-    }
-
-
-def validate_metrics_consistency(metrics: Dict[str, float]) -> Dict[str, str]:
-    """
-    Validate that metrics are consistent and within expected ranges.
-
-    Returns:
-        Dict of validation messages for each metric
-    """
-    validation = {}
-
-    # Check internal coherence score
-    ics = metrics.get("internal_coherence_score")
-    if ics is not None:
-        if 0 <= ics <= 0.1:
-            validation["internal_coherence_score"] = "Excellent"
-        elif ics <= 0.3:
-            validation["internal_coherence_score"] = "Good"
-        elif ics <= 0.5:
-            validation["internal_coherence_score"] = "Fair"
-        else:
-            validation["internal_coherence_score"] = "Poor"
-
-    # Check local density index
-    ldi = metrics.get("local_density_index")
-    if ldi is not None:
-        if ldi >= 0.8:
-            validation["local_density_index"] = "Excellent"
-        elif ldi >= 0.6:
-            validation["local_density_index"] = "Good"
-        elif ldi >= 0.4:
-            validation["local_density_index"] = "Fair"
-        else:
-            validation["local_density_index"] = "Poor"
-
-    # Check robustness score
-    rs = metrics.get("robustness_score")
-    if rs is not None:
-        if rs >= 0.95:
-            validation["robustness_score"] = "Very Robust"
-        elif rs >= 0.9:
-            validation["robustness_score"] = "Robust"
-        elif rs >= 0.8:
-            validation["robustness_score"] = "Moderate"
-        else:
-            validation["robustness_score"] = "Fragile"
-
-    # Check silhouette score
-    ss = metrics.get("silhouette_score")
-    if ss is not None:
-        if ss >= 0.7:
-            validation["silhouette_score"] = "Excellent"
-        elif ss >= 0.5:
-            validation["silhouette_score"] = "Good"
-        elif ss >= 0.3:
-            validation["silhouette_score"] = "Fair"
-        elif ss >= 0:
-            validation["silhouette_score"] = "Poor"
-        else:
-            validation["silhouette_score"] = "Very Poor"
-
-    return validation
-
-
-# Exemple d'utilisation avec vérification
-if __name__ == "__main__":
-    from sklearn.datasets import make_blobs
-
-    # Données de test
-    blobs = make_blobs(
-        n_samples=3000,
-        centers=2,
-        n_features=2,
-        random_state=42,
-        cluster_std=1.5,
-        return_centers=False,
-    )
-    X, y = blobs[0], blobs[1]
-
-    # VÉRIFICATION: Comparaison avec sklearn
-    sklearn_silhouette = silhouette_score(X, y, metric="euclidean")
-
-    # Notre analyse décomposée
-    analysis = enhanced_silhouette_analysis(X, y, metric="euclidean")
-    our_silhouette = analysis["global_metrics"]["silhouette_score"]
-
-    print("=== VÉRIFICATION DES CALCULS ===")
-    print(f"Score silhouette sklearn:      {sklearn_silhouette:.6f}")
-    print(f"Score silhouette notre calcul: {our_silhouette:.6f}")
-    print(
-        f"Différence absolue:            {abs(sklearn_silhouette - our_silhouette):.6f}"
-    )
-    print(
-        f"Calculs identiques: {np.isclose(sklearn_silhouette, our_silhouette, atol=1e-10)}"
-    )
-
-    print("\n=== ANALYSE SILHOUETTE DÉCOMPOSÉE ===")
-    print(
-        f"Score silhouette global: {analysis['global_metrics']['silhouette_score']:.3f}"
-    )
-    print(
-        f"Distance intra-cluster moyenne (a): {analysis['global_metrics']['mean_intra_cluster_distance']:.3f}"
-    )
-    print(
-        f"Distance inter-cluster moyenne (b): {analysis['global_metrics']['mean_inter_cluster_distance']:.3f}"
-    )
-    print(
-        f"Qualité cohésion intra-cluster: {analysis['global_metrics']['intra_cluster_quality']:.3f}"
-    )
-    print(
-        f"Qualité séparation inter-cluster: {analysis['global_metrics']['inter_cluster_separation']:.3f}"
-    )
-    print(f"Facteur limitant: {analysis['diagnostics']['limiting_factor']}")
-    print(f"Suggestion: {analysis['diagnostics']['improvement_suggestion']}")
-
-    print("\n=== ANALYSE PAR CLUSTER ===")
-    for cluster_id, stats in analysis["cluster_analysis"].items():
-        print(
-            f"Cluster {cluster_id}: silhouette={stats['mean_silhouette']:.3f}, "
-            f"taille={stats['size']}, positifs={stats['proportion_positive']:.1%}"
-        )
-
-    # Test avec différentes métriques pour vérifier la robustesse
-    print("\n=== TEST AUTRES MÉTRIQUES ===")
-    for metric in ["euclidean", "cosine", "manhattan"]:
-        try:
-            sklearn_score = silhouette_score(X, y, metric=metric)
-            our_analysis = enhanced_silhouette_analysis(X, y, metric=metric)
-            our_score = our_analysis["global_metrics"]["silhouette_score"]
-            diff = abs(sklearn_score - our_score)
-            print(
-                f"{metric:>10}: sklearn={sklearn_score:.4f}, notre={our_score:.4f}, diff={diff:.6f}"
-            )
-        except Exception as e:
-            print(f"{metric:>10}: ERREUR - {e}")
+    return {"global_metrics": global_decomp, "cluster_analysis": cluster_analysis}
