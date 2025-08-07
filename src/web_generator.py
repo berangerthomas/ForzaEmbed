@@ -1,5 +1,6 @@
 import base64
 import os
+import zlib
 from typing import Any, Dict
 
 import msgpack
@@ -41,11 +42,12 @@ def generate_main_page(
             generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
 
     for job in generation_jobs:
-        # Sérialiser les données avec MessagePack et les encoder en Base64
+        # Sérialiser avec MessagePack, compresser avec zlib, puis encoder en Base64
         packed_data = msgpack.packb(
             job["data"], default=numpy_encoder, use_bin_type=True
         )
-        b64_data = base64.b64encode(packed_data).decode("ascii")
+        compressed_data = zlib.compress(packed_data, level=9)
+        b64_data = base64.b64encode(compressed_data).decode("ascii")
 
         css_content = """
         body {
@@ -236,7 +238,7 @@ def generate_main_page(
         js_content += r"""
         let processedData = {};
 
-        // Fonction pour décoder les données Base64 et MessagePack
+        // Fonction pour décoder les données Base64, zlib et MessagePack
         function decodeData(base64String) {
             try {
                 const byteCharacters = atob(base64String);
@@ -244,8 +246,9 @@ def generate_main_page(
                 for (let i = 0; i < byteCharacters.length; i++) {
                     byteNumbers[i] = byteCharacters.charCodeAt(i);
                 }
-                const byteArray = new Uint8Array(byteNumbers);
-                return msgpack.decode(byteArray);
+                const compressedByteArray = new Uint8Array(byteNumbers);
+                const decompressedByteArray = pako.inflate(compressedByteArray);
+                return msgpack.decode(decompressedByteArray);
             } catch (e) {
                 console.error("Failed to decode data:", e);
                 // Afficher une erreur claire à l'utilisateur
@@ -723,6 +726,7 @@ def generate_main_page(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Embedding Analysis</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
     <style>{minified_css}</style>
 </head>
