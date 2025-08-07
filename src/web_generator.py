@@ -549,18 +549,18 @@ def generate_main_page(
             }
         }
 
+        let scatterChart = null; // Variable to hold the chart instance
+
         function clearAllDisplays() {
             metricsGrid.innerHTML = '';
             heatmapContainer.innerHTML = '';
             fileLinksContainer.innerHTML = '';
-            // Purger immédiatement le graphique Plotly
-            try {
-                Plotly.purge('scatter-plot-container');
-                scatterPlotContainer.innerHTML = '';
-            } catch (e) {
-                // En cas d'erreur, forcer le nettoyage
-                scatterPlotContainer.innerHTML = '';
+            // Destroy the old chart instance if it exists
+            if (scatterChart) {
+                scatterChart.destroy();
+                scatterChart = null;
             }
+            scatterPlotContainer.innerHTML = ''; // Clear the container
         }
 
         function showEmptyState(message) {
@@ -571,76 +571,99 @@ def generate_main_page(
         }
 
         function updateScatterPlot(plotData) {
-            // Toujours purger complètement le conteneur Plotly d'abord
-            try {
-                Plotly.purge('scatter-plot-container');
-            } catch (e) {
-                console.warn('Warning: Could not purge Plotly container:', e);
+            if (scatterChart) {
+                scatterChart.destroy();
+                scatterChart = null;
             }
-            
+            scatterPlotContainer.innerHTML = ''; // Clear previous content
+
             if (!plotData || !plotData.x || !plotData.y || plotData.x.length === 0) {
                 scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No scatter plot data available for this selection.</div>';
                 return;
             }
 
-            const traces = [];
+            const canvas = document.createElement('canvas');
+            scatterPlotContainer.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+
+            const datasets = [];
             const uniqueLabels = [...new Set(plotData.labels)];
             
             const colors = {
-                'Above Threshold': 'red',
-                'Below Threshold': 'blue'
+                'Above Threshold': 'rgba(255, 99, 132, 0.7)', // red
+                'Below Threshold': 'rgba(54, 162, 235, 0.7)'  // blue
             };
 
             uniqueLabels.forEach(label => {
-                const trace = {
-                    x: [],
-                    y: [],
-                    mode: 'markers',
-                    type: 'scatter',
-                    name: label,
-                    text: [],
-                    marker: { 
-                        color: colors[label] || 'gray',
-                        size: 8,
-                        opacity: 0.7
-                    },
-                    hovertemplate: '<b>Similarity:</b> %{text}<extra></extra>'
+                const dataset = {
+                    label: label,
+                    data: [],
+                    backgroundColor: colors[label] || 'rgba(128, 128, 128, 0.7)',
+                    borderColor: colors[label] ? colors[label].replace('0.7', '1') : 'rgba(128, 128, 128, 1)',
+                    borderWidth: 1,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
                 };
                 
                 for (let i = 0; i < plotData.labels.length; i++) {
                     if (plotData.labels[i] === label) {
-                        trace.x.push(plotData.x[i]);
-                        trace.y.push(plotData.y[i]);
-                        trace.text.push(plotData.similarities[i].toFixed(4));
+                        dataset.data.push({
+                            x: plotData.x[i],
+                            y: plotData.y[i],
+                            similarity: plotData.similarities[i]
+                        });
                     }
                 }
-                traces.push(trace);
+                datasets.push(dataset);
             });
 
-            if (traces.length === 0) {
-                scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No valid traces for scatter plot.</div>';
+            if (datasets.length === 0) {
+                scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No valid data for scatter plot.</div>';
                 return;
             }
 
-            const layout = {
-                title: plotData.title || 't-SNE Visualization',
-                xaxis: { title: 't-SNE Dimension 1' },
-                yaxis: { title: 't-SNE Dimension 2' },
-                hovermode: 'closest',
-                showlegend: true,
-                legend: {
-                    x: 1,
-                    xanchor: 'right',
-                    y: 1
+            scatterChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: plotData.title || 't-SNE Visualization'
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return `Similarity: ${point.similarity.toFixed(4)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 't-SNE Dimension 1'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 't-SNE Dimension 2'
+                            }
+                        }
+                    }
                 }
-            };
-
-            // Créer le nouveau graphique avec gestion d'erreur améliorée
-            Plotly.newPlot('scatter-plot-container', traces, layout, {responsive: true})
-                .catch(err => {
-                    console.error('Error creating scatter plot:', err);
-                    scatterPlotContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Error displaying scatter plot.</div>';
-                });
+            });
         }
 
         function updateMetrics(metrics) {
@@ -726,7 +749,7 @@ def generate_main_page(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Embedding Analysis</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>{minified_css}</style>
 </head>
