@@ -124,7 +124,6 @@ class Processor:
                 embed_themes,
                 item_embed_phrases,
                 labels,
-                similarity_metric="cosine",  # Default metric for evaluation
             )
 
             # Generate t-SNE coordinates
@@ -416,9 +415,6 @@ class Processor:
                     embed_themes,
                     item_embed_phrases,
                     labels,
-                    similarity_metric=run_details[
-                        "similarity_metric"
-                    ],  # Pass the metric parameter
                 )
 
                 # Update the database (quantization will be applied automatically)

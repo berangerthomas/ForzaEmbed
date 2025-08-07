@@ -205,7 +205,7 @@ class ForzaEmbed:
         theme_name,
     ):
         """Generates a standardized run name for a parameter combination."""
-        model_name = model_config["name"]
+        model_name = model_config["name"].replace("/", "_")
         dimensions = model_config.get("dimensions", "auto")
         return f"{model_name}_d{dimensions}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
