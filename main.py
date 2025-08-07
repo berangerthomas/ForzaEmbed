@@ -60,11 +60,6 @@ def main():
         help="Generate charts with all combinations instead of the top 25.",
     )
     parser.add_argument(
-        "--refresh-metrics",
-        action="store_true",
-        help="Refresh evaluation metrics for all existing runs.",
-    )
-    parser.add_argument(
         "--single-file",
         action="store_true",
         help="Generate a single HTML file for all markdown files.",
@@ -90,8 +85,6 @@ def main():
         app.generate_reports(
             all_combinations=args.all_combinations, single_file=args.single_file
         )
-    elif args.refresh_metrics:
-        app.refresh_metrics()
     else:
         logging.info(
             "No main action specified. Use --run to start the pipeline or "

@@ -2,7 +2,7 @@
 Décomposition du score silhouette en cohésion intra-cluster et séparation inter-cluster
 """
 
-from typing import Dict
+from typing import Any, Dict
 
 import numpy as np
 from sklearn.metrics import pairwise_distances, silhouette_samples, silhouette_score
@@ -117,7 +117,9 @@ def analyze_silhouette_by_cluster(
     if len(np.unique(labels)) < 2:
         return {}
 
-    sample_scores = silhouette_samples(embeddings, labels, metric=metric)
+    sample_scores: np.ndarray = np.array(
+        silhouette_samples(embeddings, labels, metric=metric)
+    )
     unique_labels = np.unique(labels)
 
     cluster_analysis = {}
@@ -125,6 +127,9 @@ def analyze_silhouette_by_cluster(
     for label in unique_labels:
         cluster_mask = labels == label
         cluster_silhouettes = sample_scores[cluster_mask]
+
+        if cluster_silhouettes.size == 0:
+            continue
 
         cluster_analysis[int(label)] = {
             "mean_silhouette": float(np.mean(cluster_silhouettes)),
@@ -140,7 +145,7 @@ def analyze_silhouette_by_cluster(
 
 def enhanced_silhouette_analysis(
     embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
-) -> Dict[str, any]:
+) -> Dict[str, Any]:
     """
     Analyse complète du clustering avec décomposition silhouette.
 
@@ -152,34 +157,36 @@ def enhanced_silhouette_analysis(
     cluster_analysis = analyze_silhouette_by_cluster(embeddings, labels, metric)
 
     # Diagnostics supplémentaires
-    diagnostics = {}
+    diagnostics = {
+        "limiting_factor": "N/A",
+        "improvement_suggestion": "N/A",
+        "balance_ratio": 0.0,
+        "problematic_clusters": [],
+    }
 
     if len(cluster_analysis) > 0:
-        # Quel facteur limite le plus le score ?
-        intra_quality = global_decomp["intra_cluster_quality"]
-        inter_separation = global_decomp["inter_cluster_separation"]
+        intra_quality = global_decomp.get("intra_cluster_quality", 0.0)
+        inter_separation = global_decomp.get("inter_cluster_separation", 0.0)
 
         if intra_quality < inter_separation:
-            limiting_factor = "cohésion intra-cluster"
-            improvement_suggestion = "Améliorer la compacité des clusters"
+            diagnostics["limiting_factor"] = "cohésion intra-cluster"
+            diagnostics["improvement_suggestion"] = (
+                "Améliorer la compacité des clusters"
+            )
         else:
-            limiting_factor = "séparation inter-cluster"
-            improvement_suggestion = "Améliorer la séparation entre clusters"
+            diagnostics["limiting_factor"] = "séparation inter-cluster"
+            diagnostics["improvement_suggestion"] = (
+                "Améliorer la séparation entre clusters"
+            )
 
-        diagnostics = {
-            "limiting_factor": limiting_factor,
-            "improvement_suggestion": improvement_suggestion,
-            "balance_ratio": intra_quality / inter_separation
-            if inter_separation > 0
-            else 0,
-        }
+        if inter_separation > 0:
+            diagnostics["balance_ratio"] = intra_quality / inter_separation
 
-        # Identification des clusters problématiques
-        problematic_clusters = []
-        for cluster_id, stats in cluster_analysis.items():
-            if stats["mean_silhouette"] < 0.3:  # Seuil arbitraire
-                problematic_clusters.append(cluster_id)
-
+        problematic_clusters = [
+            cid
+            for cid, stats in cluster_analysis.items()
+            if stats.get("mean_silhouette", 0.0) < 0.3
+        ]
         diagnostics["problematic_clusters"] = problematic_clusters
 
     return {
@@ -189,14 +196,82 @@ def enhanced_silhouette_analysis(
     }
 
 
+def validate_metrics_consistency(metrics: Dict[str, float]) -> Dict[str, str]:
+    """
+    Validate that metrics are consistent and within expected ranges.
+
+    Returns:
+        Dict of validation messages for each metric
+    """
+    validation = {}
+
+    # Check internal coherence score
+    ics = metrics.get("internal_coherence_score")
+    if ics is not None:
+        if 0 <= ics <= 0.1:
+            validation["internal_coherence_score"] = "Excellent"
+        elif ics <= 0.3:
+            validation["internal_coherence_score"] = "Good"
+        elif ics <= 0.5:
+            validation["internal_coherence_score"] = "Fair"
+        else:
+            validation["internal_coherence_score"] = "Poor"
+
+    # Check local density index
+    ldi = metrics.get("local_density_index")
+    if ldi is not None:
+        if ldi >= 0.8:
+            validation["local_density_index"] = "Excellent"
+        elif ldi >= 0.6:
+            validation["local_density_index"] = "Good"
+        elif ldi >= 0.4:
+            validation["local_density_index"] = "Fair"
+        else:
+            validation["local_density_index"] = "Poor"
+
+    # Check robustness score
+    rs = metrics.get("robustness_score")
+    if rs is not None:
+        if rs >= 0.95:
+            validation["robustness_score"] = "Very Robust"
+        elif rs >= 0.9:
+            validation["robustness_score"] = "Robust"
+        elif rs >= 0.8:
+            validation["robustness_score"] = "Moderate"
+        else:
+            validation["robustness_score"] = "Fragile"
+
+    # Check silhouette score
+    ss = metrics.get("silhouette_score")
+    if ss is not None:
+        if ss >= 0.7:
+            validation["silhouette_score"] = "Excellent"
+        elif ss >= 0.5:
+            validation["silhouette_score"] = "Good"
+        elif ss >= 0.3:
+            validation["silhouette_score"] = "Fair"
+        elif ss >= 0:
+            validation["silhouette_score"] = "Poor"
+        else:
+            validation["silhouette_score"] = "Very Poor"
+
+    return validation
+
+
 # Exemple d'utilisation avec vérification
 if __name__ == "__main__":
     from sklearn.datasets import make_blobs
 
     # Données de test
-    X, y = make_blobs(
-        n_samples=3000, centers=2, n_features=2, random_state=42, cluster_std=1.5
+    blobs = make_blobs(
+        n_samples=3000,
+        centers=2,
+        n_features=2,
+        random_state=42,
+        cluster_std=1.5,
+        return_centers=False,
     )
+    X, y = blobs[0], blobs[1]
 
     # VÉRIFICATION: Comparaison avec sklearn
     sklearn_silhouette = silhouette_score(X, y, metric="euclidean")

@@ -43,8 +43,17 @@ class ForzaEmbed:
             config_path (str): Path to the YAML configuration file.
         """
         self.db_path = Path(db_path)
-        self.db = EmbeddingDatabase(str(self.db_path))
         self.config = self._load_config(grid_search_params, models_to_test, config_path)
+
+        # Initialize database with quantization settings
+        db_config = self.config.get("database", {})
+        quantize = db_config.get("quantize", False)
+        intelligent_quantization = db_config.get("intelligent_quantization", False)
+        self.db = EmbeddingDatabase(
+            str(self.db_path),
+            quantize=quantize,
+            intelligent_quantization=intelligent_quantization,
+        )
 
         # Ensure output directory exists
         self.output_dir = Path(self.config.get("output_dir", "data/output"))
@@ -226,157 +235,6 @@ class ForzaEmbed:
         """
         top_n = None if all_combinations else 25
         self.report_generator.generate_all(top_n=top_n, single_file=single_file)
-
-    def _setup_database(self):
-        """Set up the database schema."""
-        create_table_sql = """
-        CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL,
-            model_name TEXT NOT NULL,
-            chunk_method TEXT NOT NULL,
-            chunk_size INTEGER,
-            chunk_overlap INTEGER,
-            similarity_metric TEXT NOT NULL,
-            similarity_threshold REAL NOT NULL,
-            min_chunks_per_theme INTEGER NOT NULL,
-            max_themes INTEGER NOT NULL,
-            num_chunks INTEGER,
-            num_themes INTEGER,
-            intra_cluster_distance_normalized REAL,
-            inter_cluster_distance_normalized REAL,
-            silhouette_score REAL,
-            local_density_index REAL,
-            internal_coherence_score REAL,
-            robustness_score REAL,
-            execution_time REAL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(filename, model_name, chunk_method, chunk_size, chunk_overlap, similarity_metric, similarity_threshold, min_chunks_per_theme, max_themes)
-        )
-        """
-        self.cursor.execute(create_table_sql)
-        self.db_connection.commit()
-
-    def _save_results(self, filename: str, config: dict, results: dict):
-        """Save results to the database."""
-        insert_sql = """
-        INSERT OR REPLACE INTO results (
-            filename, model_name, chunk_method, chunk_size, chunk_overlap,
-            similarity_metric, similarity_threshold, min_chunks_per_theme, max_themes,
-            num_chunks, num_themes, intra_cluster_distance_normalized, inter_cluster_distance_normalized,
-            silhouette_score, local_density_index, internal_coherence_score, robustness_score,
-            execution_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-
-        values = (
-            filename,
-            config["model_name"],
-            config["chunk_method"],
-            config.get("chunk_size"),
-            config.get("chunk_overlap"),
-            config["similarity_metric"],
-            config["similarity_threshold"],
-            config["min_chunks_per_theme"],
-            config["max_themes"],
-            results.get("num_chunks"),
-            results.get("num_themes"),
-            results.get("intra_cluster_distance_normalized"),
-            results.get("inter_cluster_distance_normalized"),
-            results.get("silhouette_score"),
-            results.get("local_density_index"),
-            results.get("internal_coherence_score"),
-            results.get("robustness_score"),
-            results.get("execution_time"),
-        )
-
-        self.cursor.execute(insert_sql, values)
-        self.db_connection.commit()
-
-    def refresh_metrics(self):
-        """Refresh evaluation metrics for all existing runs."""
-        logging.info("Refreshing evaluation metrics for all existing runs...")
-
-        # Get all unique combinations that have been run
-        query = """
-        SELECT DISTINCT filename, model_name, chunk_method, chunk_size, chunk_overlap,
-                       similarity_metric, similarity_threshold, min_chunks_per_theme, max_themes
-        FROM results
-        """
-        self.cursor.execute(query)
-        combinations = self.cursor.fetchall()
-
-        for combination in combinations:
-            (
-                filename,
-                model_name,
-                chunk_method,
-                chunk_size,
-                chunk_overlap,
-                similarity_metric,
-                similarity_threshold,
-                min_chunks_per_theme,
-                max_themes,
-            ) = combination
-
-            config = {
-                "model_name": model_name,
-                "chunk_method": chunk_method,
-                "chunk_size": chunk_size,
-                "chunk_overlap": chunk_overlap,
-                "similarity_metric": similarity_metric,
-                "similarity_threshold": similarity_threshold,
-                "min_chunks_per_theme": min_chunks_per_theme,
-                "max_themes": max_themes,
-            }
-
-            try:
-                # Re-run the processing to get fresh metrics
-                results = self._process_single_combination(filename, config)
-
-                # Update only the metrics columns
-                update_sql = """
-                UPDATE results SET
-                    intra_cluster_distance_normalized = ?,
-                    inter_cluster_distance_normalized = ?,
-                    silhouette_score = ?,
-                    local_density_index = ?,
-                    internal_coherence_score = ?,
-                    robustness_score = ?
-                WHERE filename = ? AND model_name = ? AND chunk_method = ? AND
-                      chunk_size = ? AND chunk_overlap = ? AND similarity_metric = ? AND
-                      similarity_threshold = ? AND min_chunks_per_theme = ? AND max_themes = ?
-                """
-
-                update_values = (
-                    results.get("intra_cluster_distance_normalized"),
-                    results.get("inter_cluster_distance_normalized"),
-                    results.get("silhouette_score"),
-                    results.get("local_density_index"),
-                    results.get("internal_coherence_score"),
-                    results.get("robustness_score"),
-                    filename,
-                    model_name,
-                    chunk_method,
-                    chunk_size,
-                    chunk_overlap,
-                    similarity_metric,
-                    similarity_threshold,
-                    min_chunks_per_theme,
-                    max_themes,
-                )
-
-                self.cursor.execute(update_sql, update_values)
-                self.db_connection.commit()
-
-                logging.info(f"Refreshed metrics for {filename} with {model_name}")
-
-            except Exception as e:
-                logging.error(
-                    f"Error refreshing metrics for {filename} with {model_name}: {e}"
-                )
-
-        logging.info("Finished refreshing evaluation metrics.")
 
     def clear_database(self):
         """Clears all data from the main database."""

@@ -3,9 +3,11 @@
 from typing import Dict, List
 
 import numpy as np
-from sklearn.metrics import pairwise_distances
+from sklearn.metrics import pairwise_distances, silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
+
+from .silhouette_decomposition import enhanced_silhouette_analysis
 
 
 def coherence_score(ref_embeddings: np.ndarray, doc_embeddings: np.ndarray) -> float:
@@ -222,16 +224,11 @@ def calculate_silhouette_metrics(
     a_values = np.array(a_values)
     b_values = np.array(b_values)
 
-    # Calculate silhouette score
-    silhouette_values = []
-    for i in range(n_samples):
-        if max(a_values[i], b_values[i]) > 0:
-            s_i = (b_values[i] - a_values[i]) / max(a_values[i], b_values[i])
-        else:
-            s_i = 0.0
-        silhouette_values.append(s_i)
-
-    silhouette_computed = np.mean(silhouette_values)
+    # Calculate silhouette score using sklearn for robustness
+    try:
+        silhouette_computed = silhouette_score(embeddings, labels, metric=metric)
+    except (ValueError, IndexError):
+        silhouette_computed = -1.0
 
     # Normalize metrics for interpretability
     max_possible_distance = (
@@ -247,7 +244,7 @@ def calculate_silhouette_metrics(
     inter_normalized = np.mean(b_values) / max_possible_distance
 
     return {
-        "intra_cluster_distance_normalized": float(max(0.0, intra_normalized)),
+        "intra_cluster_distance_normalized": float(max(0.0, float(intra_normalized))),
         "inter_cluster_distance_normalized": float(inter_normalized),
         "silhouette_score": float(silhouette_computed),
     }
@@ -296,6 +293,8 @@ def calculate_all_metrics(
     ref_embeddings: np.ndarray,
     doc_embeddings: np.ndarray,
     doc_labels: np.ndarray,
+    similarity_metric: str = "cosine",
+    use_silhouette_decomposition: bool = True,
 ) -> Dict[str, float]:
     """Calculates and combines all evaluation metrics.
 
@@ -307,6 +306,8 @@ def calculate_all_metrics(
         ref_embeddings (np.ndarray): Embeddings for reference themes.
         doc_embeddings (np.ndarray): Embeddings for document chunks.
         doc_labels (np.ndarray): Theme labels for each document chunk.
+        similarity_metric (str): Similarity metric used for theme assignment (not used for clustering evaluation).
+        use_silhouette_decomposition (bool): Whether to use enhanced silhouette decomposition.
 
     Returns:
         Dict[str, float]: A dictionary containing all calculated metrics.
@@ -322,5 +323,36 @@ def calculate_all_metrics(
         ref_embeddings, doc_embeddings
     )
     all_metrics["robustness_score"] = robustness_score(ref_embeddings, doc_embeddings)
+
+    # Enhanced silhouette analysis
+    if use_silhouette_decomposition:
+        silhouette_analysis = enhanced_silhouette_analysis(
+            doc_embeddings, doc_labels, similarity_metric
+        )
+        global_metrics = silhouette_analysis["global_metrics"]
+
+        all_metrics.update(
+            {
+                "silhouette_score": global_metrics["silhouette_score"],
+                "intra_cluster_distance_normalized": global_metrics[
+                    "intra_cluster_quality"
+                ],
+                "inter_cluster_distance_normalized": global_metrics[
+                    "inter_cluster_separation"
+                ],
+            }
+        )
+    else:
+        # Fallback to simple silhouette score
+        try:
+            score = silhouette_score(
+                doc_embeddings, doc_labels, metric=similarity_metric
+            )
+            all_metrics["silhouette_score"] = float(score)
+        except:
+            all_metrics["silhouette_score"] = -1.0
+
+        all_metrics["intra_cluster_distance_normalized"] = 0.0
+        all_metrics["inter_cluster_distance_normalized"] = 0.0
 
     return all_metrics

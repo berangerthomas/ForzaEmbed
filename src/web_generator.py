@@ -13,11 +13,15 @@ def numpy_encoder(o: Any) -> Any:
     """Custom encoder for JSON to handle NumPy data types."""
     if isinstance(o, np.integer):
         return int(o)
-    if isinstance(o, np.floating):
+    elif isinstance(o, np.floating):
         return float(o)
-    if isinstance(o, np.ndarray):
+    elif isinstance(o, np.ndarray):
         return o.tolist()
-    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+    elif isinstance(o, np.number) and hasattr(o, "dtype") and o.dtype == np.uint16:
+        # Handle quantized similarity data
+        return float(o) / 65535.0
+    else:
+        return o
 
 
 def generate_main_page(
@@ -259,12 +263,12 @@ def generate_main_page(
         }
 
         const metricTooltips = {
-            'internal_coherence_score': "Internal Coherence Score (ICS). Assesses the stability and predictability of the similarity measurement system. A lower score is better, indicating higher coherence. (ICS < 0.1: Excellent, > 0.5: Poor).",
-            'local_density_index': "Local Density Index (LDI). Assesses if an embedding's nearest neighbors belong the same theme. A higher score is better, indicating a strong thematic structure. (LDI > 0.8: Good, < 0.5: Poor).",
-            'robustness_score': "Robustness Score (RS). Tests the system's stability against random noise. A higher score (closer to 1.0) is better, indicating it is not affected by minor perturbations. (RS > 0.95: Very Robust, < 0.80: Fragile).",
-            'intra_cluster_distance_normalized': "Intra-Cluster Quality (Cohesion). Measures how close the texts of the same theme are to each other. A higher score (close to 1) is better. (> 0.8: Excellent)",
-            'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how distinct different themes are from each other. A higher score (close to 1) is better. (> 0.7: Excellent)",
-            'silhouette_score': "Silhouette Score. A global measure of clustering quality, combining cohesion and separation. Ranges from -1 to 1. A high value (close to 1) indicates dense and well-separated clusters."
+            'internal_coherence_score': "Internal Coherence Score (ICS). Measures stability and predictability of similarity measurements. LOWER IS BETTER. (< 0.1: Excellent, 0.1-0.3: Good, 0.3-0.5: Fair, > 0.5: Poor)",
+            'local_density_index': "Local Density Index (LDI). Measures if embeddings' nearest neighbors belong to the same theme. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
+            'robustness_score': "Robustness Score (RS). Tests stability against random noise. HIGHER IS BETTER. (> 0.95: Very Robust, 0.9-0.95: Robust, 0.8-0.9: Moderate, < 0.8: Fragile)",
+            'intra_cluster_distance_normalized': "Intra-Cluster Cohesion. Measures how tightly grouped texts of the same theme are. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
+            'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how well different themes are separated. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, < 0.3: Poor)",
+            'silhouette_score': "Silhouette Score. Global clustering quality combining cohesion and separation. Range: -1 to 1. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, 0-0.3: Poor, < 0: Very Poor)"
         };
 
         const fileSlider = document.getElementById('file-slider');
@@ -299,7 +303,17 @@ def generate_main_page(
         };
 
         const createCmap = (colorSet) => (score) => {
-            if (typeof score !== 'number' || isNaN(score)) score = 0.5;
+            // Ensure score is a number and normalize to [0,1]
+            if (typeof score !== 'number' || isNaN(score)) score = 0.0;
+            
+            // If score appears to be quantized (integer > 1), dequantize it
+            if (score > 1.0 && Number.isInteger(score)) {
+                score = Math.min(score, 65535) / 65535.0;
+            }
+            
+            // Clamp to [0,1] range
+            score = Math.max(0.0, Math.min(1.0, score));
+            
             const i = Math.min(Math.floor(score * (colorSet.length - 1)), colorSet.length - 2);
             const t = (score * (colorSet.length - 1)) % 1;
             const r = Math.round(colorSet[i].r * (1 - t) + colorSet[i+1].r * t);
@@ -312,33 +326,135 @@ def generate_main_page(
         };
 
         const cmap_heatmap = createCmap([
-            { r: 43, g: 131, b: 186 }, // Low similarity
-            { r: 171, g: 221, b: 164 },
-            { r: 255, g: 255, b: 191 }, // Neutral
-            { r: 253, g: 174, b: 97 },
-            { r: 215, g: 25, b: 28 }    // High similarity
+            { r: 215, g: 25, b: 28 },    // Poor/Low similarity (Red)
+            { r: 253, g: 174, b: 97 },   // Orange
+            { r: 255, g: 255, b: 191 }, // Neutral (Yellow)
+            { r: 171, g: 221, b: 164 },  // Light Green
+            { r: 43, g: 131, b: 186 }    // Excellent/High similarity (Blue/Green)
         ]);
 
         function getMetricColor(metricKey, value) {
-            // Couleurs basées sur le type de métrique et sa valeur
-            const metricRanges = {
-                'internal_coherence_score': { min: 0, max: 1, invert: true }, // Plus bas = mieux
-                'local_density_index': { min: 0, max: 1, invert: false },     // Plus haut = mieux
-                'robustness_score': { min: 0, max: 1, invert: false },        // Plus haut = mieux
-                'intra_cluster_distance_normalized': { min: 0, max: 1, invert: false },
-                'inter_cluster_distance_normalized': { min: 0, max: 1, invert: false },
-                'silhouette_score': { min: -1, max: 1, invert: false }        // Plus haut = mieux
+            // Configuration for each metric: min, max, and whether good values are high (false) or low (true)
+            const metricConfigs = {
+                'internal_coherence_score': { 
+                    min: 0, 
+                    max: 1, 
+                    lowerIsBetter: true,  // RED when high, GREEN when low
+                    excellentThreshold: 0.1,
+                    goodThreshold: 0.3,
+                    fairThreshold: 0.5
+                },
+                'local_density_index': { 
+                    min: 0, 
+                    max: 1, 
+                    lowerIsBetter: false, // GREEN when high, RED when low
+                    excellentThreshold: 0.8,
+                    goodThreshold: 0.6,
+                    fairThreshold: 0.4
+                },
+                'robustness_score': { 
+                    min: 0, 
+                    max: 1, 
+                    lowerIsBetter: false, // GREEN when high, RED when low
+                    excellentThreshold: 0.95,
+                    goodThreshold: 0.9,
+                    fairThreshold: 0.8
+                },
+                'intra_cluster_distance_normalized': { 
+                    min: 0, 
+                    max: 1, 
+                    lowerIsBetter: false, // GREEN when high, RED when low
+                    excellentThreshold: 0.8,
+                    goodThreshold: 0.6,
+                    fairThreshold: 0.4
+                },
+                'inter_cluster_distance_normalized': { 
+                    min: 0, 
+                    max: 1, 
+                    lowerIsBetter: false, // GREEN when high, RED when low
+                    excellentThreshold: 0.7,
+                    goodThreshold: 0.5,
+                    fairThreshold: 0.3
+                },
+                'silhouette_score': { 
+                    min: -1, 
+                    max: 1, 
+                    lowerIsBetter: false, // GREEN when high, RED when low
+                    excellentThreshold: 0.7,
+                    goodThreshold: 0.5,
+                    fairThreshold: 0.3,
+                    poorThreshold: 0.0
+                }
             };
 
-            const range = metricRanges[metricKey] || { min: 0, max: 1, invert: false };
-            let normalizedValue = (value - range.min) / (range.max - range.min);
-            
-            if (range.invert) {
-                normalizedValue = 1 - normalizedValue;
+            const config = metricConfigs[metricKey];
+            if (!config) {
+                // Default for unknown metrics
+                return cmap_heatmap(0.5);
             }
+
+            // Handle quantized values: if integer > 1, likely quantized
+            if (typeof value === 'number' && value > 1 && Number.isInteger(value)) {
+                // Dequantize based on metric type
+                if (metricKey === 'silhouette_score') {
+                    // Silhouette was stored as [0,65535] mapping to [-1,1]
+                    value = ((value / 65535.0) * 2.0) - 1.0;
+                } else if (metricKey === 'internal_coherence_score') {
+                    // Coherence was inverted: 1 - (value/65535)
+                    value = 1.0 - (value / 65535.0);
+                } else {
+                    // Standard [0,1] metrics
+                    value = value / 65535.0;
+                }
+            }
+
+            // Clamp value to expected range
+            value = Math.max(config.min, Math.min(config.max, value));
+
+            // Determine quality level based on thresholds
+            let qualityScore;
             
-            // Utiliser la même palette que pour la heatmap
-            return cmap_heatmap(Math.max(0, Math.min(1, normalizedValue)));
+            if (config.lowerIsBetter) {
+                // For metrics where lower is better (like internal_coherence_score)
+                if (value <= config.excellentThreshold) {
+                    qualityScore = 1.0; // Excellent
+                } else if (value <= config.goodThreshold) {
+                    qualityScore = 0.75; // Good
+                } else if (value <= config.fairThreshold) {
+                    qualityScore = 0.5; // Fair
+                } else {
+                    qualityScore = 0.0; // Poor
+                }
+            } else {
+                // For metrics where higher is better
+                if (metricKey === 'silhouette_score') {
+                    // Special handling for silhouette score with negative values
+                    if (value >= config.excellentThreshold) {
+                        qualityScore = 1.0; // Excellent
+                    } else if (value >= config.goodThreshold) {
+                        qualityScore = 0.75; // Good
+                    } else if (value >= config.fairThreshold) {
+                        qualityScore = 0.5; // Fair
+                    } else if (value >= (config.poorThreshold || 0)) {
+                        qualityScore = 0.25; // Poor
+                    } else {
+                        qualityScore = 0.0; // Very Poor
+                    }
+                } else {
+                    // Standard higher-is-better metrics
+                    if (value >= config.excellentThreshold) {
+                        qualityScore = 1.0; // Excellent
+                    } else if (value >= config.goodThreshold) {
+                        qualityScore = 0.75; // Good
+                    } else if (value >= config.fairThreshold) {
+                        qualityScore = 0.5; // Fair
+                    } else {
+                        qualityScore = 0.0; // Poor
+                    }
+                }
+            }
+
+            return cmap_heatmap(qualityScore);
         }
 
         function parseEmbeddingKey(key) {
@@ -713,8 +829,18 @@ def generate_main_page(
 
             const content = document.createElement('p');
 
+            // Normalize similarities to ensure proper color mapping
+            const normalizedSimilarities = similarities.map(score => {
+                if (typeof score !== 'number' || isNaN(score)) return 0.0;
+                // If score appears quantized, dequantize it
+                if (score > 1.0 && Number.isInteger(score)) {
+                    score = Math.min(score, 65535) / 65535.0;
+                }
+                return Math.max(0.0, Math.min(1.0, score));
+            });
+
             phrases.forEach((phrase, index) => {
-                const score = similarities[index] || 0;
+                const score = normalizedSimilarities[index];
                 const colorInfo = cmap_heatmap(score);
                 
                 const span = document.createElement('span');

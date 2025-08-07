@@ -69,6 +69,15 @@ models_to_test:
 similarity_threshold: 0.6
 output_dir: "data/heatmaps"
 
+# Database settings
+database:
+  # Enable intelligent quantization based on data type to reduce storage size.
+  # - Similarity metrics [0,1] → uint16 (65536 levels)
+  # - 2D coordinates → float16
+  # - Other float64 → float32
+  # - Embeddings normalized [-1,1] → float16
+  intelligent_quantization: true
+
 # Multiprocessing settings
 multiprocessing:
   max_workers_api: 16

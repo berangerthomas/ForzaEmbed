@@ -48,9 +48,11 @@ class Processor:
         results = {"files": {}}
 
         embedding_function = self._get_embedding_function(model_config)
+        # Use the base model name for caching, as embeddings are model-specific
+        base_model_name = model_config["name"]
 
         themes_embeddings_map = self._get_or_create_embeddings(
-            embedding_function, model_name, themes
+            embedding_function, base_model_name, themes
         )
 
         unprocessed_rows = [row for row in rows if row[0] not in processed_files]
@@ -90,7 +92,7 @@ class Processor:
                 continue
 
             all_embeddings_map = self._get_or_create_embeddings(
-                embedding_function, model_name, item_phrases
+                embedding_function, base_model_name, item_phrases
             )
 
             phrase_hashes = {p: self.get_text_hash(p) for p in item_phrases}
@@ -117,7 +119,10 @@ class Processor:
             labels = np.argmax(similarites, axis=0)
 
             all_metrics = calculate_all_metrics(
-                embed_themes, item_embed_phrases, labels
+                embed_themes,
+                item_embed_phrases,
+                labels,
+                similarity_metric=similarity_metric,  # Pass the metric parameter
             )
 
             scatter_plot_data = None
@@ -160,7 +165,9 @@ class Processor:
 
             results["files"][identifiant] = {
                 "phrases": item_phrases,
-                "similarities": similarites.max(axis=0),
+                "similarities": similarites.max(
+                    axis=0
+                ).tolist(),  # Ensure it's a list of floats
                 "metrics": {
                     **all_metrics,
                     "mean_similarity": float(np.mean(similarites.max(axis=0))),
@@ -296,11 +303,13 @@ class Processor:
         logging.info(f"Found {len(all_run_names)} runs to refresh.")
 
         for run_name in all_run_names:
-            logging.info(f"Refreshing metrics for run: {run_name}")
             run_details = self.db.get_run_details(run_name)
             if not run_details:
-                logging.warning(f"Could not find details for run: {run_name}")
                 continue
+
+            all_processing_results = self.db.get_all_processing_results_for_run(
+                run_name
+            )
 
             # Get themes for the run
             theme_name = run_details["theme_name"]
@@ -311,10 +320,10 @@ class Processor:
 
             # Get theme embeddings
             embedding_function = self._get_embedding_function(
-                {"type": run_details["model_type"], "name": run_details["model_name"]}
+                {"type": run_details["type"], "name": run_details["base_model_name"]}
             )
             themes_embeddings_map = self._get_or_create_embeddings(
-                embedding_function, run_details["model_name"], themes
+                embedding_function, run_details["base_model_name"], themes
             )
             theme_hashes = [self.get_text_hash(theme) for theme in themes]
             embed_themes_list = [
@@ -327,14 +336,15 @@ class Processor:
             # Get all processed files for the run
             processed_files_data = self.db.get_all_processing_results_for_run(run_name)
 
-            for file_id, file_data in processed_files_data.items():
-                item_phrases = file_data["phrases"]
+            for file_id, file_results in all_processing_results.items():
+                # Data is automatically restored from quantization by get_all_processing_results_for_run
+                item_phrases = file_results["phrases"]
                 if not item_phrases:
                     continue
 
                 # Get phrase embeddings
                 all_embeddings_map = self._get_or_create_embeddings(
-                    embedding_function, run_details["model_name"], item_phrases
+                    embedding_function, run_details["base_model_name"], item_phrases
                 )
                 phrase_hashes = {p: self.get_text_hash(p) for p in item_phrases}
                 item_embed_phrases = np.array(
@@ -359,8 +369,11 @@ class Processor:
                     embed_themes,
                     item_embed_phrases,
                     labels,
+                    similarity_metric=run_details[
+                        "similarity_metric"
+                    ],  # Pass the metric parameter
                 )
 
-                # Update the database
+                # Update the database (quantization will be applied automatically)
                 self.db.update_metrics_for_file(run_name, file_id, all_metrics)
         logging.info("Finished refreshing all metrics.")

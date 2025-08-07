@@ -1,7 +1,7 @@
 import logging
 import textwrap
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import joblib
 import matplotlib.pyplot as plt
@@ -98,7 +98,11 @@ class ReportGenerator:
             model_info = self.db.get_model_info(model_name)
             if not model_info:
                 continue
-            base_model_name = model_info["model_name"]
+
+            model_embeddings_for_variance[model_name] = {
+                "embeddings": model_results.get("embeddings", []),
+                "labels": model_results.get("labels", []),
+            }
 
             for file_id, file_data in model_results.get("files", {}).items():
                 file_entry = processed_data_for_interactive_page["files"].setdefault(
@@ -114,7 +118,7 @@ class ReportGenerator:
             metrics_list = [
                 res["metrics"]
                 for res in model_results.get("files", {}).values()
-                if res and "metrics" in res
+                if "metrics" in res
             ]
             if metrics_list:
                 avg_metrics = {
@@ -147,7 +151,7 @@ class ReportGenerator:
                 return round(obj, 4)
             return obj
 
-        return round_floats(data)
+        return cast(Dict[str, Any], round_floats(data))
 
     def _generate_main_web_page(
         self, processed_data, total_combinations, single_file: bool = False
@@ -230,10 +234,10 @@ class ReportGenerator:
     def _generate_radar_chart(self, df: pd.DataFrame) -> Path | None:
         """Generates a radar chart for the most important metrics."""
         metrics_for_radar = {
-            "discriminant_score": True,
-            "silhouette": True,
-            "cohesion": False,
-            "separation": True,
+            "silhouette_score": True,
+            "inter_cluster_distance_normalized": True,
+            "intra_cluster_distance_normalized": True,
+            "internal_coherence_score": False,
         }
 
         plot_metrics = [m for m in metrics_for_radar if m in df.columns]
@@ -310,10 +314,12 @@ class ReportGenerator:
             df = df.head(top_n)
 
         metric_preferences = {
-            "cohesion": False,
-            "separation": True,
-            "discriminant_score": True,
-            "silhouette": True,
+            "intra_cluster_distance_normalized": True,
+            "inter_cluster_distance_normalized": True,
+            "silhouette_score": True,
+            "local_density_index": True,
+            "internal_coherence_score": False,
+            "robustness_score": True,
         }
 
         metrics_to_plot = [m for m in metric_preferences if m in df.columns]
