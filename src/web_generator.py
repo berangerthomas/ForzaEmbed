@@ -1,23 +1,23 @@
 import base64
+import json
 import os
 import zlib
 from typing import Any, Dict
 
-import msgpack
 import numpy as np
 from cssmin import cssmin
 from jsmin import jsmin
 
 
 def numpy_encoder(o: Any) -> Any:
-    """Custom encoder for msgpack to handle NumPy data types."""
+    """Custom encoder for JSON to handle NumPy data types."""
     if isinstance(o, np.integer):
         return int(o)
     if isinstance(o, np.floating):
         return float(o)
     if isinstance(o, np.ndarray):
         return o.tolist()
-    return o
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 
 def generate_main_page(
@@ -42,10 +42,9 @@ def generate_main_page(
             generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
 
     for job in generation_jobs:
-        # Sérialiser avec MessagePack, compresser avec zlib, puis encoder en Base64
-        packed_data = msgpack.packb(
-            job["data"], default=numpy_encoder, use_bin_type=True
-        )
+        # Sérialiser avec JSON, compresser avec zlib, puis encoder en Base64
+        json_string = json.dumps(job["data"], default=numpy_encoder)
+        packed_data = json_string.encode("utf-8")
         compressed_data = zlib.compress(packed_data, level=9)
         b64_data = base64.b64encode(compressed_data).decode("ascii")
 
@@ -238,7 +237,7 @@ def generate_main_page(
         js_content += r"""
         let processedData = {};
 
-        // Fonction pour décoder les données Base64, zlib et MessagePack
+        // Fonction pour décoder les données Base64, zlib et JSON
         function decodeData(base64String) {
             try {
                 const byteCharacters = atob(base64String);
@@ -248,7 +247,9 @@ def generate_main_page(
                 }
                 const compressedByteArray = new Uint8Array(byteNumbers);
                 const decompressedByteArray = pako.inflate(compressedByteArray);
-                return msgpack.decode(decompressedByteArray);
+                // Use a TextDecoder to convert the Uint8Array to a string
+                const jsonString = new TextDecoder().decode(decompressedByteArray);
+                return JSON.parse(jsonString);
             } catch (e) {
                 console.error("Failed to decode data:", e);
                 // Afficher une erreur claire à l'utilisateur
@@ -727,7 +728,6 @@ def generate_main_page(
     <title>Embedding Analysis</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
     <style>{minified_css}</style>
 </head>
 <body>
