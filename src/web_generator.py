@@ -1,23 +1,22 @@
-import json
+import base64
 import os
 from typing import Any, Dict
 
+import msgpack
 import numpy as np
 from cssmin import cssmin
 from jsmin import jsmin
 
 
-class NumpyJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder for NumPy data types."""
-
-    def default(self, o):
-        if isinstance(o, np.integer):
-            return int(o)
-        if isinstance(o, np.floating):
-            return float(o)
-        if isinstance(o, np.ndarray):
-            return o.tolist()
-        return super().default(o)
+def numpy_encoder(o: Any) -> Any:
+    """Custom encoder for msgpack to handle NumPy data types."""
+    if isinstance(o, np.integer):
+        return int(o)
+    if isinstance(o, np.floating):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    return o
 
 
 def generate_main_page(
@@ -42,8 +41,11 @@ def generate_main_page(
             generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
 
     for job in generation_jobs:
-        # Minify JSON, CSS, and JS
-        data_json = json.dumps(job["data"], cls=NumpyJSONEncoder)
+        # Sérialiser les données avec MessagePack et les encoder en Base64
+        packed_data = msgpack.packb(
+            job["data"], default=numpy_encoder, use_bin_type=True
+        )
+        b64_data = base64.b64encode(packed_data).decode("ascii")
 
         css_content = """
         body {
@@ -230,8 +232,28 @@ def generate_main_page(
         """
         minified_css = cssmin(css_content)
 
-        js_content = f"const processedData = {data_json};\n"
+        js_content = f"const b64Data = '{b64_data}';\n"
         js_content += r"""
+        let processedData = {};
+
+        // Fonction pour décoder les données Base64 et MessagePack
+        function decodeData(base64String) {
+            try {
+                const byteCharacters = atob(base64String);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                return msgpack.decode(byteArray);
+            } catch (e) {
+                console.error("Failed to decode data:", e);
+                // Afficher une erreur claire à l'utilisateur
+                document.body.innerHTML = '<div style="padding: 20px; text-align: center; font-size: 1.2em; color: red;">Error: Could not load report data. The data may be corrupted.</div>';
+                return null;
+            }
+        }
+
         const metricTooltips = {
             'internal_coherence_score': "Internal Coherence Score (ICS). Assesses the stability and predictability of the similarity measurement system. A lower score is better, indicating higher coherence. (ICS < 0.1: Excellent, > 0.5: Poor).",
             'local_density_index': "Local Density Index (LDI). Assesses if an embedding's nearest neighbors belong the same theme. A higher score is better, indicating a strong thematic structure. (LDI > 0.8: Good, < 0.5: Poor).",
@@ -684,7 +706,12 @@ def generate_main_page(
             fileLinksContainer.innerHTML = '';
         }
 
-        document.addEventListener('DOMContentLoaded', initialize);
+        document.addEventListener('DOMContentLoaded', () => {
+            processedData = decodeData(b64Data);
+            if (processedData) {
+                initialize();
+            }
+        });
         """
         minified_js = jsmin(js_content)
 
@@ -696,6 +723,7 @@ def generate_main_page(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Embedding Analysis</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
     <style>{minified_css}</style>
 </head>
 <body>
