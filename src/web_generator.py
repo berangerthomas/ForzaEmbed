@@ -306,11 +306,6 @@ def generate_main_page(
             // Ensure score is a number and normalize to [0,1]
             if (typeof score !== 'number' || isNaN(score)) score = 0.0;
             
-            // If score appears to be quantized (integer > 1), dequantize it
-            if (score > 1.0 && Number.isInteger(score)) {
-                score = Math.min(score, 65535) / 65535.0;
-            }
-            
             // Clamp to [0,1] range
             score = Math.max(0.0, Math.min(1.0, score));
             
@@ -391,21 +386,6 @@ def generate_main_page(
             if (!config) {
                 // Default for unknown metrics
                 return cmap_heatmap(0.5);
-            }
-
-            // Handle quantized values: if integer > 1, likely quantized
-            if (typeof value === 'number' && value > 1 && Number.isInteger(value)) {
-                // Dequantize based on metric type
-                if (metricKey === 'silhouette_score') {
-                    // Silhouette was stored as [0,65535] mapping to [-1,1]
-                    value = ((value / 65535.0) * 2.0) - 1.0;
-                } else if (metricKey === 'internal_coherence_score') {
-                    // Coherence was inverted: 1 - (value/65535)
-                    value = 1.0 - (value / 65535.0);
-                } else {
-                    // Standard [0,1] metrics
-                    value = value / 65535.0;
-                }
             }
 
             // Clamp value to expected range
@@ -829,18 +809,8 @@ def generate_main_page(
 
             const content = document.createElement('p');
 
-            // Normalize similarities to ensure proper color mapping
-            const normalizedSimilarities = similarities.map(score => {
-                if (typeof score !== 'number' || isNaN(score)) return 0.0;
-                // If score appears quantized, dequantize it
-                if (score > 1.0 && Number.isInteger(score)) {
-                    score = Math.min(score, 65535) / 65535.0;
-                }
-                return Math.max(0.0, Math.min(1.0, score));
-            });
-
             phrases.forEach((phrase, index) => {
-                const score = normalizedSimilarities[index];
+                const score = Math.max(0.0, Math.min(1.0, similarities[index] || 0.0));
                 const colorInfo = cmap_heatmap(score);
                 
                 const span = document.createElement('span');

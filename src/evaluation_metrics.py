@@ -304,38 +304,42 @@ def calculate_all_metrics(
         ref_embeddings (np.ndarray): Embeddings for reference themes.
         doc_embeddings (np.ndarray): Embeddings for document chunks.
         doc_labels (np.ndarray): Theme labels for each document chunk.
-        similarity_metric (str): Similarity metric used for theme assignment (not used for clustering evaluation).
-        use_silhouette_decomposition (bool): Whether to use enhanced silhouette decomposition.
 
     Returns:
         Dict[str, float]: A dictionary containing all calculated metrics.
     """
     all_metrics: Dict[str, float] = {}
 
-    # Standard clustering metrics (includes silhouette-based metrics)
-    clustering_metrics = calculate_clustering_metrics(doc_embeddings, doc_labels)
-    all_metrics.update(clustering_metrics)
-
     # Custom metrics
     all_metrics["internal_coherence_score"] = coherence_score(
         ref_embeddings, doc_embeddings
     )
     all_metrics["robustness_score"] = robustness_score(ref_embeddings, doc_embeddings)
+    all_metrics["local_density_index"] = local_density_index(doc_embeddings, doc_labels)
 
-    # Enhanced silhouette analysis
-    silhouette_analysis = enhanced_silhouette_analysis(doc_embeddings, doc_labels)
-    global_metrics = silhouette_analysis["global_metrics"]
-
-    all_metrics.update(
-        {
-            "silhouette_score": global_metrics["silhouette_score"],
-            "intra_cluster_distance_normalized": global_metrics[
-                "intra_cluster_quality"
-            ],
-            "inter_cluster_distance_normalized": global_metrics[
-                "inter_cluster_separation"
-            ],
-        }
-    )
+    # Enhanced silhouette analysis for clustering quality
+    if len(np.unique(doc_labels)) > 1:
+        silhouette_analysis = enhanced_silhouette_analysis(doc_embeddings, doc_labels)
+        global_metrics = silhouette_analysis["global_metrics"]
+        all_metrics.update(
+            {
+                "silhouette_score": global_metrics["silhouette_score"],
+                "intra_cluster_distance_normalized": global_metrics[
+                    "intra_cluster_quality"
+                ],
+                "inter_cluster_distance_normalized": global_metrics[
+                    "inter_cluster_separation"
+                ],
+            }
+        )
+    else:
+        # Provide default values if silhouette score cannot be computed
+        all_metrics.update(
+            {
+                "silhouette_score": -1.0,
+                "intra_cluster_distance_normalized": 0.0,
+                "inter_cluster_distance_normalized": 0.0,
+            }
+        )
 
     return all_metrics
