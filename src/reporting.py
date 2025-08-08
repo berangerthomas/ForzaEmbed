@@ -105,8 +105,9 @@ class ReportGenerator:
             }
 
             for file_id, file_data in model_results.get("files", {}).items():
+                file_name = file_data.get("file_name", file_id)
                 file_entry = processed_data_for_interactive_page["files"].setdefault(
-                    file_id, {"embeddings": {}}
+                    file_id, {"fileName": file_name, "embeddings": {}}
                 )
                 file_entry["embeddings"][model_name] = {
                     "phrases": file_data.get("phrases", []),

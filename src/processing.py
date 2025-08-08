@@ -138,6 +138,7 @@ class Processor:
             )
 
             results["files"][identifiant] = {
+                "file_name": name,
                 "phrases": item_phrases,
                 "similarities": similarites.max(axis=0).tolist(),
                 "metrics": {

@@ -593,7 +593,7 @@ def generate_main_page(
                 return;
             }
 
-            fileNameSpan.textContent = fileKey;
+            fileNameSpan.textContent = `${fileKey} - ${fileData.fileName || ''}`;
             filterEmbeddings();
             console.log('filteredEmbeddingKeys:', filteredEmbeddingKeys);
 
@@ -816,7 +816,7 @@ def generate_main_page(
                 const span = document.createElement('span');
                 span.style.backgroundColor = colorInfo.rgb;
                 span.style.color = colorInfo.isDark ? '#fff' : '#333';
-                span.textContent = phrase + '. ';
+                span.textContent = phrase;
                 span.title = `Similarity: ${score.toFixed(3)}`;
                 
                 content.appendChild(span);
