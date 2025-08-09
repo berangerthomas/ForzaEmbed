@@ -418,50 +418,20 @@ class EmbeddingDatabase:
 
     def get_all_processing_results(self) -> Dict[str, Any]:
         """
-        Retrieves all processing results, including aggregated embeddings and labels,
-        grouped by model run. This is a comprehensive fetch for all reporting needs.
+        Retrieves all processing results, organized by model run name.
+        This method fetches raw file-level results without model-level aggregation.
         """
         all_results: Dict[str, Dict[str, Any]] = {}
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT model_name, file_id, results_blob FROM processing_results"
-            )
+            # Get all unique model names first
+            cursor.execute("SELECT DISTINCT model_name FROM processing_results")
+            model_names = [row[0] for row in cursor.fetchall()]
 
-            for row in cursor.fetchall():
-                model_name, file_id, results_blob = row
-                # Unpack the blob and restore any quantized data
-                results = msgpack.unpackb(
-                    results_blob, object_hook=self._decode_numpy, raw=False
-                )
-                results = self._restore_quantized_data(results)
-
-                if model_name not in all_results:
-                    all_results[model_name] = {
-                        "files": {},
-                        "embeddings": [],
-                        "labels": [],
-                    }
-
-                # Store file-specific results
-                all_results[model_name]["files"][file_id] = results
-
-                # Aggregate embeddings and labels at the model level
-                if "embeddings" in results and results["embeddings"] is not None:
-                    all_results[model_name]["embeddings"].extend(results["embeddings"])
-                if "labels" in results and results["labels"] is not None:
-                    all_results[model_name]["labels"].extend(results["labels"])
-
-        # Convert lists to numpy arrays for processing
-        for model_name in all_results:
-            if all_results[model_name]["embeddings"]:
-                all_results[model_name]["embeddings"] = np.array(
-                    all_results[model_name]["embeddings"]
-                )
-            else:
-                # Ensure it's an empty array with correct shape if no embeddings found
-                all_results[model_name]["embeddings"] = np.array([]).reshape(0, 0)
-
+            for model_name in model_names:
+                # Get all file results for the current model
+                file_results = self.get_all_processing_results_for_run(model_name)
+                all_results[model_name] = {"files": file_results}
         return all_results
 
     def get_all_models(self) -> List[Dict[str, Any]]:

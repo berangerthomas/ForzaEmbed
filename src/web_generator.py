@@ -52,6 +52,11 @@ def generate_main_page(
         compressed_data = zlib.compress(packed_data, level=9)
         b64_data = base64.b64encode(compressed_data).decode("ascii")
 
+        # Chunk the base64 string to avoid browser limits on string literal size
+        chunk_size = 50000  # Use 50KB chunks
+        b64_chunks = [b64_data[i:i + chunk_size] for i in range(0, len(b64_data), chunk_size)]
+        js_data_array = "const b64DataChunks = " + json.dumps(b64_chunks) + ";\n"
+
         css_content = """
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -237,30 +242,14 @@ def generate_main_page(
         """
         minified_css = cssmin(css_content)
 
-        js_content = f"const b64Data = '{b64_data}';\n"
-        js_content += r"""
-        let processedData = {};
+        # Lire le contenu du worker
+        worker_path = os.path.join(os.path.dirname(__file__), "worker.js")
+        with open(worker_path, "r", encoding="utf-8") as f:
+            worker_js_content = f.read()
 
-        // Fonction pour décoder les données Base64, zlib et JSON
-        function decodeData(base64String) {
-            try {
-                const byteCharacters = atob(base64String);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const compressedByteArray = new Uint8Array(byteNumbers);
-                const decompressedByteArray = pako.inflate(compressedByteArray);
-                // Use a TextDecoder to convert the Uint8Array to a string
-                const jsonString = new TextDecoder().decode(decompressedByteArray);
-                return JSON.parse(jsonString);
-            } catch (e) {
-                console.error("Failed to decode data:", e);
-                // Afficher une erreur claire à l'utilisateur
-                document.body.innerHTML = '<div style="padding: 20px; text-align: center; font-size: 1.2em; color: red;">Error: Could not load report data. The data may be corrupted.</div>';
-                return null;
-            }
-        }
+        # Isoler le code JavaScript statique pour la minification
+        static_js_content = r"""
+        let processedData = {};
 
         const metricTooltips = {
             'internal_coherence_score': "Internal Coherence Score (ICS). Measures stability and predictability of similarity measurements. LOWER IS BETTER. (< 0.1: Excellent, 0.1-0.3: Good, 0.3-0.5: Fair, > 0.5: Poor)",
@@ -830,22 +819,52 @@ def generate_main_page(
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            processedData = decodeData(b64Data);
-            if (processedData) {
-                initialize();
-            }
-            
-            // Ajouter une validation globale des données au chargement
-            if (!processedData || !processedData.files) {
-                console.error('Données processées manquantes ou invalides');
-                document.body.innerHTML = '<h1>Erreur: Données manquantes</h1><p>Les données n\'ont pas pu être chargées correctement.</p>';
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const mainContainer = document.querySelector('.container');
+
+            if (!window.Worker) {
+                loadingIndicator.innerHTML = '<h1>Error</h1><p>Your browser does not support Web Workers. Please use a modern browser.</p>';
                 return;
             }
-            
-            // Continuer avec l'initialisation normale...
+
+            // Reconstruct the base64 string from chunks
+            const b64Data = b64DataChunks.join('');
+
+            const blob = new Blob([workerScript], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+
+            worker.onmessage = function(event) {
+                if (event.data.success) {
+                    processedData = event.data.data;
+                    if (processedData && processedData.files) {
+                        loadingIndicator.style.display = 'none';
+                        mainContainer.style.visibility = 'visible';
+                        initialize();
+                    } else {
+                        loadingIndicator.innerHTML = '<h1>Error: Invalid Data</h1><p>The processed data is missing or invalid.</p>';
+                    }
+                } else {
+                    console.error('Worker error:', event.data.error);
+                    loadingIndicator.innerHTML = `<h1>Error</h1><p>Failed to decode data. The data may be corrupted. Check the console for details.</p><pre>${event.data.error}</pre>`;
+                }
+                URL.revokeObjectURL(worker.objectURL);
+            };
+
+            worker.onerror = function(error) {
+                console.error('Worker failed:', error);
+                loadingIndicator.innerHTML = '<h1>Error</h1><p>A critical error occurred in the data processing worker.</p>';
+            };
+
+            worker.postMessage(b64Data);
         });
         """
-        minified_js = jsmin(js_content)
+        
+        # Combiner les données (en morceaux), le worker et le code statique (non minifié)
+        final_js_content = (
+            js_data_array
+            + f"const workerScript = `{worker_js_content}`;\n"
+            + static_js_content
+        )
 
         html_content = f"""
 <!DOCTYPE html>
@@ -855,10 +874,27 @@ def generate_main_page(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Embedding Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <style>{minified_css}</style>
+    <style>
+        #loading-indicator {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }}
+        .container {{
+            visibility: hidden;
+        }}
+        {minified_css}
+    </style>
 </head>
 <body>
+    <div id="loading-indicator">
+        <h1>Loading Report Data...</h1>
+        <p>This may take a moment for large files.</p>
+    </div>
+
     <div class="container">
         <h1>Interactive Embeddings Analysis</h1>
         <p style="text-align: center; margin-top: -15px; color: #555;">
@@ -917,7 +953,7 @@ def generate_main_page(
         </div>
     </div>
 
-    <script>{minified_js}</script>
+    <script>{final_js_content}</script>
 </body>
 </html>
 """

@@ -36,9 +36,6 @@ class ReportGenerator:
 
         use_cache = cache_path.exists() and cache_path.stat().st_mtime > db_mod_time
 
-        all_results = {}
-        aggregated_data = None
-
         if use_cache:
             logging.info(f"Loading aggregated data from cache: {cache_path}")
             aggregated_data = joblib.load(cache_path)
@@ -57,19 +54,26 @@ class ReportGenerator:
                 model_embeddings_for_variance,
             ) = self._aggregate_data(all_results)
             total_combinations = len(all_results)
-            aggregated_data = (
-                processed_data_for_interactive_page,
-                all_models_metrics,
-                model_embeddings_for_variance,
-                total_combinations,
-            )
 
-        (
-            processed_data_for_interactive_page,
-            all_models_metrics,
-            model_embeddings_for_variance,
-            total_combinations,
-        ) = aggregated_data
+            aggregated_data = {
+                "all_results": all_results,
+                "processed_data_for_interactive_page": processed_data_for_interactive_page,
+                "all_models_metrics": all_models_metrics,
+                "model_embeddings_for_variance": model_embeddings_for_variance,
+                "total_combinations": total_combinations,
+            }
+            # Save cache immediately after aggregation and before any potential DB writes
+            joblib.dump(aggregated_data, cache_path)
+            logging.info(f"Saved aggregated data to cache: {cache_path}")
+
+        # Unpack data for reporting
+        all_results = aggregated_data["all_results"]
+        processed_data_for_interactive_page = aggregated_data[
+            "processed_data_for_interactive_page"
+        ]
+        all_models_metrics = aggregated_data["all_models_metrics"]
+        model_embeddings_for_variance = aggregated_data["model_embeddings_for_variance"]
+        total_combinations = aggregated_data["total_combinations"]
 
         self._generate_main_web_page(
             processed_data_for_interactive_page, total_combinations, single_file
@@ -78,11 +82,6 @@ class ReportGenerator:
         self._generate_global_reports(
             all_models_metrics, model_embeddings_for_variance, top_n
         )
-
-        # After all reports are generated (including DB writes), save the cache
-        if not use_cache and aggregated_data:
-            joblib.dump(aggregated_data, cache_path)
-            logging.info(f"Saved aggregated data to cache: {cache_path}")
 
         logging.info(f"All reports generated in '{self.output_dir}'.")
 
@@ -99,11 +98,23 @@ class ReportGenerator:
             if not model_info:
                 continue
 
+            # Aggregate embeddings and labels from all files for this model
+            aggregated_embeddings = []
+            aggregated_labels = []
+            for file_data in model_results.get("files", {}).values():
+                if "embeddings" in file_data and file_data["embeddings"] is not None:
+                    aggregated_embeddings.extend(file_data["embeddings"])
+                if "labels" in file_data and file_data["labels"] is not None:
+                    aggregated_labels.extend(file_data["labels"])
+
             model_embeddings_for_variance[model_name] = {
-                "embeddings": model_results.get("embeddings", []),
-                "labels": model_results.get("labels", []),
+                "embeddings": np.array(aggregated_embeddings)
+                if aggregated_embeddings
+                else np.array([]),
+                "labels": aggregated_labels,
             }
 
+            # Prepare data for the interactive page
             for file_id, file_data in model_results.get("files", {}).items():
                 file_name = file_data.get("file_name", file_id)
                 file_entry = processed_data_for_interactive_page["files"].setdefault(
@@ -116,6 +127,7 @@ class ReportGenerator:
                     "scatter_plot_data": file_data.get("scatter_plot_data"),
                 }
 
+            # Calculate average metrics for the model
             metrics_list = [
                 res["metrics"]
                 for res in model_results.get("files", {}).values()
