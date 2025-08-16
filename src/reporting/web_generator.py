@@ -42,21 +42,33 @@ def generate_main_page(
     output_dir: str,
     total_combinations: int,
     single_file: bool = False,
+    graph_paths: dict[str, Any] | None = None,
 ):
     """
     Generates the main interactive web page for heatmap visualization.
     By default, creates one HTML file per markdown file.
     If single_file is True, creates a single index.html for all files.
     """
-
+    graph_paths = graph_paths or {}
     generation_jobs = []
+
     if single_file:
-        generation_jobs.append({"data": processed_data, "filename": "index.html"})
+        job = {
+            "data": processed_data,
+            "filename": "index.html",
+            "graphs": graph_paths.get("global", []),
+        }
+        generation_jobs.append(job)
     else:
         for file_key, file_data in processed_data["files"].items():
             base_name = os.path.splitext(file_key)[0]
             job_data = {"files": {file_key: file_data}}
-            generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
+            job = {
+                "data": job_data,
+                "filename": f"{base_name}.html",
+                "graphs": graph_paths.get(file_key, []),
+            }
+            generation_jobs.append(job)
 
     for job in generation_jobs:
         # Appliquer une conversion profonde pour garantir l'absence de types NumPy
@@ -293,6 +305,15 @@ self.onmessage = function(event) {
         self.postMessage({ success: false, error: e.message });
     }
 };"""
+
+        # Generate HTML for graph links
+        graph_links_html = ""
+        if job.get("graphs"):
+            for path in job["graphs"]:
+                file_name = os.path.basename(path)
+                graph_links_html += (
+                    f'<a href="{file_name}" target="_blank">{file_name}</a>'
+                )
 
         # Isoler le code JavaScript statique pour la minification
         static_js_content = r"""
@@ -989,7 +1010,9 @@ self.onmessage = function(event) {
         <!-- Links and Plot area -->
         <div class="visualization">
             <h2>Reports and Visualizations</h2>
-            <div id="file-links-container" class="file-links-grid"></div>
+            <div id="file-links-container" class="file-links-grid">
+                {graph_links_html}
+            </div>
             <div id="scatter-plot-container"></div>
         </div>
     </div>

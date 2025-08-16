@@ -80,18 +80,14 @@ class DataAggregator:
                     "scatter_plot_data": file_data.get("scatter_plot_data"),
                 }
 
-            # Calculate average metrics for the model
-            metrics_list = [
-                res["metrics"]
-                for res in model_results.get("files", {}).values()
-                if "metrics" in res
-            ]
-            if metrics_list:
-                avg_metrics = {
-                    key: float(np.mean([m[key] for m in metrics_list if key in m]))
-                    for key in metrics_list[0]
-                }
-                all_models_metrics[model_name] = avg_metrics
+            # Store detailed metrics for each file
+            detailed_metrics = []
+            for file_id, file_data in model_results.get("files", {}).items():
+                if "metrics" in file_data and file_data["metrics"]:
+                    metric_record = {"file_name": file_id}
+                    metric_record.update(file_data["metrics"])
+                    detailed_metrics.append(metric_record)
+            all_models_metrics[model_name] = detailed_metrics
 
         optimized_data = self._optimize_data_for_web(
             processed_data_for_interactive_page

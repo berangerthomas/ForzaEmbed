@@ -30,33 +30,63 @@ class ReportGenerator:
         Generates all reports from the data in the database.
         """
         logging.info("--- Generating All Reports ---")
-
-        # If top_n is -1, consider it as no limit
         effective_top_n = None if top_n == -1 else top_n
-
         aggregated_data = self.data_aggregator.get_aggregated_data()
 
         if not aggregated_data:
             logging.warning("No aggregated data available. Skipping report generation.")
             return
 
-        # Unpack data for reporting
         processed_data_for_interactive_page = aggregated_data[
             "processed_data_for_interactive_page"
         ]
-        all_models_metrics = aggregated_data["all_models_metrics"]
         total_combinations = aggregated_data["total_combinations"]
+        all_results = aggregated_data["all_results"]
+
+        graph_paths_by_file: Dict[str, Any] = {}
+
+        if single_file:
+            all_models_metrics = aggregated_data["all_models_metrics"]
+            global_plot_paths = self._generate_global_reports(
+                all_models_metrics, effective_top_n
+            )
+            graph_paths_by_file["global"] = global_plot_paths
+        else:
+            for file_id in processed_data_for_interactive_page["files"]:
+                file_specific_metrics = {}
+                for model_name, model_data in all_results.items():
+                    if file_id in model_data.get("files", {}):
+                        metrics = model_data["files"][file_id].get("metrics")
+                        if metrics:
+                            metric_record = {"file_name": file_id}
+                            metric_record.update(metrics)
+                            file_specific_metrics[model_name] = [metric_record]
+
+                if file_specific_metrics:
+                    file_prefix = Path(file_id).stem
+                    plot_paths = self._generate_global_reports(
+                        file_specific_metrics,
+                        top_n=effective_top_n,
+                        file_prefix=file_prefix,
+                    )
+                    graph_paths_by_file[file_id] = plot_paths
 
         self._generate_main_web_page(
-            processed_data_for_interactive_page, total_combinations, single_file
+            processed_data_for_interactive_page,
+            total_combinations,
+            single_file,
+            graph_paths_by_file,
         )
-        self._generate_global_reports(all_models_metrics, effective_top_n)
 
         logging.info(f"All reports generated in '{self.output_dir}'.")
         self.data_aggregator.touch_cache()
 
     def _generate_main_web_page(
-        self, processed_data, total_combinations, single_file: bool = False
+        self,
+        processed_data,
+        total_combinations,
+        single_file: bool = False,
+        graph_paths: Dict[str, Any] | None = None,
     ):
         """Generates the main interactive web page."""
         from .web_generator import generate_main_page
@@ -66,19 +96,24 @@ class ReportGenerator:
             str(self.output_dir),
             total_combinations,
             single_file=single_file,
+            graph_paths=graph_paths,
         )
 
-    def _generate_global_reports(self, all_models_metrics, top_n=None):
+    def _generate_global_reports(
+        self, all_models_metrics, top_n=None, file_prefix: str = "global"
+    ):
         """Generates global comparison charts."""
-        logging.info("Generating global reports...")
+        logging.info(f"Generating reports for prefix: {file_prefix}...")
         if all_models_metrics:
             plot_paths = self._analyze_and_visualize_clustering_metrics(
-                all_models_metrics, top_n=top_n
+                all_models_metrics, top_n=top_n, file_prefix=file_prefix
             )
-            if plot_paths:
+            if plot_paths and file_prefix == "global":
                 for path in plot_paths:
                     chart_name = path.stem
                     self.db.add_global_chart(chart_name, str(path))
+            return plot_paths
+        return []
 
     def _plot_single_metric(
         self,
@@ -125,7 +160,9 @@ class ReportGenerator:
         plt.close()
         logging.info(f"Saved {metric} plot to {output_path}")
 
-    def _generate_radar_chart(self, df: pd.DataFrame) -> Path | None:
+    def _generate_radar_chart(
+        self, df: pd.DataFrame, file_prefix: str = "global"
+    ) -> Path | None:
         """Generates a radar chart for the most important metrics."""
         metrics_for_radar = {
             "silhouette_score": True,
@@ -175,14 +212,17 @@ class ReportGenerator:
 
         plt.title("Key Metrics Radar Chart", size=20, y=1.1)
 
-        radar_path = self.output_dir / "global_radar_chart.png"
+        radar_path = self.output_dir / f"{file_prefix}_radar_chart.png"
         plt.savefig(radar_path, bbox_inches="tight")
         plt.close()
         logging.info(f"Saved radar chart to {radar_path}")
         return radar_path
 
     def _analyze_and_visualize_clustering_metrics(
-        self, all_models_metrics: Dict[str, Dict[str, float]], top_n: int | None = None
+        self,
+        all_models_metrics: Dict[str, Any],
+        top_n: int | None = None,
+        file_prefix: str = "global",
     ) -> list[Path]:
         """
         Analyzes clustering metrics, visualizes each in a separate plot,
@@ -192,20 +232,46 @@ class ReportGenerator:
         if not all_models_metrics:
             return []
 
-        df = pd.DataFrame.from_dict(all_models_metrics, orient="index").dropna()
+        # Convert the new structure (dict of lists of dicts) to a DataFrame
+        records = []
+        for model_name, metrics_list in all_models_metrics.items():
+            for metric_record in metrics_list:
+                record = {"model_name": model_name}
+                record.update(metric_record)
+                records.append(record)
+
+        if not records:
+            return []
+
+        df = pd.DataFrame(records)
         if df.empty:
             return []
 
-        if "discriminant_score" in df.columns:
-            df = df.sort_values(by="discriminant_score", ascending=False)
+        # Reorder columns to have file_name first
+        cols = ["file_name", "model_name"] + [
+            c for c in df.columns if c not in ["file_name", "model_name"]
+        ]
+        df = df[cols]
 
-        # Export metrics to CSV
-        csv_path = self.output_dir / "global_metrics_comparison.csv"
-        df.to_csv(csv_path)
-        logging.info(f"Exported global metrics to {csv_path}")
+        # Sort the DataFrame
+        df = df.sort_values(by=["file_name", "model_name"])
+
+        # For visualization, we need to average the metrics per model
+        # but the CSV will contain the detailed data.
+        df_for_plots = df.drop(columns=["file_name"]).groupby("model_name").mean()
+
+        if "discriminant_score" in df_for_plots.columns:
+            df_for_plots = df_for_plots.sort_values(
+                by="discriminant_score", ascending=False
+            )
+
+        # Export detailed metrics to CSV
+        csv_path = self.output_dir / f"{file_prefix}_metrics_comparison.csv"
+        df.to_csv(csv_path, index=False)
+        logging.info(f"Exported metrics for '{file_prefix}' to {csv_path}")
 
         # Create a dataframe for the radar chart, which will be filtered by top_n
-        df_for_radar = df.copy()
+        df_for_radar = df_for_plots.copy()
         if top_n:
             df_for_radar = df_for_radar.head(top_n)
 
@@ -218,16 +284,16 @@ class ReportGenerator:
             "robustness_score": True,
         }
 
-        metrics_to_plot = [m for m in metric_preferences if m in df.columns]
+        metrics_to_plot = [m for m in metric_preferences if m in df_for_plots.columns]
         if not metrics_to_plot:
             return []
 
         plot_paths = []
         for metric in metrics_to_plot:
-            plot_path = self.output_dir / f"global_{metric}_comparison.png"
-            # Pass the full dataframe; _plot_single_metric handles sorting and filtering for each metric
+            plot_path = self.output_dir / f"{file_prefix}_{metric}_comparison.png"
+            # Pass the aggregated dataframe for plotting
             self._plot_single_metric(
-                df,
+                df_for_plots,
                 metric,
                 plot_path,
                 higher_is_better=metric_preferences[metric],
@@ -236,7 +302,7 @@ class ReportGenerator:
             plot_paths.append(plot_path)
 
         # Generate and add radar chart using the potentially filtered dataframe
-        radar_path = self._generate_radar_chart(df_for_radar)
+        radar_path = self._generate_radar_chart(df_for_radar, file_prefix)
         if radar_path:
             plot_paths.append(radar_path)
 
