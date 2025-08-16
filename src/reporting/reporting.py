@@ -3,15 +3,14 @@ import textwrap
 from pathlib import Path
 from typing import Any, Dict, cast
 
-import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import seaborn as sns
-from tqdm import tqdm
 
-from .database import EmbeddingDatabase
+from ..utils.database import EmbeddingDatabase
+from .aggregator import DataAggregator
 
 
 class ReportGenerator:
@@ -24,147 +23,37 @@ class ReportGenerator:
         self.config = config
         self.output_dir = output_dir
         self.similarity_threshold = config.get("similarity_threshold", 0.6)
-        self.file_metadata = {}  # To be loaded when needed
+        self.data_aggregator = DataAggregator(db, output_dir)
 
-    def generate_all(self, top_n: int | None = None, single_file: bool = False):
+    def generate_all(self, top_n: int = 25, single_file: bool = False):
         """
         Generates all reports from the data in the database.
         """
         logging.info("--- Generating All Reports ---")
-        cache_path = self.output_dir / "reports_cache.joblib"
-        db_mod_time = self.db.get_db_modification_time()
 
-        use_cache = cache_path.exists() and cache_path.stat().st_mtime > db_mod_time
+        # If top_n is -1, consider it as no limit
+        effective_top_n = None if top_n == -1 else top_n
 
-        if use_cache:
-            logging.info(f"Loading aggregated data from cache: {cache_path}")
-            aggregated_data = joblib.load(cache_path)
-        else:
-            logging.info("No valid cache found. Aggregating data from scratch...")
-            all_results = self.db.get_all_processing_results()
-            if not all_results:
-                logging.warning(
-                    "No processing results found in the database. Run processing first."
-                )
-                return
+        aggregated_data = self.data_aggregator.get_aggregated_data()
 
-            (
-                processed_data_for_interactive_page,
-                all_models_metrics,
-                model_embeddings_for_variance,
-            ) = self._aggregate_data(all_results)
-            total_combinations = len(all_results)
-
-            aggregated_data = {
-                "all_results": all_results,
-                "processed_data_for_interactive_page": processed_data_for_interactive_page,
-                "all_models_metrics": all_models_metrics,
-                "model_embeddings_for_variance": model_embeddings_for_variance,
-                "total_combinations": total_combinations,
-            }
-            # Save cache immediately after aggregation and before any potential DB writes
-            joblib.dump(aggregated_data, cache_path)
-            logging.info(f"Saved aggregated data to cache: {cache_path}")
+        if not aggregated_data:
+            logging.warning("No aggregated data available. Skipping report generation.")
+            return
 
         # Unpack data for reporting
-        all_results = aggregated_data["all_results"]
         processed_data_for_interactive_page = aggregated_data[
             "processed_data_for_interactive_page"
         ]
         all_models_metrics = aggregated_data["all_models_metrics"]
-        model_embeddings_for_variance = aggregated_data["model_embeddings_for_variance"]
         total_combinations = aggregated_data["total_combinations"]
 
         self._generate_main_web_page(
             processed_data_for_interactive_page, total_combinations, single_file
         )
-        self._generate_file_reports(all_results)
-        self._generate_global_reports(
-            all_models_metrics, model_embeddings_for_variance, top_n
-        )
+        self._generate_global_reports(all_models_metrics, effective_top_n)
 
         logging.info(f"All reports generated in '{self.output_dir}'.")
-
-    def _aggregate_data(self, all_results: dict):
-        """Aggregates data from results for reporting."""
-        processed_data_for_interactive_page = {"files": {}}
-        all_models_metrics = {}
-        model_embeddings_for_variance = {}
-
-        for model_name, model_results in tqdm(
-            all_results.items(), desc="Aggregating data for reports"
-        ):
-            model_info = self.db.get_model_info(model_name)
-            if not model_info:
-                continue
-
-            # Aggregate embeddings and labels from all files for this model
-            aggregated_embeddings = []
-            aggregated_labels = []
-            for file_data in model_results.get("files", {}).values():
-                if "embeddings" in file_data and file_data["embeddings"] is not None:
-                    aggregated_embeddings.extend(file_data["embeddings"])
-                if "labels" in file_data and file_data["labels"] is not None:
-                    aggregated_labels.extend(file_data["labels"])
-
-            model_embeddings_for_variance[model_name] = {
-                "embeddings": np.array(aggregated_embeddings)
-                if aggregated_embeddings
-                else np.array([]),
-                "labels": aggregated_labels,
-            }
-
-            # Prepare data for the interactive page
-            for file_id, file_data in model_results.get("files", {}).items():
-                file_name = file_data.get("file_name", file_id)
-                file_entry = processed_data_for_interactive_page["files"].setdefault(
-                    file_id, {"fileName": file_name, "embeddings": {}}
-                )
-                file_entry["embeddings"][model_name] = {
-                    "phrases": file_data.get("phrases", []),
-                    "similarities": file_data.get("similarities", []),
-                    "metrics": file_data.get("metrics", {}),
-                    "scatter_plot_data": file_data.get("scatter_plot_data"),
-                }
-
-            # Calculate average metrics for the model
-            metrics_list = [
-                res["metrics"]
-                for res in model_results.get("files", {}).values()
-                if "metrics" in res
-            ]
-            if metrics_list:
-                avg_metrics = {
-                    key: float(np.mean([m[key] for m in metrics_list if key in m]))
-                    for key in metrics_list[0]
-                }
-                all_models_metrics[model_name] = avg_metrics
-
-        optimized_data = self._optimize_data_for_web(
-            processed_data_for_interactive_page
-        )
-
-        return (
-            optimized_data,
-            all_models_metrics,
-            model_embeddings_for_variance,
-        )
-
-    def _optimize_data_for_web(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Optimizes the data structure for web output by rounding floats.
-        """
-
-        def round_floats(obj):
-            if isinstance(obj, list):
-                return [round_floats(v) for v in obj]
-            if isinstance(obj, dict):
-                return {k: round_floats(v) for k, v in obj.items()}
-            if isinstance(obj, float):
-                return round(obj, 4)
-            return obj
-
-        return cast(Dict[str, Any], round_floats(data))
+        self.data_aggregator.touch_cache()
 
     def _generate_main_web_page(
         self, processed_data, total_combinations, single_file: bool = False
@@ -179,15 +68,7 @@ class ReportGenerator:
             single_file=single_file,
         )
 
-    def _generate_file_reports(self, all_results):
-        """Generates individual Markdown reports for each file."""
-        logging.info("Generating file-specific reports...")
-        # This part will be implemented in detail later
-        pass
-
-    def _generate_global_reports(
-        self, all_models_metrics, model_embeddings_for_variance, top_n=None
-    ):
+    def _generate_global_reports(self, all_models_metrics, top_n=None):
         """Generates global comparison charts."""
         logging.info("Generating global reports...")
         if all_models_metrics:
@@ -323,8 +204,10 @@ class ReportGenerator:
         df.to_csv(csv_path)
         logging.info(f"Exported global metrics to {csv_path}")
 
+        # Create a dataframe for the radar chart, which will be filtered by top_n
+        df_for_radar = df.copy()
         if top_n:
-            df = df.head(top_n)
+            df_for_radar = df_for_radar.head(top_n)
 
         metric_preferences = {
             "intra_cluster_distance_normalized": True,
@@ -342,6 +225,7 @@ class ReportGenerator:
         plot_paths = []
         for metric in metrics_to_plot:
             plot_path = self.output_dir / f"global_{metric}_comparison.png"
+            # Pass the full dataframe; _plot_single_metric handles sorting and filtering for each metric
             self._plot_single_metric(
                 df,
                 metric,
@@ -351,24 +235,12 @@ class ReportGenerator:
             )
             plot_paths.append(plot_path)
 
-        # Generate and add radar chart
-        radar_path = self._generate_radar_chart(df)
+        # Generate and add radar chart using the potentially filtered dataframe
+        radar_path = self._generate_radar_chart(df_for_radar)
         if radar_path:
             plot_paths.append(radar_path)
 
         return plot_paths
-
-
-def get_metrics_columns():
-    """Return the list of metrics columns for database queries."""
-    return [
-        "intra_cluster_distance_normalized",
-        "inter_cluster_distance_normalized",
-        "silhouette_score",
-        "local_density_index",
-        "internal_coherence_score",
-        "robustness_score",
-    ]
 
 
 def get_metrics_info():
@@ -411,32 +283,3 @@ def get_metrics_info():
             "range": "0-1",
         },
     }
-
-
-def create_detailed_charts(df, filename_base, metrics_info):
-    """Create detailed charts for each metric."""
-    charts = []
-
-    for metric, info in metrics_info.items():
-        if metric in df.columns:
-            fig = px.box(
-                df,
-                x="model_name",
-                y=metric,
-                title=f"{info['name']} by Model - {filename_base}",
-                labels={
-                    metric: f"{info['name']} ({info['range']})",
-                    "model_name": "Model",
-                },
-            )
-
-            # Color scheme based on whether higher is better
-            if info["higher_is_better"]:
-                colorscale = "Viridis"  # Green for good
-            else:
-                colorscale = "Viridis_r"  # Red for good (inverted)
-
-            fig.update_traces(marker_color="lightblue")
-            charts.append(fig.to_html(full_html=False, include_plotlyjs=False))
-
-    return charts

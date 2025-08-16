@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 import zlib
@@ -7,137 +8,29 @@ import msgpack
 import numpy as np
 
 
+from ..core.config import AppConfig
+
+
 class EmbeddingDatabase:
-    """Database manager for storing embedding results."""
+    """
+    Manages the SQLite database for storing embeddings, results, and metadata.
+    Includes intelligent quantization to reduce storage size.
+    """
 
-    def __init__(
-        self,
-        db_path: str = "data/heatmaps/ForzaEmbed.db",
-        quantize: bool = False,
-        intelligent_quantization: bool = False,
-    ):
+    def __init__(self, db_path: str, config: AppConfig | Dict[str, Any]):
         self.db_path = db_path
-        self.quantize = quantize
-        self.intelligent_quantization = intelligent_quantization
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self.init_database()
-
-    def _apply_intelligent_quantization(self, obj: Any) -> Any:
-        """Apply intelligent quantization based on data type and content."""
-        if not self.intelligent_quantization:
-            return obj
-
-        if isinstance(obj, dict):
-            quantized = {}
-            for key, value in obj.items():
-                if key in [
-                    "similarities",
-                    "cosine_similarity",
-                    "dot_product",
-                ] and isinstance(value, np.ndarray):
-                    # Similarity metrics [0,1] → uint16
-                    if (
-                        value.dtype.kind == "f"
-                        and 0 <= value.min()
-                        and value.max() <= 1
-                    ):
-                        quantized[key] = (value * 65535).astype(np.uint16)
-                    else:
-                        quantized[key] = self._apply_intelligent_quantization(value)
-                elif key == "scatter_plot_data" and isinstance(value, dict):
-                    # 2D coordinates → float16
-                    scatter_quantized = {}
-                    for scatter_key, scatter_value in value.items():
-                        if scatter_key in ["x", "y"] and isinstance(
-                            scatter_value, (list, np.ndarray)
-                        ):
-                            scatter_quantized[scatter_key] = np.array(
-                                scatter_value, dtype=np.float16
-                            )
-                        else:
-                            scatter_quantized[scatter_key] = scatter_value
-                    quantized[key] = scatter_quantized
-                else:
-                    quantized[key] = self._apply_intelligent_quantization(value)
-            return quantized
-        elif isinstance(obj, np.ndarray):
-            if obj.dtype == np.float64:
-                # Downcast float64 → float32
-                return obj.astype(np.float32)
-            elif obj.dtype.kind == "f" and obj.ndim > 1:
-                # Embeddings: if normalized [-1,1], use float16
-                if -1.1 <= obj.min() and obj.max() <= 1.1:
-                    return obj.astype(np.float16)
-        elif isinstance(obj, list):
-            return [self._apply_intelligent_quantization(item) for item in obj]
-
-        return obj
-
-    def _restore_quantized_data(self, obj: Any) -> Any:
-        """Restore quantized data to original format."""
-        if not self.intelligent_quantization:
-            return obj
-
-        if isinstance(obj, dict):
-            restored = {}
-            for key, value in obj.items():
-                if key in [
-                    "similarities",
-                    "cosine_similarity",
-                    "dot_product",
-                ] and isinstance(value, np.ndarray):
-                    # Restore uint16 → float32
-                    if value.dtype == np.uint16:
-                        restored[key] = value.astype(np.float32) / 65535.0
-                    else:
-                        restored[key] = self._restore_quantized_data(value)
-                elif key == "scatter_plot_data" and isinstance(value, dict):
-                    # Keep float16 for coordinates (sufficient precision)
-                    restored[key] = {k: v for k, v in value.items()}
-                else:
-                    restored[key] = self._restore_quantized_data(value)
-            return restored
-        elif isinstance(obj, list):
-            return [self._restore_quantized_data(item) for item in obj]
-
-        return obj
-
-    def _numpy_default(self, obj):
-        """Custom encoder for numpy data types for msgpack, with compression."""
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            # Apply legacy quantization if enabled
-            if self.quantize and obj.dtype.kind == "f":
-                obj = obj.astype(np.float16)
-
-            # Use maximum compression for cache storage (embeddings don't change often)
-            compression_level = 9 if hasattr(self, "_cache_storage") else 6
-            return {
-                "__ndarray__": True,
-                "dtype": obj.dtype.str,
-                "shape": obj.shape,
-                "data": zlib.compress(obj.tobytes(), level=compression_level),
-            }
-        raise TypeError(f"Object of type {obj.__class__.__name__} is not serializable")
-
-    def _decode_numpy(self, obj):
-        """Custom decoder for numpy data types for msgpack."""
-        if isinstance(obj, dict) and "__ndarray__" in obj:
-            data = zlib.decompress(obj["data"])
-            return np.frombuffer(data, dtype=np.dtype(obj["dtype"])).reshape(
-                obj["shape"]
+        self.config = config
+        if isinstance(config, dict):
+            self.quantization_enabled = config.get("database", {}).get(
+                "intelligent_quantization", True
             )
-        return obj
+        else:
+            self.quantization_enabled = config.database.intelligent_quantization
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self._init_database()
 
-    def get_db_modification_time(self) -> float:
-        """Returns the last modification time of the database file."""
-        return os.path.getmtime(self.db_path)
-
-    def init_database(self):
-        """Initializes the database with the necessary tables."""
+    def _init_database(self):
+        """Initialize the database tables."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
 
@@ -500,19 +393,6 @@ class EmbeddingDatabase:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("VACUUM")
 
-    def clear_database(self):
-        """Clears all tables in the database."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM generated_files")
-            cursor.execute("DELETE FROM evaluation_metrics")
-            cursor.execute("DELETE FROM global_charts")
-            cursor.execute("DELETE FROM processing_results")
-            cursor.execute("DELETE FROM models")
-            cursor.execute("DELETE FROM embedding_cache")
-            cursor.execute("DELETE FROM tsne_coordinates")
-            conn.commit()
-
     def get_all_run_names(self) -> list[str]:
         """Récupère tous les run_names existants."""
         with sqlite3.connect(self.db_path) as conn:
@@ -577,7 +457,7 @@ class EmbeddingDatabase:
         items_to_insert = []
         for text_hash, vector in embeddings.items():
             # Apply intelligent quantization to embeddings for cache storage
-            if self.intelligent_quantization and vector.dtype.kind == "f":
+            if self.quantization_enabled and vector.dtype.kind == "f":
                 # Most embeddings are normalized [-1,1] → float16 is sufficient
                 if -1.1 <= vector.min() and vector.max() <= 1.1:
                     vector = vector.astype(np.float16)
@@ -585,17 +465,14 @@ class EmbeddingDatabase:
                     # Downcast float64 → float32
                     vector = vector.astype(np.float32)
 
-            # Apply legacy quantization if enabled (for backward compatibility)
-            elif self.quantize and vector.dtype.kind == "f":
-                vector = vector.astype(np.float16)
-
             vector_blob = msgpack.packb(
                 vector, default=self._numpy_default, use_bin_type=True
             )
             dimension = len(vector) if len(vector.shape) == 1 else vector.shape[1]
             items_to_insert.append((base_model_name, text_hash, vector_blob, dimension))
 
-        delattr(self, "_cache_storage")
+        if hasattr(self, "_cache_storage"):
+            delattr(self, "_cache_storage")
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -603,13 +480,6 @@ class EmbeddingDatabase:
                 "INSERT OR IGNORE INTO embedding_cache (model_name, text_hash, vector, dimension) VALUES (?, ?, ?, ?)",
                 items_to_insert,
             )
-            conn.commit()
-
-    def clear_embedding_cache(self):
-        """Clears all embeddings from the cache."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM embedding_cache")
             conn.commit()
 
     def save_tsne_coordinates(
@@ -676,8 +546,29 @@ class EmbeddingDatabase:
                     results_blob, object_hook=self._decode_numpy, raw=False
                 )
                 # Restore quantized data
-                results[file_id] = self._restore_quantized_data(data)
+                restored_data = self._restore_quantized_data(data)
+                # Convert all numpy types to native Python types for JSON serialization
+                results[file_id] = self._to_native_python_types(restored_data)
         return results
+
+    def _to_native_python_types(self, obj: Any) -> Any:
+        """
+        Recursively converts NumPy types in an object to native Python types.
+        """
+        if isinstance(obj, dict):
+            return {k: self._to_native_python_types(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._to_native_python_types(i) for i in obj]
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        # Use abstract base classes for broad compatibility (including NumPy 2.0)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return obj
 
     def _dequantize_similarities(self, similarities):
         """Ensure similarities are properly dequantized to [0,1] range"""
@@ -733,7 +624,7 @@ class EmbeddingDatabase:
 
     def _quantize_metrics(self, metrics: Dict[str, float]) -> Dict[str, Any]:
         """Quantize metrics intelligently based on their expected ranges."""
-        if not self.intelligent_quantization:
+        if not self.quantization_enabled:
             return metrics
 
         quantized = {}
@@ -777,7 +668,7 @@ class EmbeddingDatabase:
 
     def _dequantize_metrics(self, metrics: Dict[str, Any]) -> Dict[str, float | None]:
         """Dequantize metrics back to their original ranges."""
-        if not self.intelligent_quantization:
+        if not self.quantization_enabled:
             return {k: float(v) if v is not None else None for k, v in metrics.items()}
 
         dequantized: Dict[str, float | None] = {}
@@ -787,9 +678,7 @@ class EmbeddingDatabase:
                 continue
 
             # Handle quantized uint16 values
-            if (
-                isinstance(value, np.integer) or isinstance(value, int)
-            ) and value <= 65535:
+            if (isinstance(value, (np.integer, int))) and value <= 65535:
                 if "coherence" in key.lower():
                     # Internal coherence was inverted: restore original
                     dequantized[key] = 1.0 - (float(value) / 65535.0)
@@ -809,3 +698,152 @@ class EmbeddingDatabase:
                 dequantized[key] = float(value)
 
         return dequantized
+
+    def get_db_modification_time(self) -> float:
+        """Returns the last modification time of the database file."""
+        return os.path.getmtime(self.db_path)
+
+    def _apply_intelligent_quantization(self, obj: Any) -> Any:
+        """Apply intelligent quantization based on data type and content."""
+        if not self.quantization_enabled:
+            return obj
+
+        if isinstance(obj, dict):
+            quantized = {}
+            for key, value in obj.items():
+                if key in [
+                    "similarities",
+                    "cosine_similarity",
+                    "dot_product",
+                ] and isinstance(value, (np.ndarray, list)):
+                    # Similarity metrics - quantifier seulement si dans [0,1]
+                    if isinstance(value, list):
+                        value = np.array(value)
+                    if (
+                        value.dtype.kind == "f"
+                        and 0 <= value.min()
+                        and value.max()
+                        <= 1.01  # Petite tolérance pour les erreurs de floating point
+                    ):
+                        quantized[key] = (value * 65535).astype(np.uint16)
+                    else:
+                        # Garder en float32 pour dot_product et autres métriques non-normalisées
+                        quantized[key] = value.astype(np.float32)
+                elif key == "scatter_plot_data" and isinstance(value, dict):
+                    # 2D coordinates → float16
+                    scatter_quantized = {}
+                    for scatter_key, scatter_value in value.items():
+                        if scatter_key in ["x", "y"] and isinstance(
+                            scatter_value, (list, np.ndarray)
+                        ):
+                            scatter_quantized[scatter_key] = np.array(
+                                scatter_value, dtype=np.float16
+                            )
+                        elif scatter_key == "similarities" and isinstance(
+                            scatter_value, (list, np.ndarray)
+                        ):
+                            # Similarities in scatter plot data
+                            if isinstance(scatter_value, list):
+                                scatter_value = np.array(scatter_value)
+                            if (
+                                scatter_value.dtype.kind == "f"
+                                and 0 <= scatter_value.min()
+                                and scatter_value.max() <= 1
+                            ):
+                                scatter_quantized[scatter_key] = (
+                                    scatter_value * 65535
+                                ).astype(np.uint16)
+                            else:
+                                scatter_quantized[scatter_key] = scatter_value
+                        else:
+                            scatter_quantized[scatter_key] = scatter_value
+                    quantized[key] = scatter_quantized
+                elif key == "metrics" and isinstance(value, dict):
+                    # Apply metric-specific quantization
+                    quantized[key] = self._quantize_metrics(value)
+                else:
+                    quantized[key] = self._apply_intelligent_quantization(value)
+            return quantized
+        elif isinstance(obj, np.ndarray):
+            if obj.dtype == np.float64:
+                # Downcast float64 → float32
+                return obj.astype(np.float32)
+            elif obj.dtype.kind == "f" and obj.ndim > 1:
+                # Embeddings: if normalized [-1,1], use float16
+                if -1.1 <= obj.min() and obj.max() <= 1.1:
+                    return obj.astype(np.float16)
+        elif isinstance(obj, list):
+            return [self._apply_intelligent_quantization(item) for item in obj]
+
+        return obj
+
+    def _restore_quantized_data(self, obj: Any) -> Any:
+        """Restore quantized data to original format."""
+        if not self.quantization_enabled:
+            return obj
+
+        if isinstance(obj, dict):
+            restored = {}
+            for key, value in obj.items():
+                if key in [
+                    "similarities",
+                    "cosine_similarity",
+                    "dot_product",
+                ] and isinstance(value, np.ndarray):
+                    # Restore uint16 → float32 seulement si c'était quantifié
+                    if value.dtype == np.uint16:
+                        restored[key] = value.astype(np.float32) / 65535.0
+                    else:
+                        # Était déjà en float32 (dot_product, etc.)
+                        restored[key] = value.astype(np.float32)
+                elif key == "scatter_plot_data" and isinstance(value, dict):
+                    scatter_restored = {}
+                    for scatter_key, scatter_value in value.items():
+                        if scatter_key == "similarities" and isinstance(
+                            scatter_value, np.ndarray
+                        ):
+                            if scatter_value.dtype == np.uint16:
+                                scatter_restored[scatter_key] = (
+                                    scatter_value.astype(np.float32) / 65535.0
+                                )
+                            else:
+                                scatter_restored[scatter_key] = scatter_value
+                        else:
+                            scatter_restored[scatter_key] = scatter_value
+                    restored[key] = scatter_restored
+                elif key == "metrics" and isinstance(value, dict):
+                    # Apply metric-specific dequantization
+                    restored[key] = self._dequantize_metrics(value)
+                else:
+                    restored[key] = self._restore_quantized_data(value)
+            return restored
+        elif isinstance(obj, list):
+            return [self._restore_quantized_data(item) for item in obj]
+
+        return obj
+
+    def _numpy_default(self, obj):
+        """Custom encoder for numpy data types for msgpack, with compression."""
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            # Use maximum compression for cache storage (embeddings don't change often)
+            compression_level = 9 if hasattr(self, "_cache_storage") else 6
+            return {
+                "__ndarray__": True,
+                "dtype": obj.dtype.str,
+                "shape": obj.shape,
+                "data": zlib.compress(obj.tobytes(), level=compression_level),
+            }
+        raise TypeError(f"Object of type {obj.__class__.__name__} is not serializable")
+
+    def _decode_numpy(self, obj):
+        """Custom decoder for numpy data types for msgpack."""
+        if isinstance(obj, dict) and "__ndarray__" in obj:
+            data = zlib.decompress(obj["data"])
+            return np.frombuffer(data, dtype=np.dtype(obj["dtype"])).reshape(
+                obj["shape"]
+            )
+        return obj

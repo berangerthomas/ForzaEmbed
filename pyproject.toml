@@ -31,4 +31,5 @@ dependencies = [
     "joblib>=1.4.2",
     "jsmin",
     "cssmin",
+    "csscompressor>=0.9.5",
 ]

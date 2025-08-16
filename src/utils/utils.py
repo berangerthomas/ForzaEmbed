@@ -2,7 +2,6 @@ import re
 from typing import List
 
 import nltk
-import numpy as np
 import semchunk
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -75,7 +74,11 @@ def chunk_text(
     else:
         raise ValueError(f"Unknown chunking strategy: {strategy}")
 
-    return [str(chunk).strip() for chunk in chunks if str(chunk).strip()]
+    return [
+        str(chunk).strip()
+        for chunk in chunks
+        if isinstance(chunk, str) and chunk.strip()
+    ]
 
 
 # Checks if a text contains a pattern related to opening hours.
@@ -120,16 +123,6 @@ def extract_context_around_phrase(phrases: list[str], phrase_index: int) -> str:
     Returns:
         str: Context with the target sentence highlighted.
     """
-    context_window = 0
-    start_idx = max(0, phrase_index - context_window)
-    end_idx = min(len(phrases), phrase_index + context_window + 1)
-    context_phrases = phrases[start_idx:end_idx]
-
-    context_with_highlight = []
-    for i, phrase in enumerate(context_phrases):
-        actual_idx = start_idx + i
-        if actual_idx == phrase_index:
-            context_with_highlight.append(f"**{phrase.strip()}**")
-        else:
-            context_with_highlight.append(phrase.strip())
-    return " ".join(context_with_highlight)
+    if 0 <= phrase_index < len(phrases):
+        return f"**{phrases[phrase_index].strip()}**"
+    return ""

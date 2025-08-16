@@ -250,45 +250,6 @@ def calculate_silhouette_metrics(
     }
 
 
-def calculate_clustering_metrics(
-    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
-) -> Dict[str, float]:
-    """Calculates standard clustering evaluation metrics.
-
-    This function computes several well-known metrics to evaluate the quality
-    of the thematic clustering of document chunks.
-
-    Args:
-        embeddings (np.ndarray): The embeddings of the text chunks.
-        labels (np.ndarray): The theme label for each chunk.
-        metric (str): Similarity metric used for theme assignment (not used for clustering evaluation).
-
-    Returns:
-        Dict[str, float]: A dictionary with silhouette-based and LDI scores.
-    """
-    unique_labels = np.unique(labels)
-    if len(unique_labels) < 2 or len(embeddings) <= len(unique_labels):
-        return {
-            "intra_cluster_distance_normalized": 0.0,
-            "inter_cluster_distance_normalized": 0.0,
-            "silhouette_score": -1.0,
-            "local_density_index": 0.0,
-        }
-
-    # Calculate silhouette metrics
-    silhouette_metrics = calculate_silhouette_metrics(
-        embeddings, labels, metric="cosine"
-    )
-
-    # Calculate LDI
-    ldi = local_density_index(embeddings, labels, metric="minkowski", p=2)
-
-    return {
-        **silhouette_metrics,
-        "local_density_index": float(ldi),
-    }
-
-
 def calculate_all_metrics(
     ref_embeddings: np.ndarray,
     doc_embeddings: np.ndarray,

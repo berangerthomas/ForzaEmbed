@@ -47,7 +47,6 @@ def decompose_silhouette_score(
     # Calcul de la matrice des distances
     distance_matrix = pairwise_distances(embeddings, metric=clustering_metric)
 
-    n_samples = len(embeddings)
     a_values = []  # cohésion intra-cluster
     b_values = []  # séparation inter-cluster
 
@@ -170,7 +169,6 @@ def enhanced_silhouette_analysis(
     Args:
         embeddings: Matrice des embeddings
         labels: Labels des clusters
-        metric: Métrique de similarité (ignorée pour l'analyse silhouette)
 
     Returns:
         Analyse détaillée avec métriques globales et par cluster

@@ -10,10 +10,11 @@ from sklearn.metrics.pairwise import (
     pairwise_distances,
 )
 
-from .database import EmbeddingDatabase
-from .embedding_client import ProductionEmbeddingClient
-from .evaluation_metrics import calculate_all_metrics
-from .utils import chunk_text
+from ..clients.embedding_client import ProductionEmbeddingClient
+from ..metrics.evaluation_metrics import calculate_all_metrics
+from ..utils.database import EmbeddingDatabase
+from ..utils.utils import chunk_text
+from .config import AppConfig
 
 
 class Processor:
@@ -21,15 +22,69 @@ class Processor:
     Handles the core data processing logic for a single test run.
     """
 
-    def __init__(self, db: EmbeddingDatabase, config: Dict[str, Any]):
+    def __init__(self, db: EmbeddingDatabase, config: AppConfig):
         self.db = db
         self.config = config
-        self.multiprocessing_config = config.get("multiprocessing", {})
+        self.multiprocessing_config = self.config.multiprocessing
+
+    def _safe_convert_to_python_types(self, data: Any) -> Any:
+        """
+        Convertit récursivement tous les types NumPy en types Python natifs
+        pour éviter les erreurs de sérialisation JSON.
+        """
+        if isinstance(data, np.ndarray):
+            return data.astype(float).tolist()
+        elif isinstance(data, (np.float16, np.float32, np.float64)):
+            return float(data)
+        elif isinstance(data, (np.int8, np.int16, np.int32, np.int64)):
+            return int(data)
+        elif isinstance(data, (np.uint8, np.uint16, np.uint32, np.uint64)):
+            return int(data)
+        elif isinstance(data, dict):
+            return {
+                key: self._safe_convert_to_python_types(value)
+                for key, value in data.items()
+            }
+        elif isinstance(data, (list, tuple)):
+            return [self._safe_convert_to_python_types(item) for item in data]
+        else:
+            return data
+
+    def _validate_similarities(
+        self, similarities: np.ndarray, metric: str
+    ) -> np.ndarray:
+        """
+        Valide et nettoie les similarités selon la métrique utilisée.
+        """
+        # Remplacer NaN et inf par des valeurs appropriées
+        similarities = np.nan_to_num(similarities, nan=0.0, posinf=1.0, neginf=0.0)
+
+        # Validation selon la métrique
+        if metric == "cosine":
+            # Cosine similarity: [-1, 1] mais généralement [0, 1] pour des textes
+            if similarities.min() < -1.1 or similarities.max() > 1.1:
+                logging.warning(
+                    f"Cosine similarities out of expected range [-1,1]: min={similarities.min()}, max={similarities.max()}"
+                )
+            similarities = np.clip(similarities, -1.0, 1.0)
+        elif metric == "dot_product":
+            # Dot product: pas de limite théorique, on garde les valeurs telles quelles
+            pass
+        elif metric in ["euclidean", "manhattan", "chebyshev"]:
+            # Distance metrics convertis en similarité: [0, +inf) → similarity dans [0, 1]
+            # Les valeurs sont déjà converties par 1/(1+distance), donc devraient être dans [0, 1]
+            if similarities.min() < 0 or similarities.max() > 1.1:
+                logging.warning(
+                    f"{metric} similarities out of expected range [0,1]: min={similarities.min()}, max={similarities.max()}"
+                )
+            similarities = np.clip(similarities, 0.0, 1.0)
+
+        return similarities
 
     def run_test(
         self,
-        rows: List[Tuple[str, str, str, str]],
-        model_config: Dict[str, Any],
+        rows: List[Tuple[str, str]],
+        model_config: Any,
         chunk_size: int,
         chunk_overlap: int,
         themes: List[str],
@@ -43,13 +98,12 @@ class Processor:
         Processes a test run, handling embedding generation, similarity calculation,
         and metric evaluation.
         """
-        model_type = model_config["type"]
-        model_name = model_config["name"]
+        model_name = model_config.name
         results = {"files": {}}
 
         embedding_function = self._get_embedding_function(model_config)
         # Use the base model name for caching, as embeddings are model-specific
-        base_model_name = model_config["name"]
+        base_model_name = model_config.name
 
         themes_embeddings_map = self._get_or_create_embeddings(
             embedding_function, base_model_name, themes
@@ -72,13 +126,12 @@ class Processor:
         embed_themes = np.array(embed_themes_list)
 
         for item in unprocessed_rows:
-            identifiant, name, location_type, texte = item
-            file_info = f"{identifiant} {location_type[:3]} {name[-20:]}"
+            name, texte = item
             grid_params = (
                 f"cs{chunk_size} co{chunk_overlap} {similarity_metric[:3]} "
                 f"{chunking_strategy} {theme_name[-13:]}"
             )
-            description = f"{file_info} | {model_name[-20:]} | {grid_params}"
+            description = f"{name} | {model_name[-20:]} | {grid_params}"
             pbar.set_description(description[:150])
             if not texte or not texte.strip():
                 pbar.update(1)
@@ -109,14 +162,15 @@ class Processor:
                 continue
 
             if embed_themes.shape[1] != item_embed_phrases.shape[1]:
-                logging.error(f"Dimension mismatch for file '{identifiant}'.")
+                logging.error(f"Dimension mismatch for file '{name}'.")
                 pbar.update(1)
                 continue
 
-            # Calculate similarities and labels
+            # Calculate similarities and labels with validation
             similarites = self.calculate_similarity(
                 embed_themes, item_embed_phrases, similarity_metric
             )
+            similarites = self._validate_similarities(similarites, similarity_metric)
             labels = np.argmax(similarites, axis=0)
 
             # Calculate metrics
@@ -126,24 +180,30 @@ class Processor:
                 labels,
             )
 
+            # Convert metrics to safe Python types
+            all_metrics = self._safe_convert_to_python_types(all_metrics)
+
             # Generate t-SNE coordinates
-            # Use a unique key for t-SNE data based on model and parameters
-            tsne_key = f"{model_config['name']}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
+            tsne_key = f"{model_config.name}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
             scatter_plot_data = self._get_or_create_tsne_data(
                 item_embed_phrases,
                 tsne_key,
-                identifiant,
+                name,
                 similarites,
-                self.config.get("similarity_threshold", 0.6),
+                self.config.similarity_threshold,
             )
 
-            results["files"][identifiant] = {
+            # Ensure all data is properly converted
+            max_similarities = similarites.max(axis=0)
+            safe_similarities = self._safe_convert_to_python_types(max_similarities)
+
+            results["files"][name] = {
                 "file_name": name,
                 "phrases": item_phrases,
-                "similarities": similarites.max(axis=0).tolist(),
+                "similarities": safe_similarities,
                 "metrics": {
                     **all_metrics,
-                    "mean_similarity": float(np.mean(similarites.max(axis=0))),
+                    "mean_similarity": float(np.mean(max_similarities)),
                 },
                 "scatter_plot_data": scatter_plot_data,
             }
@@ -151,42 +211,44 @@ class Processor:
 
         return {"results": results}
 
-    def _get_embedding_function(self, model_config: Dict[str, Any]) -> Callable:
+    def _get_embedding_function(self, model_config: Any) -> Callable:
         """Creates the appropriate embedding function based on model type."""
-        model_type = model_config["type"]
-        model_name = model_config["name"]
+        model_type = model_config.type
+        model_name = model_config.name
 
         if model_type in ["sentence_transformers", "fastembed", "huggingface"]:
             # This part will be further refactored to use a client factory
             def get_embeddings(texts):
                 # Placeholder for future client factory
-                from .fastembed_client import FastEmbedClient
-                from .huggingface_client import get_huggingface_embeddings
-                from .sentencetransformers_client import SentenceTransformersClient
+                from ..clients.fastembed_client import FastEmbedClient
+                from ..clients.huggingface_client import get_huggingface_embeddings
+                from ..clients.sentencetransformers_client import (
+                    SentenceTransformersClient,
+                )
 
                 if model_type == "fastembed":
                     return FastEmbedClient.get_embeddings(
                         texts,
                         model_name=model_name,
-                        expected_dimension=model_config.get("dimensions"),
+                        expected_dimension=model_config.dimensions,
                     )
                 elif model_type == "huggingface":
                     return get_huggingface_embeddings(
                         texts,
                         model_name=model_name,
-                        expected_dimension=model_config.get("dimensions"),
+                        expected_dimension=model_config.dimensions,
                     )
                 elif model_type == "sentence_transformers":
                     return SentenceTransformersClient.get_embeddings(
                         texts,
                         model_name=model_name,
-                        expected_dimension=model_config.get("dimensions"),
+                        expected_dimension=model_config.dimensions,
                     )
                 return []
 
             return get_embeddings
         else:  # API models
-            api_batch_sizes = self.multiprocessing_config.get("api_batch_sizes", {})
+            api_batch_sizes = self.multiprocessing_config.api_batch_sizes
             model_lower = model_name.lower()
             batch_size = api_batch_sizes.get("default", 100)
             for provider, size in api_batch_sizes.items():
@@ -194,13 +256,16 @@ class Processor:
                     batch_size = size
                     break
 
+            if not model_config.base_url:
+                raise ValueError(f"API model '{model_name}' requires a base_url.")
+
             client = ProductionEmbeddingClient(
-                model_config["base_url"],
+                model_config.base_url,
                 model_name,
-                expected_dimension=model_config.get("dimensions"),
-                timeout=model_config.get("timeout", 30),
+                expected_dimension=model_config.dimensions,
+                timeout=model_config.timeout or 30,
+                initial_batch_size=batch_size,
             )
-            client._initial_batch_size = batch_size
             return client.get_embeddings
 
     def _get_or_create_embeddings(
@@ -294,14 +359,16 @@ class Processor:
                 for s in similarity_scores
             ]
 
-            return {
-                "x": cached_tsne["x"],
-                "y": cached_tsne["y"],
+            # S'assurer que toutes les données sont des types Python natifs
+            tsne_data = {
+                "x": self._safe_convert_to_python_types(cached_tsne["x"]),
+                "y": self._safe_convert_to_python_types(cached_tsne["y"]),
                 "labels": scatter_labels,
-                "similarities": similarity_scores.tolist(),
+                "similarities": self._safe_convert_to_python_types(similarity_scores),
                 "title": f"t-SNE Visualization for {file_id}",
-                "threshold": threshold,
+                "threshold": float(threshold),
             }
+            return tsne_data
 
         # Calculer de nouvelles coordonnées t-SNE
         try:
@@ -317,8 +384,8 @@ class Processor:
 
             # Sauvegarder les coordonnées pour réutilisation
             tsne_coords = {
-                "x": tsne_results[:, 0].tolist(),
-                "y": tsne_results[:, 1].tolist(),
+                "x": tsne_results[:, 0].astype(float).tolist(),
+                "y": tsne_results[:, 1].astype(float).tolist(),
             }
             self.db.save_tsne_coordinates(tsne_key, file_id, tsne_coords)
 
@@ -333,91 +400,11 @@ class Processor:
                 "x": tsne_coords["x"],
                 "y": tsne_coords["y"],
                 "labels": scatter_labels,
-                "similarities": similarity_scores.tolist(),
+                "similarities": self._safe_convert_to_python_types(similarity_scores),
                 "title": f"t-SNE Visualization for {file_id}",
-                "threshold": threshold,
+                "threshold": float(threshold),
             }
 
         except Exception as e:
             logging.error(f"Error during t-SNE calculation for {file_id}: {e}")
             return None
-
-    def refresh_all_metrics(self):
-        """
-        Recalculates and updates evaluation metrics for all runs in the database.
-        """
-        all_run_names = self.db.get_all_run_names()
-        logging.info(f"Found {len(all_run_names)} runs to refresh.")
-
-        for run_name in all_run_names:
-            run_details = self.db.get_run_details(run_name)
-            if not run_details:
-                continue
-
-            all_processing_results = self.db.get_all_processing_results_for_run(
-                run_name
-            )
-
-            # Get themes for the run
-            theme_name = run_details["theme_name"]
-            themes = self.config["grid_search_params"]["themes"].get(theme_name)
-            if not themes:
-                logging.warning(f"Themes '{theme_name}' not found in config.")
-                continue
-
-            # Get theme embeddings
-            embedding_function = self._get_embedding_function(
-                {"type": run_details["type"], "name": run_details["base_model_name"]}
-            )
-            themes_embeddings_map = self._get_or_create_embeddings(
-                embedding_function, run_details["base_model_name"], themes
-            )
-            theme_hashes = [self.get_text_hash(theme) for theme in themes]
-            embed_themes_list = [
-                themes_embeddings_map[h]
-                for h in theme_hashes
-                if h in themes_embeddings_map
-            ]
-            embed_themes = np.array(embed_themes_list)
-
-            # Get all processed files for the run
-            processed_files_data = self.db.get_all_processing_results_for_run(run_name)
-
-            for file_id, file_results in all_processing_results.items():
-                # Data is automatically restored from quantization by get_all_processing_results_for_run
-                item_phrases = file_results["phrases"]
-                if not item_phrases:
-                    continue
-
-                # Get phrase embeddings
-                all_embeddings_map = self._get_or_create_embeddings(
-                    embedding_function, run_details["base_model_name"], item_phrases
-                )
-                phrase_hashes = {p: self.get_text_hash(p) for p in item_phrases}
-                item_embed_phrases = np.array(
-                    [
-                        all_embeddings_map[h]
-                        for p in item_phrases
-                        if (h := phrase_hashes[p]) in all_embeddings_map
-                    ]
-                )
-
-                if item_embed_phrases.size == 0:
-                    continue
-
-                # Recalculate similarities and metrics
-                similarites = self.calculate_similarity(
-                    embed_themes,
-                    item_embed_phrases,
-                    run_details["similarity_metric"],
-                )
-                labels = np.argmax(similarites, axis=0)
-                all_metrics = calculate_all_metrics(
-                    embed_themes,
-                    item_embed_phrases,
-                    labels,
-                )
-
-                # Update the database (quantization will be applied automatically)
-                self.db.update_metrics_for_file(run_name, file_id, all_metrics)
-        logging.info("Finished refreshing all metrics.")

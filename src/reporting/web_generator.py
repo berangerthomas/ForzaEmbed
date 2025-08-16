@@ -2,30 +2,43 @@ import base64
 import json
 import os
 import zlib
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
-from cssmin import cssmin
-from jsmin import jsmin
+from csscompressor import compress as cssmin
 
 
-def numpy_encoder(o: Any) -> Any:
-    """Custom encoder for JSON to handle NumPy data types."""
-    if isinstance(o, np.integer):
-        return int(o)
-    elif isinstance(o, np.floating):
-        return float(o)
-    elif isinstance(o, np.ndarray):
-        return o.tolist()
-    elif isinstance(o, np.number) and hasattr(o, "dtype") and o.dtype == np.uint16:
-        # Handle quantized similarity data
-        return float(o) / 65535.0
-    else:
-        return o
+def safe_numpy_converter(obj: Any) -> Any:
+    """
+    Convertit récursivement les types NumPy en types Python natifs pour la sérialisation JSON.
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.float16, np.float32, np.float64)):
+        return float(obj)
+    if isinstance(
+        obj,
+        (
+            np.int8,
+            np.int16,
+            np.int32,
+            np.int64,
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.uint64,
+        ),
+    ):
+        return int(obj)
+    if isinstance(obj, dict):
+        return {k: safe_numpy_converter(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [safe_numpy_converter(i) for i in obj]
+    return obj
 
 
 def generate_main_page(
-    processed_data: Dict[str, Any],
+    processed_data: dict[str, Any],
     output_dir: str,
     total_combinations: int,
     single_file: bool = False,
@@ -46,15 +59,20 @@ def generate_main_page(
             generation_jobs.append({"data": job_data, "filename": f"{base_name}.html"})
 
     for job in generation_jobs:
+        # Appliquer une conversion profonde pour garantir l'absence de types NumPy
+        safe_data = safe_numpy_converter(job["data"])
+
         # Sérialiser avec JSON, compresser avec zlib, puis encoder en Base64
-        json_string = json.dumps(job["data"], default=numpy_encoder)
+        json_string = json.dumps(safe_data)
         packed_data = json_string.encode("utf-8")
         compressed_data = zlib.compress(packed_data, level=9)
         b64_data = base64.b64encode(compressed_data).decode("ascii")
 
         # Chunk the base64 string to avoid browser limits on string literal size
         chunk_size = 50000  # Use 50KB chunks
-        b64_chunks = [b64_data[i:i + chunk_size] for i in range(0, len(b64_data), chunk_size)]
+        b64_chunks = [
+            b64_data[i : i + chunk_size] for i in range(0, len(b64_data), chunk_size)
+        ]
         js_data_array = "const b64DataChunks = " + json.dumps(b64_chunks) + ";\n"
 
         css_content = """
@@ -242,10 +260,39 @@ def generate_main_page(
         """
         minified_css = cssmin(css_content)
 
-        # Lire le contenu du worker
-        worker_path = os.path.join(os.path.dirname(__file__), "worker.js")
-        with open(worker_path, "r", encoding="utf-8") as f:
-            worker_js_content = f.read()
+        # Contenu du worker JS, maintenant intégré pour un fichier autonome
+        worker_js_content = r"""// Import the pako library for zlib decompression
+self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js');
+
+self.onmessage = function(event) {
+    const base64String = event.data;
+    try {
+        // Step 1: Decode Base64 to a binary string
+        const binaryString = atob(base64String);
+
+        // Step 2: Convert the binary string to a Uint8Array to handle raw bytes
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Step 3: Decompress the byte array using pako
+        const decompressedBytes = pako.inflate(bytes);
+
+        // Step 4: Decode the decompressed bytes from UTF-8 into a string
+        const jsonString = new TextDecoder("utf-8").decode(decompressedBytes);
+        
+        // Step 5: Parse the JSON string
+        const processedData = JSON.parse(jsonString);
+        
+        // Send the processed data back to the main thread
+        self.postMessage({ success: true, data: processedData });
+    } catch (e) {
+        // Report an error back to the main thread
+        self.postMessage({ success: false, error: e.message });
+    }
+};"""
 
         # Isoler le code JavaScript statique pour la minification
         static_js_content = r"""
@@ -310,11 +357,11 @@ def generate_main_page(
         };
 
         const cmap_heatmap = createCmap([
-            { r: 215, g: 25, b: 28 },    // Poor/Low similarity (Red)
-            { r: 253, g: 174, b: 97 },   // Orange
-            { r: 255, g: 255, b: 191 }, // Neutral (Yellow)
+            { r: 43, g: 131, b: 186 },    // Poor/Low similarity (Blue/Green)
             { r: 171, g: 221, b: 164 },  // Light Green
-            { r: 43, g: 131, b: 186 }    // Excellent/High similarity (Blue/Green)
+            { r: 255, g: 255, b: 191 }, // Neutral (Yellow)
+            { r: 253, g: 174, b: 97 },   // Orange
+            { r: 215, g: 25, b: 28 }    // Excellent/High similarity (Red)
         ]);
 
         function getMetricColor(metricKey, value) {
@@ -615,7 +662,6 @@ def generate_main_page(
             if (hasMetrics && hasHeatmapData) {
                 updateMetrics(embeddingData.metrics);
                 updateHeatmap(embeddingData.phrases, embeddingData.similarities);
-                updateFileLinks(embeddingKey, fileKey);
                 
                 if (hasScatterData) {
                     updateScatterPlot(embeddingData.scatter_plot_data);
@@ -813,11 +859,6 @@ def generate_main_page(
             heatmapContainer.appendChild(content);
         }
 
-        function updateFileLinks(embeddingKey, fileKey) {
-            // Cette fonction peut être vide si les liens de fichiers ne sont pas utilisés
-            fileLinksContainer.innerHTML = '';
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
             const loadingIndicator = document.getElementById('loading-indicator');
             const mainContainer = document.querySelector('.container');
@@ -858,7 +899,7 @@ def generate_main_page(
             worker.postMessage(b64Data);
         });
         """
-        
+
         # Combiner les données (en morceaux), le worker et le code statique (non minifié)
         final_js_content = (
             js_data_array

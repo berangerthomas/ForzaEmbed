@@ -17,7 +17,6 @@ class SentenceTransformersClient:
         If the instance does not exist, it is created.
         """
         if model_name not in cls._instances:
-            # print(f"🚀 Loading local model: {model_name}")
             cls._instances[model_name] = SentenceTransformer(model_name)
         return cls._instances[model_name]
 

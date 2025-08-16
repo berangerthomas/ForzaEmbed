@@ -27,6 +27,7 @@ class ProductionEmbeddingClient:
         model: str,
         expected_dimension: int | None = None,
         timeout: int = 30,
+        initial_batch_size: int | None = None,
     ) -> None:
         self.base_url = base_url
         self.model = model
@@ -34,7 +35,7 @@ class ProductionEmbeddingClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
-        self._initial_batch_size = None
+        self._initial_batch_size = initial_batch_size
 
         # Determines which API key to use based on the model name
         if "mistral" in model.lower():
@@ -55,8 +56,9 @@ class ProductionEmbeddingClient:
         if not texts:
             return []
 
+        batch_size = self._initial_batch_size if self._initial_batch_size is not None else len(texts)
         # Start with full batch, will be subdivided if needed
-        return self._get_embeddings_with_retry(texts, initial_batch_size=len(texts))
+        return self._get_embeddings_with_retry(texts, initial_batch_size=batch_size)
 
     def _get_embeddings_with_retry(
         self, texts: List[str], initial_batch_size: int, max_retries: int = 3

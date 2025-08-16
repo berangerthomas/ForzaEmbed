@@ -1,12 +1,11 @@
-import hashlib
 import logging
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import List, Tuple, Union
 
 
 def load_markdown_files(
-    data_source: Any,
-) -> List[Tuple[str, str, str, str]]:
+    data_source: Union[str, Path, List[str]],
+) -> List[Tuple[str, str]]:
     """
     Loads markdown content from various sources.
 
@@ -19,7 +18,7 @@ def load_markdown_files(
 
     Returns:
         A list of tuples, where each tuple contains:
-        (identifier, name, location_type, text).
+        (name, text).
     """
     all_rows = []
     if isinstance(data_source, (str, Path)):
@@ -30,23 +29,15 @@ def load_markdown_files(
         for file_path in directory.glob("*.md"):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-                # Parsing metadata from filename (e.g., "ID_Type_Libelle.md")
-                parts = file_path.stem.split("_", 2)
-                identifier = parts[0]
-                location_type = parts[1] if len(parts) > 1 else "Unknown"
-                name = (
-                    parts[2].replace("_", " ") if len(parts) > 2 else "Unknown"
-                )  # This is the libellé
-                all_rows.append((identifier, name, location_type, content))
+                # Use the filename stem as a generic name
+                name = file_path.stem
+                all_rows.append((name, content))
     elif isinstance(data_source, list) and all(
         isinstance(item, str) for item in data_source
     ):
         for i, content in enumerate(data_source):
-            # Create a unique identifier from the content hash
-            identifier = hashlib.sha256(content.encode()).hexdigest()[:16]
             name = f"Text Content {i + 1}"
-            location_type = "programmatic"
-            all_rows.append((identifier, name, location_type, content))
+            all_rows.append((name, content))
     else:
         raise TypeError(
             "Unsupported data_source type. "

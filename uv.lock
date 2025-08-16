@@ -219,6 +219,12 @@ wheels = [
 ]
 
 [[package]]
+name = "csscompressor"
+version = "0.9.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/2a/8c3ac3d8bc94e6de8d7ae270bb5bc437b210bb9d6d9e46630c98f4abd20c/csscompressor-0.9.5.tar.gz", hash = "sha256:afa22badbcf3120a4f392e4d22f9fff485c044a1feda4a950ecc5eba9dd31a05", size = 237808, upload-time = "2017-11-26T21:13:08.238Z" }
+
+[[package]]
 name = "cssmin"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -344,6 +350,7 @@ version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "csscompressor" },
     { name = "cssmin" },
     { name = "dotenv" },
     { name = "fastapi" },
@@ -374,6 +381,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4" },
+    { name = "csscompressor", specifier = ">=0.9.5" },
     { name = "cssmin" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi" },

@@ -3,6 +3,10 @@ data/
 
 # Fichiers projet
 a_faire.md
+reports/
+configs/
+markdowns/
+scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
