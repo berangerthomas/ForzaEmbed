@@ -24,7 +24,7 @@ class ForzaEmbed:
 
     def __init__(
         self,
-        db_path: str = "data/ForzaEmbed.db",
+        db_path: str = "reports/ForzaEmbed_config.db",
         config_path: str = "configs/config.yml",
     ):
         """
@@ -47,8 +47,9 @@ class ForzaEmbed:
 
         # Instantiate the processor
         self.processor = Processor(self.db, self.config)
+        config_name = self.config_path.stem
         self.report_generator = ReportGenerator(
-            self.db, self.config.model_dump(), self.output_dir
+            self.db, self.config.model_dump(), self.output_dir, config_name
         )
 
         logging.info(f"ForzaEmbed initialized. Database at: {self.db_path}")
@@ -99,10 +100,30 @@ class ForzaEmbed:
             )
             total_tasks += unprocessed_count
 
-        logging.info(
-            f"Generated {len(valid_combinations)} valid combinations. "
-            f"Found {total_tasks} file(s) to process across all combinations."
+        num_files = len(all_rows)
+        num_combinations = len(valid_combinations)
+        total_possible_tasks = num_files * num_combinations
+        cached_tasks = total_possible_tasks - total_tasks
+
+        file_str = f"{num_files} file{'s' if num_files > 1 else ''}"
+        combination_str = (
+            f"{num_combinations} valid combination{'s' if num_combinations > 1 else ''}"
         )
+
+        log_message = (
+            f"Found {file_str} to process with {combination_str}. "
+            f"This represents a total of {total_possible_tasks} possible calculations. "
+        )
+
+        if cached_tasks > 0:
+            log_message += (
+                f"Found {cached_tasks} already completed calculations. "
+                f"Resuming processing for the remaining {total_tasks} calculations."
+            )
+        else:
+            log_message += f"Starting processing for all {total_tasks} calculations."
+
+        logging.info(log_message)
 
         if total_tasks == 0:
             logging.info("All combinations already processed for all files!")

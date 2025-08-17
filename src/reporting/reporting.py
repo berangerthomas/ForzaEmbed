@@ -18,12 +18,18 @@ class ReportGenerator:
     Handles the generation of all reports and visualizations.
     """
 
-    def __init__(self, db: EmbeddingDatabase, config: Dict[str, Any], output_dir: Path):
+    def __init__(
+        self,
+        db: EmbeddingDatabase,
+        config: Dict[str, Any],
+        output_dir: Path,
+        config_name: str,
+    ):
         self.db = db
         self.config = config
         self.output_dir = output_dir
         self.similarity_threshold = config.get("similarity_threshold", 0.6)
-        self.data_aggregator = DataAggregator(db, output_dir)
+        self.data_aggregator = DataAggregator(db, output_dir, config_name)
 
     def generate_all(self, top_n: int = 25, single_file: bool = False):
         """

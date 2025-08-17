@@ -38,11 +38,11 @@ def safe_numpy_converter(obj: Any) -> Any:
 
 
 def generate_main_page(
-    processed_data: dict[str, Any],
+    processed_data: dict,
     output_dir: str,
     total_combinations: int,
     single_file: bool = False,
-    graph_paths: dict[str, Any] | None = None,
+    graph_paths: dict | None = None,
 ):
     """
     Generates the main interactive web page for heatmap visualization.
@@ -220,11 +220,34 @@ def generate_main_page(
             padding-bottom: 10px;
         }
         .metric-item {
+            position: relative;
             flex: 0 0 100px;
             background-color: #ecf0f1;
             padding: 15px;
             border-radius: 5px;
             text-align: center;
+        }
+        .metric-best-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.1);
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            line-height: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .metric-best-btn:hover {
+            background: rgba(0,0,0,0.3);
+        }
+        .metric-best-btn.active {
+            background-color: #3498db;
+            color: white;
         }
         .metric-item .value {
             font-size: 1.5em;
@@ -325,7 +348,8 @@ self.onmessage = function(event) {
             'robustness_score': "Robustness Score (RS). Tests stability against random noise. HIGHER IS BETTER. (> 0.95: Very Robust, 0.9-0.95: Robust, 0.8-0.9: Moderate, < 0.8: Fragile)",
             'intra_cluster_distance_normalized': "Intra-Cluster Cohesion. Measures how tightly grouped texts of the same theme are. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
             'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how well different themes are separated. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, < 0.3: Poor)",
-            'silhouette_score': "Silhouette Score. Global clustering quality combining cohesion and separation. Range: -1 to 1. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, 0-0.3: Poor, < 0: Very Poor)"
+            'silhouette_score': "Silhouette Score. Global clustering quality combining cohesion and separation. Range: -1 to 1. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, 0-0.3: Poor, < 0: Very Poor)",
+            'mean_similarity': "Mean Similarity. The average cosine similarity between the reference theme embeddings and the document chunk embeddings. HIGHER IS BETTER. Indicates how relevant the document is to the themes on average."
         };
 
         const fileSlider = document.getElementById('file-slider');
@@ -360,17 +384,29 @@ self.onmessage = function(event) {
         };
 
         const createCmap = (colorSet) => (score) => {
-            // Ensure score is a number and normalize to [0,1]
             if (typeof score !== 'number' || isNaN(score)) score = 0.0;
-            
-            // Clamp to [0,1] range
             score = Math.max(0.0, Math.min(1.0, score));
-            
-            const i = Math.min(Math.floor(score * (colorSet.length - 1)), colorSet.length - 2);
-            const t = (score * (colorSet.length - 1)) % 1;
-            const r = Math.round(colorSet[i].r * (1 - t) + colorSet[i+1].r * t);
-            const g = Math.round(colorSet[i].g * (1 - t) + colorSet[i+1].g * t);
-            const b = Math.round(colorSet[i].b * (1 - t) + colorSet[i+1].b * t);
+
+            // Handle edge case of score being 1 to avoid out-of-bounds access
+            if (score === 1.0) {
+                const c = colorSet[colorSet.length - 1];
+                return {
+                    rgb: `rgb(${c.r},${c.g},${c.b})`,
+                    isDark: (c.r * 0.299 + c.g * 0.587 + c.b * 0.114) < 128
+                };
+            }
+
+            const scaledScore = score * (colorSet.length - 1);
+            const i = Math.floor(scaledScore);
+            const t = scaledScore - i;
+
+            const c1 = colorSet[i];
+            const c2 = colorSet[i + 1];
+
+            const r = Math.round(c1.r * (1 - t) + c2.r * t);
+            const g = Math.round(c1.g * (1 - t) + c2.g * t);
+            const b = Math.round(c1.b * (1 - t) + c2.b * t);
+
             return {
                 rgb: `rgb(${r},${g},${b})`,
                 isDark: (r * 0.299 + g * 0.587 + b * 0.114) < 128
@@ -386,112 +422,43 @@ self.onmessage = function(event) {
         ]);
 
         function getMetricColor(metricKey, value) {
-            // Configuration for each metric: min, max, and whether good values are high (false) or low (true)
+            // A tasteful color gradient from Red (bad) -> Yellow (medium) -> Green (good)
+            const cmap_metrics = createCmap([
+                { r: 215, g: 48, b: 39 },   // Red
+                { r: 254, g: 224, b: 144 }, // Yellow
+                { r: 26, g: 152, b: 80 }    // Green
+            ]);
+
+            // Configuration for each metric: min/max for color scaling, and whether lower is better
             const metricConfigs = {
-                'internal_coherence_score': { 
-                    min: 0, 
-                    max: 1, 
-                    lowerIsBetter: true,  // RED when high, GREEN when low
-                    excellentThreshold: 0.1,
-                    goodThreshold: 0.3,
-                    fairThreshold: 0.5
-                },
-                'local_density_index': { 
-                    min: 0, 
-                    max: 1, 
-                    lowerIsBetter: false, // GREEN when high, RED when low
-                    excellentThreshold: 0.8,
-                    goodThreshold: 0.6,
-                    fairThreshold: 0.4
-                },
-                'robustness_score': { 
-                    min: 0, 
-                    max: 1, 
-                    lowerIsBetter: false, // GREEN when high, RED when low
-                    excellentThreshold: 0.95,
-                    goodThreshold: 0.9,
-                    fairThreshold: 0.8
-                },
-                'intra_cluster_distance_normalized': { 
-                    min: 0, 
-                    max: 1, 
-                    lowerIsBetter: false, // GREEN when high, RED when low
-                    excellentThreshold: 0.8,
-                    goodThreshold: 0.6,
-                    fairThreshold: 0.4
-                },
-                'inter_cluster_distance_normalized': { 
-                    min: 0, 
-                    max: 1, 
-                    lowerIsBetter: false, // GREEN when high, RED when low
-                    excellentThreshold: 0.7,
-                    goodThreshold: 0.5,
-                    fairThreshold: 0.3
-                },
-                'silhouette_score': { 
-                    min: -1, 
-                    max: 1, 
-                    lowerIsBetter: false, // GREEN when high, RED when low
-                    excellentThreshold: 0.7,
-                    goodThreshold: 0.5,
-                    fairThreshold: 0.3,
-                    poorThreshold: 0.0
-                }
+                'internal_coherence_score': { min: 0.0, max: 0.5, lowerIsBetter: true },
+                'local_density_index': { min: 0.4, max: 1.0, lowerIsBetter: false },
+                'robustness_score': { min: 0.8, max: 1.0, lowerIsBetter: false },
+                'intra_cluster_distance_normalized': { min: 0.4, max: 1.0, lowerIsBetter: false },
+                'inter_cluster_distance_normalized': { min: 0.3, max: 0.8, lowerIsBetter: false },
+                'silhouette_score': { min: -0.1, max: 0.7, lowerIsBetter: false },
+                'mean_similarity': { min: 0.5, max: 1.0, lowerIsBetter: false }
             };
 
             const config = metricConfigs[metricKey];
             if (!config) {
-                // Default for unknown metrics
-                return cmap_heatmap(0.5);
+                return { rgb: '#ecf0f1', isDark: false }; // Neutral for unknown metrics
             }
 
-            // Clamp value to expected range
-            value = Math.max(config.min, Math.min(config.max, value));
+            // Clamp value to the defined range for color scaling
+            const clampedValue = Math.max(config.min, Math.min(config.max, value));
 
-            // Determine quality level based on thresholds
-            let qualityScore;
-            
-            if (config.lowerIsBetter) {
-                // For metrics where lower is better (like internal_coherence_score)
-                if (value <= config.excellentThreshold) {
-                    qualityScore = 1.0; // Excellent
-                } else if (value <= config.goodThreshold) {
-                    qualityScore = 0.75; // Good
-                } else if (value <= config.fairThreshold) {
-                    qualityScore = 0.5; // Fair
-                } else {
-                    qualityScore = 0.0; // Poor
-                }
+            // Normalize the score to a 0-1 range where 1 is always better
+            let normalizedScore;
+            if (config.max === config.min) {
+                normalizedScore = 0.5; // Neutral if range is zero
+            } else if (config.lowerIsBetter) {
+                normalizedScore = (config.max - clampedValue) / (config.max - config.min);
             } else {
-                // For metrics where higher is better
-                if (metricKey === 'silhouette_score') {
-                    // Special handling for silhouette score with negative values
-                    if (value >= config.excellentThreshold) {
-                        qualityScore = 1.0; // Excellent
-                    } else if (value >= config.goodThreshold) {
-                        qualityScore = 0.75; // Good
-                    } else if (value >= config.fairThreshold) {
-                        qualityScore = 0.5; // Fair
-                    } else if (value >= (config.poorThreshold || 0)) {
-                        qualityScore = 0.25; // Poor
-                    } else {
-                        qualityScore = 0.0; // Very Poor
-                    }
-                } else {
-                    // Standard higher-is-better metrics
-                    if (value >= config.excellentThreshold) {
-                        qualityScore = 1.0; // Excellent
-                    } else if (value >= config.goodThreshold) {
-                        qualityScore = 0.75; // Good
-                    } else if (value >= config.fairThreshold) {
-                        qualityScore = 0.5; // Fair
-                    } else {
-                        qualityScore = 0.0; // Poor
-                    }
-                }
+                normalizedScore = (clampedValue - config.min) / (config.max - config.min);
             }
 
-            return cmap_heatmap(qualityScore);
+            return cmap_metrics(normalizedScore);
         }
 
         function parseEmbeddingKey(key) {
@@ -631,7 +598,61 @@ self.onmessage = function(event) {
             });
         }
 
-        function updateView(fileKey, repopulate = false) {
+        function findBestAndApply(metricKey) {
+            console.log(`Finding best value for metric: ${metricKey}`);
+            const fileKey = fileKeys[parseInt(fileSlider.value, 10)];
+            if (!fileKey || !processedData.files[fileKey]) return;
+
+            const metricConfig = {
+                'internal_coherence_score': { lowerIsBetter: true },
+                'local_density_index': { lowerIsBetter: false },
+                'robustness_score': { lowerIsBetter: false },
+                'intra_cluster_distance_normalized': { lowerIsBetter: false },
+                'inter_cluster_distance_normalized': { lowerIsBetter: false },
+                'silhouette_score': { lowerIsBetter: false },
+                'mean_similarity': { lowerIsBetter: false }
+            };
+
+            const config = metricConfig[metricKey];
+            if (!config) return;
+
+            let bestKey = null;
+            let bestValue = config.lowerIsBetter ? Infinity : -Infinity;
+
+            const embeddings = processedData.files[fileKey].embeddings;
+            for (const key in embeddings) {
+                const metrics = embeddings[key].metrics;
+                if (metrics && metrics[metricKey] !== undefined) {
+                    const value = metrics[metricKey];
+                    if (config.lowerIsBetter) {
+                        if (value < bestValue) {
+                            bestValue = value;
+                            bestKey = key;
+                        }
+                    } else {
+                        if (value > bestValue) {
+                            bestValue = value;
+                            bestKey = key;
+                        }
+                    }
+                }
+            }
+
+            if (bestKey) {
+                const p = parseEmbeddingKey(bestKey);
+                
+                modelSlider.value = params.model.indexOf(p.model);
+                chunkSizeSlider.value = params.cs.indexOf(p.cs);
+                chunkOverlapSlider.value = params.co.indexOf(p.co);
+                themeSlider.value = params.t.indexOf(p.t);
+                chunkingStrategySlider.value = params.s.indexOf(p.s);
+                similarityMetricSlider.value = params.m.indexOf(p.m);
+                
+                updateView(fileKey, false, metricKey);
+            }
+        }
+
+        function updateView(fileKey, repopulate = false, highlightedMetric = null) {
             console.log('updateView called with:', fileKey, 'repopulate:', repopulate);
             
             if (repopulate) {
@@ -681,7 +702,7 @@ self.onmessage = function(event) {
 
             // Mise à jour atomique : soit tout, soit rien
             if (hasMetrics && hasHeatmapData) {
-                updateMetrics(embeddingData.metrics);
+                updateMetrics(embeddingData.metrics, highlightedMetric);
                 updateHeatmap(embeddingData.phrases, embeddingData.similarities);
                 
                 if (hasScatterData) {
@@ -818,7 +839,7 @@ self.onmessage = function(event) {
             });
         }
 
-        function updateMetrics(metrics) {
+        function updateMetrics(metrics, highlightedMetric = null) {
             metricsGrid.innerHTML = '';
             if (!metrics || Object.keys(metrics).length === 0) {
                 metricsGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; grid-column: 1 / -1;">No metrics available.</div>';
@@ -845,8 +866,18 @@ self.onmessage = function(event) {
                 labelSpan.style.color = colorInfo.isDark ? '#ecf0f1' : '#7f8c8d';
                 labelSpan.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
+                const bestBtn = document.createElement('button');
+                bestBtn.className = 'metric-best-btn';
+                if (key === highlightedMetric) {
+                    bestBtn.classList.add('active');
+                }
+                bestBtn.innerHTML = '🏆';
+                bestBtn.title = `Find best combination for ${key}`;
+                bestBtn.onclick = () => findBestAndApply(key);
+
                 metricItem.appendChild(valueSpan);
                 metricItem.appendChild(labelSpan);
+                metricItem.appendChild(bestBtn);
                 metricsGrid.appendChild(metricItem);
             }
         }

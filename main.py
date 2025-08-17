@@ -47,7 +47,13 @@ def main():
     args = parser.parse_args()
 
     # Instantiate the main application class
-    app = ForzaEmbed(db_path="reports/ForzaEmbed.db", config_path=args.config_path)
+    config_name = (
+        args.config_path.split("/")[-1].split(".")[0]
+        if "/" in args.config_path
+        else args.config_path.split(".")[0]
+    )
+    db_path = f"reports/ForzaEmbed_{config_name}.db"
+    app = ForzaEmbed(db_path=db_path, config_path=args.config_path)
 
     if args.run:
         app.run_grid_search(data_source=args.data_source, resume=True)

@@ -15,10 +15,10 @@ class DataAggregator:
     Handles the aggregation and caching of processed data from the database.
     """
 
-    def __init__(self, db: EmbeddingDatabase, output_dir: Path):
+    def __init__(self, db: EmbeddingDatabase, output_dir: Path, config_name: str):
         self.db = db
         self.output_dir = output_dir
-        self.cache_path = self.output_dir / "reports_cache.joblib"
+        self.cache_path = self.output_dir / f"reports_cache_{config_name}.joblib"
 
     def get_aggregated_data(self) -> Dict[str, Any] | None:
         """
