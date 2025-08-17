@@ -237,10 +237,11 @@ def generate_main_page(
             width: 24px;
             height: 24px;
             font-size: 16px;
-            line-height: 24px;
-            text-align: center;
             cursor: pointer;
             transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .metric-best-btn:hover {
             background: rgba(0,0,0,0.3);
