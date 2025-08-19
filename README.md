@@ -136,6 +136,91 @@ This is useful for changing the number of top results displayed (`--top-n`) or t
 
 ---
 
+## Configuration Guide
+
+The `config.yml` file is the control center for your analysis. It's written in YAML and is divided into several sections. Here’s a breakdown of how to format it based on the standard configuration:
+
+```yaml
+# Parameters for the grid search
+grid_search_params:
+  chunk_size: [10, 20, 50, 100, 250, 500, 1000]
+  chunk_overlap: [0, 5, 10, 25, 50, 100, 200]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
+  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  themes:
+    Theme_Name_1: ["keyword1", "keyword2", "related phrase 3"]
+    Theme_Name_2: ["another keyword", "topic phrase 2"]
+
+# Models to be tested in the grid search
+models_to_test:
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    dimensions: 384
+  - type: "huggingface"
+    name: "Qwen/Qwen3-Embedding-0.6B"
+    dimensions: 1024
+  - type: "api"
+    name: "nomic-embed-text"
+    base_url: "https://api.example.com/v1"
+    dimensions: 768
+    timeout: 240
+
+# General settings
+similarity_threshold: 0.6
+output_dir: "reports"
+
+# Database settings
+database:
+  intelligent_quantization: true
+
+# Multiprocessing settings
+multiprocessing:
+  max_workers_api: 16
+  max_workers_local: null # Set to a number to limit CPU cores for local models
+  maxtasksperchild: 10
+  embedding_batch_size_api: 100
+  embedding_batch_size_local: 500
+  file_batch_size: 50
+  api_batch_sizes:
+    mistral: 50
+    default: 100
+```
+
+### `grid_search_params`
+
+This section defines the parameter space for the grid search. The framework will test every possible combination of the values you provide.
+
+-   `chunk_size`: A list of integers representing the different chunk sizes (in tokens or characters, depending on the strategy) to test.
+-   `chunk_overlap`: A list of integers for the number of tokens/characters to overlap between chunks.
+-   `chunking_strategy`: A list of chunking algorithms to evaluate.
+-   `similarity_metrics`: A list of metrics for calculating similarity scores.
+-   `themes`: A dictionary where each key is a theme name (e.g., `Economics_and_Finance`) and the value is a list of keywords and phrases related to that theme. The analysis will be based on these themes.
+
+### `models_to_test`
+
+A list of embedding models to evaluate. Each model is an object with the following properties:
+
+-   `type`: The provider of the model. Can be `fastembed`, `huggingface`, `sentence_transformers`, or `api`.
+-   `name`: The official model name (e.g., `"intfloat/multilingual-e5-large"`).
+-   `dimensions`: The embedding dimension of the model.
+-   `base_url` (for `api` type): The base URL of the embedding API endpoint.
+-   `timeout` (for `api` type, optional): The request timeout in seconds.
+
+### General & Database Settings
+
+-   `similarity_threshold`: A float between 0.0 and 1.0. In the t-SNE visualization, points with a similarity score above this threshold will be highlighted.
+-   `output_dir`: The directory where reports will be saved (default is `"reports"`).
+-   `database.intelligent_quantization`: If `true`, enables optimizations to reduce the database size by storing numerical data in more efficient formats.
+
+### `multiprocessing`
+
+Configure settings for parallel processing to speed up computations.
+
+-   `max_workers_api` / `max_workers_local`: The number of parallel workers for API-based and local models.
+-   `embedding_batch_size_api` / `embedding_batch_size_local`: The number of texts to process in a single batch for embedding generation.
+
+---
+
 ## Key Features
 
 -   **Exhaustive Grid Search**: Systematically evaluates combinations of chunking strategies, chunk sizes, overlaps, embedding models, and similarity metrics.
