@@ -1,7 +1,7 @@
 [project]
 name = "forzaembed"
-version = "0.2.0"
-description = "Empower Your AI with the Strongest Embeds."
+version = "0.5.0"
+description = "A Python framework for text embedding model evaluation and comparison"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

@@ -49,8 +49,7 @@ ForzaEmbed/
 ├── markdowns/
 │   └── document.md       # Your source text files (.md) go here.
 ├── reports/
-│   ├── ForzaEmbed_config.db # SQLite database for results and cache.
-│   └── web/                # Output directory for generated reports.
+│   └── ForzaEmbed_config.db # SQLite database for results.
 ├── src/
 │   └── ...               # Source code of the application.
 └── main.py               # The main script to run the tool.
@@ -59,8 +58,7 @@ ForzaEmbed/
 -   **`configs/`**: This directory holds your YAML configuration files. You can create multiple configurations for different experiments.
 -   **`markdowns/`**: Place the text documents you want to analyze here. The tool will process all `.md` files in this folder.
 -   **`reports/`**: This is where all outputs are stored.
-    -   **`ForzaEmbed_<config_name>.db`**: The central SQLite database. It stores all experiment results, metrics, and serves as the **cache for embeddings**. Deleting this file will erase your results and cache.
-    -   **`web/`**: The interactive HTML reports are generated in this sub-directory.
+    -   **`ForzaEmbed_<config_name>.db`**: The central SQLite database. It stores all experiment results, metrics.
 
 ---
 
