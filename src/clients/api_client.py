@@ -56,7 +56,11 @@ class ProductionEmbeddingClient:
         if not texts:
             return []
 
-        batch_size = self._initial_batch_size if self._initial_batch_size is not None else len(texts)
+        batch_size = (
+            self._initial_batch_size
+            if self._initial_batch_size is not None
+            else len(texts)
+        )
         # Start with full batch, will be subdivided if needed
         return self._get_embeddings_with_retry(texts, initial_batch_size=batch_size)
 
@@ -102,10 +106,8 @@ class ProductionEmbeddingClient:
                                 )
 
                                 # Recursively process with smaller batches
-                                sub_embeddings = (
-                                    self._get_embeddings_with_retry(
-                                        batch_texts, new_batch_size, max_retries
-                                    )
+                                sub_embeddings = self._get_embeddings_with_retry(
+                                    batch_texts, new_batch_size, max_retries
                                 )
                                 total_embeddings.extend(sub_embeddings)
                                 break  # Success with subdivision

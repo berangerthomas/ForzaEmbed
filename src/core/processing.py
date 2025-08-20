@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import (
     pairwise_distances,
 )
 
-from ..clients.embedding_client import ProductionEmbeddingClient
+from ..clients.api_client import ProductionEmbeddingClient
 from ..metrics.evaluation_metrics import calculate_all_metrics
 from ..utils.database import EmbeddingDatabase
 from ..utils.utils import chunk_text
