@@ -1,0 +1,83 @@
+# Configuration for ForzaEmbed Grid Search
+
+# Parameters for the grid search
+grid_search_params:
+  chunk_size: [10, 20, 50, 100, 250, 500, 1000]
+  chunk_overlap: [0, 5, 10, 25, 50, 100, 200]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
+  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  themes:
+    Architecture_and_urban_planning: [
+        "skyscraper", "high-rise building", "tower", "landmark", "Empire State Building", "Chrysler Building", "One World Trade Center", "Manhattan skyline", "urban landscape", "cityscape", "architectural style", "Art Deco", "modernist architecture", "construction", "development", "urban planning", "zoning", "building height", "stories", "floors", "elevation", "steel frame construction", "glass facade", "concrete", "urban design", "street grid", "avenue", "boulevard", "Central Park design", "green space", "public plaza", "historic preservation", "landmark designation", "real estate development", "commercial district", "residential building", "apartment complex", "brownstone"
+    ]
+    Economics_and_Finance: [
+        "Wall Street", "financial district", "stock exchange", "NYSE", "NASDAQ", "trading floor", "securities", "investment banking", "hedge funds", "private equity", "financial services", "capital markets", "banking sector", "economic hub", "business center", "corporate headquarters", "Fortune 500 companies", "multinational corporations", "startup ecosystem", "venture capital", "entrepreneurship", "commercial real estate", "office space", "retail", "tourism industry", "hospitality sector", "entertainment business", "port authority", "shipping", "international trade", "tax revenue", "municipal budget", "public finance", "employment rates", "job market", "labor force", "GDP contribution", "economic impact", "wealth concentration"
+    ]
+    Culture_and_Entertainment: [
+        "Broadway theater", "musical", "drama", "performance", "Times Square", "theater district", "entertainment venue", "Lincoln Center", "Metropolitan Opera", "ballet", "symphony", "museum", "Metropolitan Museum of Art", "MoMA", "Guggenheim", "art gallery", "cultural institution", "exhibition", "music scene", "jazz", "hip-hop", "punk rock", "nightlife", "clubs", "bars", "restaurant scene", "fashion week", "fashion industry", "designer boutiques", "film industry", "movie production", "television studios", "cultural diversity", "multiculturalism", "ethnic communities", "street art", "graffiti", "public art installations", "festivals", "parades", "cultural events", "celebrations", "creative industries", "artists", "performers", "writers"
+    ]
+    Transportation_and_Infrastructure: [
+        "subway system", "metropolitan transportation", "MTA", "Penn Station", "Grand Central Terminal", "transportation hub", "bus routes", "public transit", "commuter rail", "LaGuardia Airport", "JFK Airport", "Newark Airport", "bridges", "tunnels", "infrastructure projects", "traffic congestion", "urban mobility", "transportation planning", "bicycle lanes", "pedestrian walkways", "bike sharing", "ferry service", "water transportation", "harbor", "road network", "highway system", "interstate connections", "parking facilities", "garage", "street parking", "taxi services", "ride-sharing", "yellow cabs", "freight transportation", "logistics", "cargo handling", "public works", "utility systems", "water supply", "sewage"
+    ]
+    Demography_and_Society: [
+        "population density", "demographics", "census data", "immigration", "ethnic diversity", "cultural communities", "neighborhoods", "boroughs", "residential areas", "social inequality", "income disparity", "gentrification", "public education", "school system", "universities", "healthcare system", "hospitals", "public health", "crime rates", "public safety", "police department", "housing crisis", "affordable housing", "rent control", "social services", "welfare programs", "community support", "civic engagement", "local government", "city council", "quality of life", "urban living", "lifestyle", "community organizations", "non-profits", "activism", "racial diversity", "ethnic enclaves", "cultural integration"
+    ]
+
+# Models to be tested in the grid search
+models_to_test:
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    dimensions: 384
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    dimensions: 768
+  - type: "fastembed"
+    name: "intfloat/multilingual-e5-large"
+    dimensions: 1024
+  - type: "fastembed"
+    name: "jinaai/jina-embeddings-v3"
+    dimensions: 1024
+  - type: "huggingface"
+    name: "Qwen/Qwen3-Embedding-0.6B"
+    dimensions: 1024
+  - type: "huggingface"
+    name: "intfloat/multilingual-e5-large-instruct"
+    dimensions: 1024
+  - type: "api"
+    name: "nomic-embed-text"
+    base_url: "https://api.erasme.homes/v1"
+    dimensions: 768
+    timeout: 240
+  - type: "fastembed"
+    name: "nomic-ai/nomic-embed-text-v1.5"
+    dimensions: 768
+  - type: "fastembed"
+    name: "nomic-ai/nomic-embed-text-v1"
+    dimensions: 768
+
+# General settings
+similarity_threshold: 0.6
+output_dir: "reports"
+
+# Database settings
+database:
+  # Enable intelligent quantization based on data type to reduce storage size.
+  # - Similarity metrics [0,1] → uint16 (65536 levels)
+  # - 2D coordinates → float16
+  # - Other float64 → float32
+  # - Embeddings normalized [-1,1] → float16
+  intelligent_quantization: true
+
+# Multiprocessing settings
+multiprocessing:
+  max_workers_api: 16
+  max_workers_local: null
+  maxtasksperchild: 10
+  embedding_batch_size_api: 100
+  embedding_batch_size_local: 500
+  file_batch_size: 50
+  api_batch_sizes:
+    mistral: 50
+    voyage: 100
+    openai: 100
+    default: 100
