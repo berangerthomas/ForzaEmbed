@@ -90,6 +90,8 @@ Open a configuration file (e.g., `configs/config.yml`) and define the parameters
 -   Similarity metrics.
 -   Thematic keywords for the analysis.
 
+Refer to the [Configuration Guide](#configuration-guide) below for detailed explanations.
+
 ### 4. Run the Pipeline
 
 Execute the main script from your terminal to start the process. See the [Command-Line Usage](#command-line-usage) section below for detailed commands.
