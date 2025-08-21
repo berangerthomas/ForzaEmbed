@@ -45,12 +45,14 @@ def chunk_text(
         chunks = text_splitter.split_text(text)
     elif strategy == "semchunk":
         # semchunk uses chunk_size, but not chunk_overlap in the same way as 'raw'
-        chunks = list(semchunk.chunk(  # type: ignore
-            text,
-            chunk_size=chunk_size,
-            token_counter=lambda text: len(text.split()),
-            offsets=False,
-        ))
+        chunks = list(
+            semchunk.chunk(  # type: ignore
+                text,
+                chunk_size=chunk_size,
+                token_counter=lambda text: len(text.split()),
+                offsets=False,
+            )
+        )
     elif strategy == "nltk":
         # nltk.sent_tokenize does not use chunk_size or chunk_overlap
         chunks = nltk.sent_tokenize(text, language="french")
@@ -74,11 +76,20 @@ def chunk_text(
     else:
         raise ValueError(f"Unknown chunking strategy: {strategy}")
 
-    return [
-        str(chunk).strip()
-        for chunk in chunks
-        if isinstance(chunk, str) and chunk.strip()
-    ]
+    # Apply strip() only for non-raw strategies to preserve exact chunk size in raw mode
+    if strategy == "raw":
+        return [
+            str(chunk)
+            for chunk in chunks
+            if isinstance(chunk, str)
+            and chunk  # Keep chunks even if they contain only whitespace
+        ]
+    else:
+        return [
+            str(chunk).strip()
+            for chunk in chunks
+            if isinstance(chunk, str) and chunk.strip()
+        ]
 
 
 # Checks if a text contains a pattern related to opening hours.

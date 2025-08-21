@@ -4,7 +4,6 @@ from typing import Any, Dict
 
 import joblib
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
 
 from ..utils.database import EmbeddingDatabase
@@ -18,14 +17,16 @@ class DataAggregator:
     def __init__(self, db: EmbeddingDatabase, output_dir: Path, config_name: str):
         self.db = db
         self.output_dir = output_dir
-        self.cache_path = self.output_dir / f"reports_cache_{config_name}.joblib"
+        self.cache_path = self.output_dir / f"{config_name}_reports_cache.joblib"
 
     def get_aggregated_data(self) -> Dict[str, Any] | None:
         """
         Loads aggregated data from cache if valid, otherwise aggregates from scratch.
         """
         db_mod_time = self.db.get_db_modification_time()
-        use_cache = self.cache_path.exists() and self.cache_path.stat().st_mtime > db_mod_time
+        use_cache = (
+            self.cache_path.exists() and self.cache_path.stat().st_mtime > db_mod_time
+        )
 
         if use_cache:
             logging.info(f"Loading aggregated data from cache: {self.cache_path}")

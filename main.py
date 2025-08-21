@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 from src.core.core import ForzaEmbed
 
@@ -47,12 +48,8 @@ def main():
     args = parser.parse_args()
 
     # Instantiate the main application class
-    config_name = (
-        args.config_path.split("/")[-1].split(".")[0]
-        if "/" in args.config_path
-        else args.config_path.split(".")[0]
-    )
-    db_path = f"reports/ForzaEmbed_{config_name}.db"
+    config_name = Path(args.config_path).stem
+    db_path = f"reports/{config_name}_ForzaEmbed.db"
     app = ForzaEmbed(db_path=db_path, config_path=args.config_path)
 
     if args.run:

@@ -24,7 +24,7 @@ class ForzaEmbed:
 
     def __init__(
         self,
-        db_path: str = "reports/ForzaEmbed_config.db",
+        db_path: str = "reports/config_ForzaEmbed.db",
         config_path: str = "configs/config.yml",
     ):
         """
@@ -38,22 +38,25 @@ class ForzaEmbed:
         self.config_path = Path(config_path)
         self.config: AppConfig = load_config(config_path)
 
+        # Extract config name for prefixing files
+        self.config_name = self.config_path.stem
+
         # Initialize database with config parameter only
         self.db = EmbeddingDatabase(str(self.db_path), self.config.model_dump())
 
-        # Ensure output directory exists
-        self.output_dir = Path(self.config.output_dir)
+        # Ensure output directory exists - always use reports directory
+        self.output_dir = Path("reports")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Instantiate the processor
         self.processor = Processor(self.db, self.config)
-        config_name = self.config_path.stem
         self.report_generator = ReportGenerator(
-            self.db, self.config.model_dump(), self.output_dir, config_name
+            self.db, self.config.model_dump(), self.output_dir, self.config_name
         )
 
         logging.info(f"ForzaEmbed initialized. Database at: {self.db_path}")
         logging.info(f"Output directory: {self.output_dir}")
+        logging.info(f"Config prefix: {self.config_name}")
 
     def run_grid_search(self, data_source: Any, resume: bool = True):
         """

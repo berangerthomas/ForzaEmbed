@@ -1,12 +1,11 @@
 import logging
 import textwrap
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import seaborn as sns
 
 from ..utils.database import EmbeddingDatabase
@@ -28,6 +27,7 @@ class ReportGenerator:
         self.db = db
         self.config = config
         self.output_dir = output_dir
+        self.config_name = config_name
         self.similarity_threshold = config.get("similarity_threshold", 0.6)
         self.data_aggregator = DataAggregator(db, output_dir, config_name)
 
@@ -103,6 +103,7 @@ class ReportGenerator:
             total_combinations,
             single_file=single_file,
             graph_paths=graph_paths,
+            config_name=self.config_name,
         )
 
     def _generate_global_reports(
@@ -218,7 +219,9 @@ class ReportGenerator:
 
         plt.title("Key Metrics Radar Chart", size=20, y=1.1)
 
-        radar_path = self.output_dir / f"{file_prefix}_radar_chart.png"
+        radar_path = (
+            self.output_dir / f"{self.config_name}_{file_prefix}_radar_chart.png"
+        )
         plt.savefig(radar_path, bbox_inches="tight")
         plt.close()
         logging.info(f"Saved radar chart to {radar_path}")
@@ -271,8 +274,10 @@ class ReportGenerator:
                 by="discriminant_score", ascending=False
             )
 
-        # Export detailed metrics to CSV
-        csv_path = self.output_dir / f"{file_prefix}_metrics_comparison.csv"
+        # Export detailed metrics to CSV with config prefix
+        csv_path = (
+            self.output_dir / f"{self.config_name}_{file_prefix}_metrics_comparison.csv"
+        )
         df.to_csv(csv_path, index=False)
         logging.info(f"Exported metrics for '{file_prefix}' to {csv_path}")
 
@@ -296,7 +301,10 @@ class ReportGenerator:
 
         plot_paths = []
         for metric in metrics_to_plot:
-            plot_path = self.output_dir / f"{file_prefix}_{metric}_comparison.png"
+            plot_path = (
+                self.output_dir
+                / f"{self.config_name}_{file_prefix}_{metric}_comparison.png"
+            )
             # Pass the aggregated dataframe for plotting
             self._plot_single_metric(
                 df_for_plots,
