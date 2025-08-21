@@ -2,6 +2,8 @@
 
 ForzaEmbed is a Python framework for systematically benchmarking text embedding models and processing strategies. It performs an exhaustive grid search across a configurable parameter space to help you find the optimal configuration for your document corpus.
 
+Check our demo file [here](https://huggingface.co/spaces/berangerthomas/forzaembeddemo).
+
 ![Demo](docs/demo.gif)
 
 ## Table of Contents
