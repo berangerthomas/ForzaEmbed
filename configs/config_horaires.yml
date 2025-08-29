@@ -7,9 +7,11 @@ grid_search_params:
   chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
   similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
   themes:
-    horaires_simple: ["horaires", "autre"]
+    horaire_simple: ["horaire"]
+    horaires_simple: ["horaires"]
+    horaires_ouverture: ["horaires d'ouverture"]
     horaires_mid: [
-        "autre",  "bibliothèque ouverte", "bibliothèque fermée",
+        "bibliothèque ouverte", "bibliothèque fermée",
         "horaires d'ouverture", "heures d'ouverture", "accueil du public",
         "jour de fermeture", "horaires et jours de la semaine",
         "périodes d'ouverture", "mairie ouverte", "mairie fermée",
@@ -19,7 +21,7 @@ grid_search_params:
         "piscine fermée"
     ]
     horaires_full: [
-        "autre", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+        "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
         "dimanche", "lun", "mar", "mer", "jeu", "ven", "sam", "dim",
         "horaires d'ouverture", "heures d'ouverture", "accueil du public",
         "jour de fermeture", "horaires et jours de la semaine",

@@ -58,20 +58,17 @@ class Processor:
         similarities = np.nan_to_num(similarities, nan=0.0, posinf=1.0, neginf=0.0)
 
         # Validation selon la métrique
+        # Validation selon la métrique
         if metric == "cosine":
-            # Cosine similarity: [-1, 1] mais généralement [0, 1] pour des textes
+            # Cosine similarity is in [-1, 1]. Normalize to [0, 1].
             if similarities.min() < -1.1 or similarities.max() > 1.1:
                 logging.warning(
                     f"Cosine similarities out of expected range [-1,1]: min={similarities.min()}, max={similarities.max()}"
                 )
-            # Normalize cosine similarity to [0, 1] range
             similarities = (similarities + 1.0) / 2.0
         elif metric == "dot_product":
-            # Normalize dot product to [0, 1] range
-            min_val = similarities.min()
-            max_val = similarities.max()
-            if max_val > min_val:
-                similarities = (similarities - min_val) / (max_val - min_val)
+            # The raw dot product is kept. Global normalization will be applied during the reporting phase.
+            pass
         elif metric in ["euclidean", "manhattan", "chebyshev"]:
             # Distance metrics convertis en similarité: [0, +inf) → similarity dans [0, 1]
             # Les valeurs sont déjà converties par 1/(1+distance), donc devraient être dans [0, 1]
@@ -321,7 +318,14 @@ class Processor:
         if metric == "cosine":
             return cosine_similarity(embed_themes, embed_phrases)
         elif metric == "dot_product":
-            return embed_themes @ embed_phrases.T
+            # Calculate raw dot product
+            dot_product = embed_themes @ embed_phrases.T
+            # Normalize by the product of the norms of the two vectors
+            # This is equivalent to cosine similarity
+            norms_themes = np.linalg.norm(embed_themes, axis=1, keepdims=True)
+            norms_phrases = np.linalg.norm(embed_phrases, axis=1, keepdims=True)
+            normalized_dot_product = dot_product / (norms_themes @ norms_phrases.T)
+            return normalized_dot_product
         elif metric == "euclidean":
             distances = euclidean_distances(embed_themes, embed_phrases)
             return 1 / (1 + distances)

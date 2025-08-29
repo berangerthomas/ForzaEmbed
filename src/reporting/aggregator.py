@@ -49,13 +49,16 @@ class DataAggregator:
         all_models_metrics = {}
         model_embeddings_for_variance = {}
 
+        # First, normalize dot product scores globally if needed
+        all_results = self._normalize_dot_product_globally(all_results)
+
         for model_name, model_results in tqdm(
             all_results.items(), desc="Aggregating data for reports"
         ):
             # Aggregate embeddings and labels from all files for this model
             aggregated_embeddings = []
             aggregated_labels = []
-            for file_data in model_results.get("files", {}).values():
+            for file_id, file_data in model_results.get("files", {}).items():
                 if "embeddings" in file_data and file_data["embeddings"] is not None:
                     aggregated_embeddings.extend(file_data["embeddings"])
                 if "labels" in file_data and file_data["labels"] is not None:
@@ -118,6 +121,44 @@ class DataAggregator:
             return obj
 
         return cast(Dict[str, Any], round_floats(data))
+
+    def _normalize_dot_product_globally(self, all_results: dict) -> dict:
+        """
+        Performs a global min-max scaling on dot product similarities for each run.
+        """
+        for model_name, model_results in all_results.items():
+            model_info = self.db.get_model_info(model_name)
+            if not model_info or model_info.get("similarity_metric") != "dot_product":
+                continue
+
+            all_similarities = [
+                sim
+                for file_data in model_results.get("files", {}).values()
+                if file_data.get("similarities") is not None
+                for sim in file_data["similarities"]
+            ]
+
+            if not all_similarities:
+                continue
+
+            dot_min, dot_max = min(all_similarities), max(all_similarities)
+            denominator = dot_max - dot_min
+
+            if denominator == 0:
+                for file_data in model_results.get("files", {}).values():
+                    if "similarities" in file_data:
+                        file_data["similarities"] = [0.5] * len(
+                            file_data["similarities"]
+                        )
+                continue
+
+            for file_data in model_results.get("files", {}).values():
+                if "similarities" in file_data:
+                    file_data["similarities"] = [
+                        (s - dot_min) / denominator for s in file_data["similarities"]
+                    ]
+
+        return all_results
 
     def touch_cache(self):
         """Updates the cache file's modification time to the current time."""
