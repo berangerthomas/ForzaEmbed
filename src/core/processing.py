@@ -16,6 +16,7 @@ from ..utils.database import EmbeddingDatabase
 from ..utils.utils import chunk_text
 from .config import AppConfig
 
+
 class Processor:
     """
     Handles the core data processing logic for a single test run.
@@ -180,7 +181,6 @@ class Processor:
                 embed_themes,
                 item_embed_phrases,
                 labels,
-                similarity_threshold=self.config.similarity_threshold,
             )
 
             # Convert metrics to safe Python types

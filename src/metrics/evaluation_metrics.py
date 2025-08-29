@@ -3,7 +3,7 @@
 from typing import Dict, List
 
 import numpy as np
-from sklearn.metrics import pairwise_distances, roc_auc_score, silhouette_score
+from sklearn.metrics import pairwise_distances, silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
@@ -250,54 +250,10 @@ def calculate_silhouette_metrics(
     }
 
 
-def mean_similarity_gap(
-    similarities: np.ndarray, labels: np.ndarray
-) -> float:
-    """Calculates the gap between mean similarities of relevant and non-relevant groups."""
-    relevant_similarities = similarities[labels == 1]
-    non_relevant_similarities = similarities[labels == 0]
-
-    mean_sim_relevant = (
-        np.mean(relevant_similarities) if relevant_similarities.size > 0 else 0.0
-    )
-    mean_sim_non_relevant = (
-        np.mean(non_relevant_similarities)
-        if non_relevant_similarities.size > 0
-        else 0.0
-    )
-
-    return float(mean_sim_relevant - mean_sim_non_relevant)
-
-
-def distance_between_centroids(
-    embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
-) -> float:
-    """Calculates the distance between the centroids of two groups."""
-    relevant_embeddings = embeddings[labels == 1]
-    non_relevant_embeddings = embeddings[labels == 0]
-
-    if relevant_embeddings.shape[0] == 0 or non_relevant_embeddings.shape[0] == 0:
-        return 0.0
-
-    centroid_relevant = np.mean(relevant_embeddings, axis=0).reshape(1, -1)
-    centroid_non_relevant = np.mean(non_relevant_embeddings, axis=0).reshape(1, -1)
-
-    distance = pairwise_distances(centroid_relevant, centroid_non_relevant, metric=metric)
-    return float(distance[0, 0])
-
-
-def unsupervised_auc(similarities: np.ndarray, labels: np.ndarray) -> float:
-    """Calculates the unsupervised AUC score."""
-    if len(np.unique(labels)) < 2:
-        return 0.5  # Indeterminate, chance level
-    return float(roc_auc_score(labels, similarities))
-
-
 def calculate_all_metrics(
     ref_embeddings: np.ndarray,
     doc_embeddings: np.ndarray,
     doc_labels: np.ndarray,
-    similarity_threshold: float = 0.5,
 ) -> Dict[str, float]:
     """Calculates and combines all evaluation metrics.
 
@@ -314,19 +270,6 @@ def calculate_all_metrics(
         Dict[str, float]: A dictionary containing all calculated metrics.
     """
     all_metrics: Dict[str, float] = {}
-
-    # Calculate similarities once
-    similarities = cosine_similarity(ref_embeddings.mean(axis=0).reshape(1, -1), doc_embeddings).flatten()
-    
-    # Generate proxy labels based on the similarity threshold for the new metrics
-    proxy_labels = (similarities > similarity_threshold).astype(int)
-
-    # New metrics based on separation
-    all_metrics["mean_similarity_gap"] = mean_similarity_gap(similarities, proxy_labels)
-    all_metrics["distance_between_centroids"] = distance_between_centroids(
-        doc_embeddings, proxy_labels
-    )
-    all_metrics["unsupervised_auc"] = unsupervised_auc(similarities, proxy_labels)
 
     # Custom metrics
     all_metrics["internal_coherence_score"] = coherence_score(
