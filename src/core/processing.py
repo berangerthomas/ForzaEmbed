@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable
 
 import numpy as np
 from sklearn.metrics.pairwise import (
@@ -15,7 +15,6 @@ from ..metrics.evaluation_metrics import calculate_all_metrics
 from ..utils.database import EmbeddingDatabase
 from ..utils.utils import chunk_text
 from .config import AppConfig
-
 
 class Processor:
     """
@@ -34,11 +33,9 @@ class Processor:
         """
         if isinstance(data, np.ndarray):
             return data.astype(float).tolist()
-        elif isinstance(data, (np.float16, np.float32, np.float64)):
+        elif isinstance(data, (np.floating, float)):
             return float(data)
-        elif isinstance(data, (np.int8, np.int16, np.int32, np.int64)):
-            return int(data)
-        elif isinstance(data, (np.uint8, np.uint16, np.uint32, np.uint64)):
+        elif isinstance(data, (np.integer, int)):
             return int(data)
         elif isinstance(data, dict):
             return {
@@ -66,10 +63,14 @@ class Processor:
                 logging.warning(
                     f"Cosine similarities out of expected range [-1,1]: min={similarities.min()}, max={similarities.max()}"
                 )
-            similarities = np.clip(similarities, -1.0, 1.0)
+            # Normalize cosine similarity to [0, 1] range
+            similarities = (similarities + 1.0) / 2.0
         elif metric == "dot_product":
-            # Dot product: pas de limite théorique, on garde les valeurs telles quelles
-            pass
+            # Normalize dot product to [0, 1] range
+            min_val = similarities.min()
+            max_val = similarities.max()
+            if max_val > min_val:
+                similarities = (similarities - min_val) / (max_val - min_val)
         elif metric in ["euclidean", "manhattan", "chebyshev"]:
             # Distance metrics convertis en similarité: [0, +inf) → similarity dans [0, 1]
             # Les valeurs sont déjà converties par 1/(1+distance), donc devraient être dans [0, 1]
@@ -77,23 +78,24 @@ class Processor:
                 logging.warning(
                     f"{metric} similarities out of expected range [0,1]: min={similarities.min()}, max={similarities.max()}"
                 )
-            similarities = np.clip(similarities, 0.0, 1.0)
+            # Remove clipping to preserve information
+            # similarities = np.clip(similarities, 0.0, 1.0)
 
         return similarities
 
     def run_test(
         self,
-        rows: List[Tuple[str, str]],
+        rows: list[tuple[str, str]],
         model_config: Any,
         chunk_size: int,
         chunk_overlap: int,
-        themes: List[str],
+        themes: list[str],
         theme_name: str,
         chunking_strategy: str,
         similarity_metric: str,
-        processed_files: List[str],
+        processed_files: list[str],
         pbar: Any,  # Progress bar object
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Processes a test run, handling embedding generation, similarity calculation,
         and metric evaluation.
@@ -178,6 +180,7 @@ class Processor:
                 embed_themes,
                 item_embed_phrases,
                 labels,
+                similarity_threshold=self.config.similarity_threshold,
             )
 
             # Convert metrics to safe Python types
@@ -272,8 +275,8 @@ class Processor:
         self,
         embedding_function: Callable,
         base_model_name: str,
-        phrases: List[str],
-    ) -> Dict[str, np.ndarray]:
+        phrases: list[str],
+    ) -> dict[str, np.ndarray]:
         """
         Retrieves embeddings from cache or generates and caches them.
         """
@@ -340,7 +343,7 @@ class Processor:
         file_id: str,
         similarities: np.ndarray,
         threshold: float,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """
         Calcule ou récupère les coordonnées t-SNE pour une combinaison donnée.
         Les coordonnées sont indépendantes du theme_set et similarity_metric.

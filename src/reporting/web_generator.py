@@ -14,21 +14,9 @@ def safe_numpy_converter(obj: Any) -> Any:
     """
     if isinstance(obj, np.ndarray):
         return obj.tolist()
-    if isinstance(obj, (np.float16, np.float32, np.float64)):
+    if isinstance(obj, (np.floating, float)):
         return float(obj)
-    if isinstance(
-        obj,
-        (
-            np.int8,
-            np.int16,
-            np.int32,
-            np.int64,
-            np.uint8,
-            np.uint16,
-            np.uint32,
-            np.uint64,
-        ),
-    ):
+    if isinstance(obj, (np.integer, int)):
         return int(obj)
     if isinstance(obj, dict):
         return {k: safe_numpy_converter(v) for k, v in obj.items()}
@@ -929,8 +917,8 @@ self.onmessage = function(event) {
             const content = document.createElement('p');
 
             phrases.forEach((phrase, index) => {
-                const score = Math.max(0.0, Math.min(1.0, similarities[index] || 0.0));
-                const colorInfo = cmap_heatmap(score);
+        const score = similarities[index] || 0.0;
+        const colorInfo = cmap_heatmap(score);
                 
                 const span = document.createElement('span');
                 span.style.backgroundColor = colorInfo.rgb;
