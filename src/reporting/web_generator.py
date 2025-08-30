@@ -540,9 +540,9 @@ self.onmessage = function(event) {
             params.model = [...paramSets.model].sort();
             params.cs = [...paramSets.cs].sort((a, b) => a - b);
             params.co = [...paramSets.co].sort((a, b) => a - b);
-            params.t = [...paramSets.t].sort();
-            params.s = [...paramSets.s].sort();
-            params.m = [...paramSets.m].sort();
+            params.t = [...paramSets.t];
+            params.s = [...paramSets.s];
+            params.m = [...paramSets.m];
 
             const setupSlider = (slider, values, previousValue) => {
                 slider.max = values.length > 0 ? values.length - 1 : 0;
