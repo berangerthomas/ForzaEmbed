@@ -318,14 +318,8 @@ class Processor:
         if metric == "cosine":
             return cosine_similarity(embed_themes, embed_phrases)
         elif metric == "dot_product":
-            # Calculate raw dot product
-            dot_product = embed_themes @ embed_phrases.T
-            # Normalize by the product of the norms of the two vectors
-            # This is equivalent to cosine similarity
-            norms_themes = np.linalg.norm(embed_themes, axis=1, keepdims=True)
-            norms_phrases = np.linalg.norm(embed_phrases, axis=1, keepdims=True)
-            normalized_dot_product = dot_product / (norms_themes @ norms_phrases.T)
-            return normalized_dot_product
+            # Calculate raw dot product, sensitive to vector magnitude
+            return embed_themes @ embed_phrases.T
         elif metric == "euclidean":
             distances = euclidean_distances(embed_themes, embed_phrases)
             return 1 / (1 + distances)
