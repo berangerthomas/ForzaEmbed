@@ -57,10 +57,10 @@ ForzaEmbed/
 └── main.py               # The main script to run the tool.
 ```
 
--   **`configs/`**: This directory holds your YAML configuration files. You can create multiple configurations for different experiments.
+-   **`configs/`**: This directory holds your YAML configuration files. You can create multiple configurations for different experiments (e.g., `config_horaires.yml`, `config_topics.yml`).
 -   **`markdowns/`**: Place the text documents you want to analyze here. The tool will process all `.md` files in this folder.
--   **`reports/`**: This is where all outputs are stored.
-    -   **`ForzaEmbed_<config_name>.db`**: The central SQLite database. It stores all experiment results, metrics.
+-   **`reports/`**: This is where all outputs are stored, including the SQLite database and the final interactive web report.
+    -   **`ForzaEmbed_<config_name>.db`**: The central SQLite database. It stores all experiment results and metrics.
 
 ---
 
@@ -113,10 +113,10 @@ python main.py --run --config-path configs/config.yml
 ```
 
 This command will:
-1.  Read the documents from the `markdowns/` directory (by default).
+1.  Read the documents from the `markdowns/` directory.
 2.  Execute the grid search based on `configs/config.yml`.
 3.  Save all results and embeddings to `reports/ForzaEmbed_config.db`.
-4.  Generate an interactive report in the `reports/web/` directory.
+4.  Generate a detailed interactive HTML report in the `reports/` directory.
 
 ### Resuming a Run
 
@@ -140,30 +140,34 @@ This is useful for changing the number of top results displayed (`--top-n`) or t
 
 ## Configuration Guide
 
-The `config.yml` file is the control center for your analysis. It's written in YAML and is divided into several sections. Here’s a breakdown of how to format it based on the standard configuration:
+The `config.yml` file is the control center for your analysis. It's written in YAML and is divided into several sections. Here’s a breakdown based on a real-world example for analyzing text related to business hours:
 
 ```yaml
 # Parameters for the grid search
 grid_search_params:
-  chunk_size: [10, 20, 50, 100, 250, 500, 1000]
-  chunk_overlap: [0, 5, 10, 25, 50, 100, 200]
+  chunk_size: [50, 100, 250, 500]
+  chunk_overlap: [10, 25, 50]
   chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
-  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  similarity_metrics: ["cosine", "euclidean", "dot_product"]
   themes:
-    Theme_Name_1: ["keyword1", "keyword2", "related phrase 3"]
-    Theme_Name_2: ["another keyword", "topic phrase 2"]
+    horaires_ouverture: ["horaires d'ouverture", "heures d'ouverture", "accueil du public"]
+    jours_fermeture: ["jour de fermeture", "fermeture exceptionnelle", "fermeture annuelle", "jours fériés"]
+    jours_semaine: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
 # Models to be tested in the grid search
 models_to_test:
   - type: "fastembed"
     name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     dimensions: 384
+  - type: "fastembed"
+    name: "intfloat/multilingual-e5-large"
+    dimensions: 1024
   - type: "huggingface"
     name: "Qwen/Qwen3-Embedding-0.6B"
     dimensions: 1024
   - type: "api"
     name: "nomic-embed-text"
-    base_url: "https://api.example.com/v1"
+    base_url: "https://api.nomic.ai/v1" # Example, replace with your provider
     dimensions: 768
     timeout: 240
 
@@ -173,6 +177,8 @@ output_dir: "reports"
 
 # Database settings
 database:
+  # Enable intelligent quantization to reduce storage size.
+  # For example, embeddings are converted from float64 to float16.
   intelligent_quantization: true
 
 # Multiprocessing settings
@@ -229,9 +235,10 @@ Configure settings for parallel processing to speed up computations.
 -   **Broad Model Support**: Interfaces with multiple embedding providers, including local models (Hugging Face, FastEmbed, SentenceTransformers) and API-based services.
 -   **Versatile Chunking**: Implements various chunking methods: `langchain`, `raw`, `semchunk`, `nltk`, and `spacy`.
 -   **Multiple Similarity Metrics**: Supports `cosine`, `euclidean`, `manhattan`, `dot_product`, and `chebyshev`.
--   **Unsupervised Evaluation**: Integrates metrics like silhouette score, internal coherence, and local density to quantify embedding quality without needing labeled data.
--   **Resumable & Cached**: Caches embeddings in a SQLite database to accelerate subsequent runs and allows resuming interrupted workflows seamlessly.
--   **Rich Reporting**: Produces similarity heatmaps, CSV exports, and an interactive web interface for in-depth results analysis.
+-   **Unsupervised Evaluation**: Integrates metrics like **silhouette score**, **inter/intra-cluster distance**, and **internal coherence** to quantify embedding quality without needing labeled data.
+-   **Resumable & Cached**: Caches embeddings and t-SNE results in a SQLite database to accelerate subsequent runs and allows resuming interrupted workflows seamlessly.
+-   **Intelligent Database Quantization**: Automatically reduces database size by storing numerical data (like embeddings and similarities) in more efficient formats (e.g., float16).
+-   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and an interactive web interface with heatmaps and t-SNE visualizations for in-depth analysis.
 
 ## License
 
