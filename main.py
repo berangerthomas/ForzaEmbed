@@ -1,8 +1,31 @@
 import argparse
 import logging
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+from huggingface_hub import login
+
 from src.core.core import ForzaEmbed
+
+
+def hf_auth_login():
+    """
+    Logs in to Hugging Face Hub using a token from a .env file or environment variables.
+    """
+    load_dotenv()
+    hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
+    if hf_token:
+        try:
+            login(token=hf_token)
+            logging.info("Successfully logged in to Hugging Face Hub.")
+        except Exception as e:
+            logging.error(f"Failed to log in to Hugging Face Hub: {e}")
+    else:
+        logging.warning(
+            "HUGGING_FACE_HUB_TOKEN not found in .env file or environment variables. "
+            "Proceeding without authentication. This may fail for private models."
+        )
 
 
 def main():
@@ -65,4 +88,5 @@ def main():
 
 
 if __name__ == "__main__":
+    hf_auth_login()
     main()

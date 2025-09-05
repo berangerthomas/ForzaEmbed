@@ -43,6 +43,9 @@ grid_search_params:
 
 # Models to be tested in the grid search
 models_to_test:
+  - type: "sentence_transformers"
+    name: "google/embeddinggemma-300m"
+    dimensions: 768
   - type: "fastembed"
     name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     dimensions: 384
@@ -67,13 +70,11 @@ models_to_test:
   - type: "fastembed"
     name: "nomic-ai/nomic-embed-text-v1"
     dimensions: 768
-  - type: "huggingface"
-    name: "google/embeddinggemma-300m"
-    dimensions: 768
 
 # General settings
 similarity_threshold: 0.6
 output_dir: "reports"
+generate_filtered_markdowns: false
 
 # Database settings
 database:

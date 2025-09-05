@@ -68,6 +68,7 @@ class ForzaEmbed:
                                markdown content strings.
             resume (bool): If True, resumes from the last completed combination.
         """
+        self.data_source = data_source  # Store data_source
         logging.info("--- Starting Data Processing ---")
 
         all_rows = load_markdown_files(data_source)
@@ -203,7 +204,11 @@ class ForzaEmbed:
                          Use -1 for all.
             single_file (bool): If True, generates a single HTML file.
         """
-        self.report_generator.generate_all(top_n=top_n, single_file=single_file)
+        # Use stored data_source or default to "markdowns"
+        data_source = getattr(self, 'data_source', 'markdowns')
+        self.report_generator.generate_all(
+            top_n=top_n, single_file=single_file, data_source=data_source
+        )
 
 
 if __name__ == "__main__":
