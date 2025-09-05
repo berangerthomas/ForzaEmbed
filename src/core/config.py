@@ -1,7 +1,9 @@
 import logging
+from typing import Dict, List
+
 import yaml
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from pydantic import BaseModel
+
 
 class GridSearchParams(BaseModel):
     chunk_size: List[int]
@@ -10,6 +12,7 @@ class GridSearchParams(BaseModel):
     similarity_metrics: List[str]
     themes: Dict[str, List[str]]
 
+
 class ModelConfig(BaseModel):
     type: str
     name: str
@@ -17,8 +20,10 @@ class ModelConfig(BaseModel):
     base_url: str | None = None
     timeout: int | None = None
 
+
 class DatabaseSettings(BaseModel):
     intelligent_quantization: bool
+
 
 class MultiprocessingSettings(BaseModel):
     max_workers_api: int
@@ -29,13 +34,16 @@ class MultiprocessingSettings(BaseModel):
     file_batch_size: int
     api_batch_sizes: Dict[str, int]
 
+
 class AppConfig(BaseModel):
     grid_search_params: GridSearchParams
     models_to_test: List[ModelConfig]
     similarity_threshold: float
     output_dir: str
+    generate_filtered_markdowns: bool = False
     database: DatabaseSettings
     multiprocessing: MultiprocessingSettings
+
 
 def load_config(config_path: str) -> AppConfig:
     """Loads and validates the YAML configuration file."""

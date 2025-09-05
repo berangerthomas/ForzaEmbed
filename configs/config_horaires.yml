@@ -67,6 +67,9 @@ models_to_test:
   - type: "fastembed"
     name: "nomic-ai/nomic-embed-text-v1"
     dimensions: 768
+  - type: "huggingface"
+    name: "google/embeddinggemma-300m"
+    dimensions: 768
 
 # General settings
 similarity_threshold: 0.6

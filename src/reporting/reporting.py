@@ -10,6 +10,7 @@ import seaborn as sns
 
 from ..utils.database import EmbeddingDatabase
 from .aggregator import DataAggregator
+from .markdown_filter import MarkdownFilter
 
 
 class ReportGenerator:
@@ -30,6 +31,7 @@ class ReportGenerator:
         self.config_name = config_name
         self.similarity_threshold = config.get("similarity_threshold", 0.6)
         self.data_aggregator = DataAggregator(db, output_dir, config_name)
+        self.markdown_filter = MarkdownFilter(db, config, output_dir, config_name)
 
     def generate_all(self, top_n: int = 25, single_file: bool = False):
         """
@@ -83,6 +85,9 @@ class ReportGenerator:
             single_file,
             graph_paths_by_file,
         )
+
+        # Generate filtered markdowns
+        self.markdown_filter.generate_filtered_markdowns()
 
         logging.info(f"All reports generated in '{self.output_dir}'.")
         self.data_aggregator.touch_cache()
