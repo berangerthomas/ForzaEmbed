@@ -10,8 +10,6 @@ dependencies = [
     "scikit-learn",
     "matplotlib",
     "seaborn",
-    "fastembed",
-    "sentence-transformers",
     "msgpack",
     "requests",
     "uvicorn",
@@ -32,4 +30,29 @@ dependencies = [
     "jsmin",
     "cssmin",
     "csscompressor>=0.9.5",
+    "sentence-transformers>=5.1.0",
+    "torch>=2.4.0",
+    "transformers>=4.44.0",
+    "peft>=0.17.1",
+    "torchvision>=0.23.0",
+    "fastembed-gpu>=0.7.3",
+    "langdetect>=1.0.9",
+    "sphinx>=8.2.3",
+    "sphinx-rtd-theme>=3.0.2",
+    "sphinx-autodoc-typehints>=3.5.2",
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-autodoc-typehints>=1.25.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.0.0",
 ]

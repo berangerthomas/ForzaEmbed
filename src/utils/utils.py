@@ -1,16 +1,41 @@
 import re
-from typing import List
+import subprocess
+import sys
+from typing import Dict, List
 
 import nltk
 import semchunk
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from spacy.language import Language
 
-# téléchargement du modèle de langue français
-# python -m spacy download fr_core_news_sm
+# --- spaCy model loading ---
+SPACY_MODELS: Dict[str, Language] = {}
 
-# Load spacy model
-nlp = spacy.load("fr_core_news_sm")
+
+def get_spacy_model(language: str) -> Language:
+    """
+    Loads and caches a spaCy model for a given language.
+    Downloads the model if it's not available.
+    """
+    model_map = {
+        "fr": "fr_core_news_sm",
+        "en": "en_core_web_sm",
+    }
+    model_name = model_map.get(language)
+    if not model_name:
+        raise ValueError(f"Unsupported language for spaCy: {language}")
+
+    if language not in SPACY_MODELS:
+        try:
+            SPACY_MODELS[language] = spacy.load(model_name)
+        except OSError:
+            print(f"Downloading spaCy model for '{language}' ({model_name})...")
+            subprocess.check_call(
+                [sys.executable, "-m", "spacy", "download", model_name]
+            )
+            SPACY_MODELS[language] = spacy.load(model_name)
+    return SPACY_MODELS[language]
 
 # Download nltk data if not already present
 try:
@@ -19,72 +44,106 @@ except nltk.downloader.DownloadError:  # type: ignore
     nltk.download("punkt")
 
 
-# Splits a text into sentences or short segments.
+# --- Helper functions for each chunking strategy ---
+
+
+def _chunk_langchain(
+    text: str, chunk_size: int, chunk_overlap: int, **kwargs
+) -> List[str]:
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        length_function=len,
+    )
+    return text_splitter.split_text(text)
+
+
+def _chunk_semchunk(text: str, chunk_size: int, **kwargs) -> List[str]:
+    return list(
+        semchunk.chunk(  # type: ignore
+            text,
+            chunk_size=chunk_size,
+            token_counter=lambda text: len(text.split()),
+            offsets=False,
+        )
+    )
+
+
+def _chunk_nltk(text: str, language: str = "fr", **kwargs) -> List[str]:
+    lang_map = {"fr": "french", "en": "english"}
+    nltk_lang = lang_map.get(language, "french")
+    return nltk.sent_tokenize(text, language=nltk_lang)
+
+
+def _chunk_spacy(text: str, language: str = "fr", **kwargs) -> List[str]:
+    nlp = get_spacy_model(language)
+    doc = nlp(text)
+    return [sent.text for sent in doc.sents]
+
+
+def _chunk_raw(text: str, chunk_size: int, chunk_overlap: int, **kwargs) -> List[str]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be > 0")
+    if chunk_overlap < 0:
+        raise ValueError("chunk_overlap must be >= 0")
+    if chunk_size <= chunk_overlap:
+        raise ValueError(
+            "chunk_size must be greater than chunk_overlap for raw chunking."
+        )
+
+    step = chunk_size - chunk_overlap
+    return [text[i : i + chunk_size] for i in range(0, len(text), step)]
+
+
+# --- Main chunking function using a dictionary-based approach ---
+
+CHUNKING_STRATEGIES = {
+    "langchain": _chunk_langchain,
+    "semchunk": _chunk_semchunk,
+    "nltk": _chunk_nltk,
+    "spacy": _chunk_spacy,
+    "raw": _chunk_raw,
+}
+
+
 def chunk_text(
-    text: str, chunk_size: int, chunk_overlap: int, strategy: str = "langchain"
+    text: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    strategy: str = "langchain",
+    language: str = "fr",
 ) -> List[str]:
     """
-    Splits the text into segments of defined size and overlap.
+    Splits the text into segments using a specified strategy.
 
     Args:
         text (str): Text to split.
-        chunk_size (int): Size of the chunks. For nltk and spacy, this is ignored.
-        chunk_overlap (int): Overlap between chunks. For nltk and spacy, this is ignored.
-        strategy (str): 'langchain' for smart splitting, 'raw' for basic splitting,
-                        'semchunk', 'nltk', or 'spacy' for other methods.
+        chunk_size (int): Size of the chunks.
+        chunk_overlap (int): Overlap between chunks.
+        strategy (str): The chunking strategy to use.
+        language (str): The language of the text ('fr' or 'en').
 
     Returns:
         List[str]: List of extracted segments.
     """
-    if strategy == "langchain":
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            length_function=len,
-        )
-        chunks = text_splitter.split_text(text)
-    elif strategy == "semchunk":
-        # semchunk uses chunk_size, but not chunk_overlap in the same way as 'raw'
-        chunks = list(
-            semchunk.chunk(  # type: ignore
-                text,
-                chunk_size=chunk_size,
-                token_counter=lambda text: len(text.split()),
-                offsets=False,
-            )
-        )
-    elif strategy == "nltk":
-        # nltk.sent_tokenize does not use chunk_size or chunk_overlap
-        chunks = nltk.sent_tokenize(text, language="french")
-    elif strategy == "spacy":
-        # Spacy's sentence splitter does not use chunk_size or chunk_overlap
-        doc = nlp(text)
-        chunks = [sent.text for sent in doc.sents]
-    elif strategy == "raw":
-        if chunk_size <= 0:
-            raise ValueError("chunk_size must be > 0")
-        if chunk_overlap < 0:
-            raise ValueError("chunk_overlap must be >= 0")
-        if chunk_size == chunk_overlap:
-            raise ValueError(
-                "chunk_size and chunk_overlap must not be equal for raw chunking (step would be zero)."
-            )
-        step = chunk_size - chunk_overlap
-        chunks = []
-        for i in range(0, len(text), step):
-            chunks.append(text[i : i + chunk_size])
-    else:
+    if strategy not in CHUNKING_STRATEGIES:
         raise ValueError(f"Unknown chunking strategy: {strategy}")
 
-    # Apply strip() only for non-raw strategies to preserve exact chunk size in raw mode
+    # Call the appropriate chunking function
+    chunking_func = CHUNKING_STRATEGIES[strategy]
+    chunks = chunking_func(
+        text=text,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        language=language,
+    )
+
+    # Post-process the chunks
     if strategy == "raw":
-        return [
-            str(chunk)
-            for chunk in chunks
-            if isinstance(chunk, str)
-            and chunk  # Keep chunks even if they contain only whitespace
-        ]
+        # For raw strategy, keep chunks as they are to preserve exact size, but filter out empty strings
+        return [str(chunk) for chunk in chunks if isinstance(chunk, str) and chunk]
     else:
+        # For other strategies, strip whitespace and filter out empty chunks
         return [
             str(chunk).strip()
             for chunk in chunks

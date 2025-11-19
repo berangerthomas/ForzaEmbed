@@ -363,13 +363,11 @@ self.onmessage = function(event) {
         let processedData = {};
 
         const metricTooltips = {
-            'internal_coherence_score': "Internal Coherence Score (ICS). Measures stability and predictability of similarity measurements. LOWER IS BETTER. (< 0.1: Excellent, 0.1-0.3: Good, 0.3-0.5: Fair, > 0.5: Poor)",
-            'local_density_index': "Local Density Index (LDI). Measures if embeddings' nearest neighbors belong to the same theme. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
-            'robustness_score': "Robustness Score (RS). Tests stability against random noise. HIGHER IS BETTER. (> 0.95: Very Robust, 0.9-0.95: Robust, 0.8-0.9: Moderate, < 0.8: Fragile)",
+
             'intra_cluster_distance_normalized': "Intra-Cluster Cohesion. Measures how tightly grouped texts of the same theme are. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
             'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how well different themes are separated. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, < 0.3: Poor)",
             'silhouette_score': "Silhouette Score. Global clustering quality combining cohesion and separation. Range: -1 to 1. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, 0-0.3: Poor, < 0: Very Poor)",
-            'mean_similarity': "Mean Similarity. The average cosine similarity between the reference theme embeddings and the document chunk embeddings. HIGHER IS BETTER. Indicates how relevant the document is to the themes on average."
+            'embedding_computation_time': "Embedding Computation Time (seconds). Time required to compute embeddings for both themes and chunks. LOWER IS BETTER."
         };
 
         const fileSlider = document.getElementById('file-slider');
@@ -451,13 +449,11 @@ self.onmessage = function(event) {
 
             // Configuration for each metric: min/max for color scaling, and whether lower is better
             const metricConfigs = {
-                'internal_coherence_score': { min: 0.0, max: 0.5, lowerIsBetter: true },
-                'local_density_index': { min: 0.4, max: 1.0, lowerIsBetter: false },
-                'robustness_score': { min: 0.8, max: 1.0, lowerIsBetter: false },
+
                 'intra_cluster_distance_normalized': { min: 0.4, max: 1.0, lowerIsBetter: false },
                 'inter_cluster_distance_normalized': { min: 0.3, max: 0.8, lowerIsBetter: false },
                 'silhouette_score': { min: -0.1, max: 0.7, lowerIsBetter: false },
-                'mean_similarity': { min: 0.5, max: 1.0, lowerIsBetter: false }
+                'embedding_computation_time': { min: 0.0, max: 10.0, lowerIsBetter: true }
             };
 
             const config = metricConfigs[metricKey];
@@ -624,13 +620,11 @@ self.onmessage = function(event) {
             if (!fileKey || !processedData.files[fileKey]) return;
 
             const metricConfig = {
-                'internal_coherence_score': { lowerIsBetter: true },
-                'local_density_index': { lowerIsBetter: false },
-                'robustness_score': { lowerIsBetter: false },
+
                 'intra_cluster_distance_normalized': { lowerIsBetter: false },
                 'inter_cluster_distance_normalized': { lowerIsBetter: false },
                 'silhouette_score': { lowerIsBetter: false },
-                'mean_similarity': { lowerIsBetter: false }
+                'embedding_computation_time': { lowerIsBetter: true }
             };
 
             const config = metricConfig[metricKey];
@@ -1049,7 +1043,7 @@ self.onmessage = function(event) {
         <!-- Metrics area -->
         <div class="metrics">
             <h2>Metrics</h2>
-            <p style="text-align: center; color: #555; font-size: 0.9em; margin-top: 0px;">Note: The metrics are statistically significant only with a high number of chunks (>500).</p>
+            <p style="text-align: center; color: #555; font-size: 0.9em; margin-top: 0px;">Note: The metrics are statistically significant only with a high number of chunks.</p>
             <div id="metrics-grid" class="metrics-grid"></div>
         </div>
 

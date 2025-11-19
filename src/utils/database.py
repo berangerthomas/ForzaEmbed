@@ -1,14 +1,25 @@
 import logging
 import os
-import sqlite3
 import zlib
 from typing import Any, Dict, List, Optional, Tuple
 
 import msgpack
 import numpy as np
-
+from sqlalchemy import create_engine, select, text, delete, update
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ..core.config import AppConfig
+from .models import (
+    Base,
+    Model,
+    EvaluationMetric,
+    GeneratedFile,
+    GlobalChart,
+    ProcessingResult,
+    EmbeddingCache,
+    TSNECoordinate,
+)
 
 
 class EmbeddingDatabase:
@@ -26,113 +37,19 @@ class EmbeddingDatabase:
             )
         else:
             self.quantization_enabled = config.database.intelligent_quantization
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+        
+        # Initialize SQLAlchemy engine and session
+        self.engine = create_engine(f"sqlite:///{self.db_path}")
+        self.Session = sessionmaker(bind=self.engine)
         self._init_database()
 
     def _init_database(self):
         """Initialize the database tables."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-
-            # Models table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS models (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL,
-                    base_model_name TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    chunk_size INTEGER NOT NULL,
-                    chunk_overlap INTEGER NOT NULL,
-                    theme_name TEXT NOT NULL,
-                    chunking_strategy TEXT NOT NULL,
-                    similarity_metric TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Evaluation metrics table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS evaluation_metrics (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    model_name TEXT NOT NULL,
-                    cohesion REAL,
-                    separation REAL,
-                    discriminant_score REAL,
-                    silhouette REAL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (model_name) REFERENCES models (name)
-                )
-            """)
-
-            # Generated files table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS generated_files (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    model_name TEXT NOT NULL,
-                    file_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (model_name) REFERENCES models (name)
-                )
-            """)
-
-            # Global comparison charts table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS global_charts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chart_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Table for storing detailed processing results
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS processing_results (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    model_name TEXT NOT NULL,
-                    file_id TEXT NOT NULL,
-                    results_blob BLOB NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(model_name, file_id)
-                )
-            """)
-
-            # Check if embedding_cache needs migration
-            cursor.execute("PRAGMA table_info(embedding_cache)")
-            columns = [row[1] for row in cursor.fetchall()]
-
-            if "cache_key" in columns or not columns:
-                # Migration needed: drop old table and recreate with composite primary key
-                if columns:
-                    print("Migrating embedding_cache table structure...")
-                cursor.execute("DROP TABLE IF EXISTS embedding_cache")
-
-            # Table for caching embeddings - Optimized with composite primary key
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS embedding_cache (
-                    model_name TEXT NOT NULL,
-                    text_hash TEXT NOT NULL,
-                    vector BLOB NOT NULL,
-                    dimension INTEGER NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (model_name, text_hash)
-                )
-            """)
-
-            # Nouvelle table pour stocker les coordonnées t-SNE
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tsne_coordinates (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tsne_key TEXT NOT NULL,
-                    file_id TEXT NOT NULL,
-                    coordinates BLOB NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(tsne_key, file_id)
-                )
-            """)
-
-            conn.commit()
+        Base.metadata.create_all(self.engine)
 
     def add_model(
         self,
@@ -146,89 +63,69 @@ class EmbeddingDatabase:
         similarity_metric: str,
     ):
         """Adds a model to the database."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT OR IGNORE INTO models (name, base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy, similarity_metric)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    name,
-                    base_model_name,
-                    model_type,
-                    chunk_size,
-                    chunk_overlap,
-                    theme_name,
-                    chunking_strategy,
-                    similarity_metric,
-                ),
-            )
-            conn.commit()
+        with self.Session() as session:
+            stmt = sqlite_insert(Model).values(
+                name=name,
+                base_model_name=base_model_name,
+                type=model_type,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                theme_name=theme_name,
+                chunking_strategy=chunking_strategy,
+                similarity_metric=similarity_metric,
+            ).on_conflict_do_nothing()
+            session.execute(stmt)
+            session.commit()
 
     def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
         """Adds or updates evaluation metrics for a model."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            # Delete existing metrics for this model to avoid duplicates
-            cursor.execute(
-                "DELETE FROM evaluation_metrics WHERE model_name = ?", (model_name,)
+        with self.Session() as session:
+            # Delete existing metrics for this model
+            session.execute(
+                delete(EvaluationMetric).where(EvaluationMetric.model_name == model_name)
             )
-            # Insert the new metrics
-            cursor.execute(
-                """
-                INSERT INTO evaluation_metrics 
-                (model_name, cohesion, separation, discriminant_score, 
-                 silhouette)
-                VALUES (?, ?, ?, ?, ?)
-            """,
-                (
-                    model_name,
-                    metrics.get("cohesion"),
-                    metrics.get("separation"),
-                    metrics.get("discriminant_score"),
-                    metrics.get("silhouette"),
-                ),
+            
+            # Insert new metrics
+            metric = EvaluationMetric(
+                model_name=model_name,
+                silhouette_score=metrics.get("silhouette_score"),
+                intra_cluster_distance_normalized=metrics.get("intra_cluster_distance_normalized"),
+                inter_cluster_distance_normalized=metrics.get("inter_cluster_distance_normalized"),
+                embedding_computation_time=metrics.get("embedding_computation_time"),
             )
-            conn.commit()
+            session.add(metric)
+            session.commit()
 
     def add_generated_file(self, model_name: str, file_type: str, file_path: str):
         """Adds a generated file to the database."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO generated_files (model_name, file_type, file_path)
-                VALUES (?, ?, ?)
-            """,
-                (model_name, file_type, file_path),
+        with self.Session() as session:
+            file_entry = GeneratedFile(
+                model_name=model_name,
+                file_type=file_type,
+                file_path=file_path
             )
-            conn.commit()
+            session.add(file_entry)
+            session.commit()
 
     def add_global_chart(self, chart_type: str, file_path: str):
         """Adds or updates a global chart in the database."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+        with self.Session() as session:
             # Delete existing chart of this type
-            cursor.execute(
-                "DELETE FROM global_charts WHERE chart_type = ?", (chart_type,)
+            session.execute(
+                delete(GlobalChart).where(GlobalChart.chart_type == chart_type)
             )
-            # Insert the new chart path
-            cursor.execute(
-                """
-                INSERT INTO global_charts (chart_type, file_path)
-                VALUES (?, ?)
-            """,
-                (chart_type, file_path),
-            )
-            conn.commit()
+            # Insert new chart
+            chart = GlobalChart(chart_type=chart_type, file_path=file_path)
+            session.add(chart)
+            session.commit()
 
     def model_exists(self, name: str) -> bool:
         """Checks if a model with the specified run name already exists."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM models WHERE name = ?", (name,))
-            return cursor.fetchone() is not None
+        with self.Session() as session:
+            result = session.execute(
+                select(Model).where(Model.name == name)
+            ).first()
+            return result is not None
 
     def save_processing_result(
         self, model_name: str, file_id: str, results: Dict[str, Any]
@@ -240,16 +137,19 @@ class EmbeddingDatabase:
             quantized_results, default=self._numpy_default, use_bin_type=True
         )
 
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_blob)
-                VALUES (?, ?, ?)
-            """,
-                (model_name, file_id, results_blob),
+        with self.Session() as session:
+            stmt = sqlite_insert(ProcessingResult).values(
+                model_name=model_name,
+                file_id=file_id,
+                results_blob=results_blob
             )
-            conn.commit()
+            # Upsert: replace if exists
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['model_name', 'file_id'],
+                set_=dict(results_blob=results_blob)
+            )
+            session.execute(stmt)
+            session.commit()
 
     def save_processing_results_batch(
         self, results_batch: List[Tuple[str, str, Dict[str, Any]]]
@@ -262,50 +162,47 @@ class EmbeddingDatabase:
             results_blob = msgpack.packb(
                 quantized_results, default=self._numpy_default, use_bin_type=True
             )
-            items_to_insert.append((model_name, file_id, results_blob))
+            items_to_insert.append({
+                "model_name": model_name,
+                "file_id": file_id,
+                "results_blob": results_blob
+            })
 
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(
-                """
-                INSERT OR REPLACE INTO processing_results (model_name, file_id, results_blob)
-                VALUES (?, ?, ?)
-            """,
-                items_to_insert,
+        if not items_to_insert:
+            return
+
+        with self.Session() as session:
+            stmt = sqlite_insert(ProcessingResult).values(items_to_insert)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['model_name', 'file_id'],
+                set_=dict(results_blob=stmt.excluded.results_blob)
             )
-            conn.commit()
+            session.execute(stmt)
+            session.commit()
 
     def get_processed_files(self, model_name: str) -> List[str]:
         """Retrieves the list of file_ids that have been processed for a model."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT file_id FROM processing_results WHERE model_name = ?",
-                (model_name,),
+        with self.Session() as session:
+            result = session.execute(
+                select(ProcessingResult.file_id).where(ProcessingResult.model_name == model_name)
             )
-            return [row[0] for row in cursor.fetchall()]
+            return [row[0] for row in result.fetchall()]
 
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Retrieves information about a model by its run name."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT base_model_name, type, chunk_size, chunk_overlap, theme_name, chunking_strategy
-                FROM models
-                WHERE name = ?
-            """,
-                (run_name,),
-            )
-            row = cursor.fetchone()
-            if row:
+        with self.Session() as session:
+            model = session.execute(
+                select(Model).where(Model.name == run_name)
+            ).scalar_one_or_none()
+            
+            if model:
                 return {
-                    "model_name": row[0],
-                    "type": row[1],
-                    "chunk_size": row[2],
-                    "chunk_overlap": row[3],
-                    "theme_name": row[4],
-                    "chunking_strategy": row[5],
+                    "model_name": model.name,
+                    "type": model.type,
+                    "chunk_size": model.chunk_size,
+                    "chunk_overlap": model.chunk_overlap,
+                    "theme_name": model.theme_name,
+                    "chunking_strategy": model.chunking_strategy,
                 }
             return None
 
@@ -315,11 +212,11 @@ class EmbeddingDatabase:
         This method fetches raw file-level results without model-level aggregation.
         """
         all_results: Dict[str, Dict[str, Any]] = {}
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+        with self.Session() as session:
             # Get all unique model names first
-            cursor.execute("SELECT DISTINCT model_name FROM processing_results")
-            model_names = [row[0] for row in cursor.fetchall()]
+            model_names = session.execute(
+                select(ProcessingResult.model_name).distinct()
+            ).scalars().all()
 
             for model_name in model_names:
                 # Get all file results for the current model
@@ -329,34 +226,29 @@ class EmbeddingDatabase:
 
     def get_all_models(self) -> List[Dict[str, Any]]:
         """Retrieves all models with their metrics."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT m.name, m.base_model_name, m.type, m.chunk_size, m.chunk_overlap, m.theme_name, m.chunking_strategy,
-                       e.cohesion, e.separation, e.discriminant_score,
-                       e.silhouette
-                FROM models m
-                LEFT JOIN evaluation_metrics e ON m.name = e.model_name
-                ORDER BY m.name
-            """
-            )
-
+        with self.Session() as session:
+            # Left join Model and EvaluationMetric
+            stmt = select(Model, EvaluationMetric).outerjoin(
+                EvaluationMetric, Model.name == EvaluationMetric.model_name
+            ).order_by(Model.name)
+            
+            results = session.execute(stmt).all()
+            
             models = []
-            for row in cursor.fetchall():
+            for model, metric in results:
                 models.append(
                     {
-                        "name": row[0],
-                        "base_model_name": row[1],
-                        "type": row[2],
-                        "chunk_size": row[3],
-                        "chunk_overlap": row[4],
-                        "theme_name": row[5],
-                        "chunking_strategy": row[6],
-                        "cohesion": row[7],
-                        "separation": row[8],
-                        "discriminant_score": row[9],
-                        "silhouette": row[10],
+                        "name": model.name,
+                        "base_model_name": model.base_model_name,
+                        "type": model.type,
+                        "chunk_size": model.chunk_size,
+                        "chunk_overlap": model.chunk_overlap,
+                        "theme_name": model.theme_name,
+                        "chunking_strategy": model.chunking_strategy,
+                        "silhouette_score": metric.silhouette_score if metric else None,
+                        "intra_cluster_distance_normalized": metric.intra_cluster_distance_normalized if metric else None,
+                        "inter_cluster_distance_normalized": metric.inter_cluster_distance_normalized if metric else None,
+                        "embedding_computation_time": metric.embedding_computation_time if metric else None,
                     }
                 )
 
@@ -364,41 +256,33 @@ class EmbeddingDatabase:
 
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:
         """Retrieves all generated files for a model."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT file_type, file_path FROM generated_files
-                WHERE model_name = ?
-                ORDER BY file_type
-            """,
-                (model_name,),
-            )
+        with self.Session() as session:
+            files = session.execute(
+                select(GeneratedFile).where(GeneratedFile.model_name == model_name).order_by(GeneratedFile.file_type)
+            ).scalars().all()
 
-            return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
+            return [{"type": f.file_type, "path": f.file_path} for f in files]
 
     def get_global_charts(self) -> List[Dict[str, str]]:
         """Retrieves all global charts."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT chart_type, file_path FROM global_charts
-                ORDER BY chart_type
-            """)
+        with self.Session() as session:
+            charts = session.execute(
+                select(GlobalChart).order_by(GlobalChart.chart_type)
+            ).scalars().all()
 
-            return [{"type": row[0], "path": row[1]} for row in cursor.fetchall()]
+            return [{"type": c.chart_type, "path": c.file_path} for c in charts]
 
     def vacuum_database(self):
         """Vacuums the database to reclaim space."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("VACUUM")
+        with self.Session() as session:
+            session.execute(text("VACUUM"))
 
     def get_all_run_names(self) -> list[str]:
         """Récupère tous les run_names existants."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT name FROM models")
-            return [row[0] for row in cursor.fetchall()]
+        with self.Session() as session:
+            return session.execute(
+                select(Model.name).distinct()
+            ).scalars().all()
 
     def get_processed_files_with_similarities(self, run_name: str) -> list[str]:
         """
@@ -406,17 +290,17 @@ class EmbeddingDatabase:
         pour un run donné.
         """
         processed_files = []
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT file_id, results_blob FROM processing_results WHERE model_name = ?",
-                (run_name,),
-            )
-            for file_id, results_blob in cursor.fetchall():
-                results = msgpack.unpackb(
+        with self.Session() as session:
+            results = session.execute(
+                select(ProcessingResult.file_id, ProcessingResult.results_blob)
+                .where(ProcessingResult.model_name == run_name)
+            ).all()
+            
+            for file_id, results_blob in results:
+                results_data = msgpack.unpackb(
                     results_blob, object_hook=self._decode_numpy, raw=False
                 )
-                if "similarities" in results and results["similarities"] is not None:
+                if "similarities" in results_data and results_data["similarities"] is not None:
                     processed_files.append(file_id)
         return processed_files
 
@@ -427,18 +311,16 @@ class EmbeddingDatabase:
         if not text_hashes:
             return {}
 
-        placeholders = ",".join("?" for _ in text_hashes)
-        query_params = [base_model_name] + text_hashes
-
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT text_hash, vector FROM embedding_cache WHERE model_name = ? AND text_hash IN ({placeholders})",
-                query_params,
-            )
+        with self.Session() as session:
+            # SQLAlchemy IN clause
+            results = session.execute(
+                select(EmbeddingCache.text_hash, EmbeddingCache.vector)
+                .where(EmbeddingCache.model_name == base_model_name)
+                .where(EmbeddingCache.text_hash.in_(text_hashes))
+            ).all()
 
             embeddings = {}
-            for text_hash, vector_blob in cursor.fetchall():
+            for text_hash, vector_blob in results:
                 embeddings[text_hash] = msgpack.unpackb(
                     vector_blob, object_hook=self._decode_numpy, raw=False
                 )
@@ -469,18 +351,20 @@ class EmbeddingDatabase:
                 vector, default=self._numpy_default, use_bin_type=True
             )
             dimension = len(vector) if len(vector.shape) == 1 else vector.shape[1]
-            items_to_insert.append((base_model_name, text_hash, vector_blob, dimension))
+            items_to_insert.append({
+                "model_name": base_model_name,
+                "text_hash": text_hash,
+                "vector": vector_blob,
+                "dimension": dimension
+            })
 
         if hasattr(self, "_cache_storage"):
             delattr(self, "_cache_storage")
 
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(
-                "INSERT OR IGNORE INTO embedding_cache (model_name, text_hash, vector, dimension) VALUES (?, ?, ?, ?)",
-                items_to_insert,
-            )
-            conn.commit()
+        with self.Session() as session:
+            stmt = sqlite_insert(EmbeddingCache).values(items_to_insert).on_conflict_do_nothing()
+            session.execute(stmt)
+            session.commit()
 
     def save_tsne_coordinates(
         self, tsne_key: str, file_id: str, coordinates: Dict[str, List[float]]
@@ -488,60 +372,74 @@ class EmbeddingDatabase:
         """Sauvegarde les coordonnées t-SNE pour une combinaison donnée."""
         coordinates_blob = msgpack.packb(coordinates, use_bin_type=True)
 
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO tsne_coordinates (tsne_key, file_id, coordinates)
-                VALUES (?, ?, ?)
-                """,
-                (tsne_key, file_id, coordinates_blob),
+        with self.Session() as session:
+            stmt = sqlite_insert(TSNECoordinate).values(
+                tsne_key=tsne_key,
+                file_id=file_id,
+                coordinates=coordinates_blob
             )
-            conn.commit()
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['tsne_key', 'file_id'],
+                set_=dict(coordinates=coordinates_blob)
+            )
+            session.execute(stmt)
+            session.commit()
 
     def get_tsne_coordinates(
         self, tsne_key: str, file_id: str
     ) -> Optional[Dict[str, List[float]]]:
         """Récupère les coordonnées t-SNE pour une combinaison donnée."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT coordinates FROM tsne_coordinates WHERE tsne_key = ? AND file_id = ?",
-                (tsne_key, file_id),
-            )
-            row = cursor.fetchone()
-            if row:
-                return msgpack.unpackb(row[0], raw=False)
+        with self.Session() as session:
+            result = session.execute(
+                select(TSNECoordinate.coordinates)
+                .where(TSNECoordinate.tsne_key == tsne_key)
+                .where(TSNECoordinate.file_id == file_id)
+            ).scalar_one_or_none()
+            
+            if result:
+                return msgpack.unpackb(result, raw=False)
             return None
 
     def clear_tsne_cache(self):
         """Vide le cache des coordonnées t-SNE."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM tsne_coordinates")
-            conn.commit()
+        with self.Session() as session:
+            session.execute(delete(TSNECoordinate))
+            session.commit()
 
     def get_run_details(self, run_name: str) -> Optional[Dict[str, Any]]:
         """Retrieves detailed information for a specific run."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM models WHERE name = ?", (run_name,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+        with self.Session() as session:
+            model = session.execute(
+                select(Model).where(Model.name == run_name)
+            ).scalar_one_or_none()
+            
+            if model:
+                return {
+                    "id": model.id,
+                    "name": model.name,
+                    "base_model_name": model.base_model_name,
+                    "type": model.type,
+                    "chunk_size": model.chunk_size,
+                    "chunk_overlap": model.chunk_overlap,
+                    "theme_name": model.theme_name,
+                    "chunking_strategy": model.chunking_strategy,
+                    "similarity_metric": model.similarity_metric,
+                    "created_at": model.created_at
+                }
+            return None
 
     def get_all_processing_results_for_run(
         self, model_name: str
     ) -> Dict[str, Dict[str, Any]]:
         """Get all processing results for a specific run with proper dequantization."""
         results = {}
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT file_id, results_blob FROM processing_results WHERE model_name = ?",
-                (model_name,),
-            )
-            for file_id, results_blob in cursor.fetchall():
+        with self.Session() as session:
+            query_results = session.execute(
+                select(ProcessingResult.file_id, ProcessingResult.results_blob)
+                .where(ProcessingResult.model_name == model_name)
+            ).all()
+            
+            for file_id, results_blob in query_results:
                 data = msgpack.unpackb(
                     results_blob, object_hook=self._decode_numpy, raw=False
                 )
@@ -590,20 +488,20 @@ class EmbeddingDatabase:
         self, model_name: str, file_id: str, metrics: Dict[str, Any]
     ):
         """Updates the metrics for a specific file in a model run."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
+        with self.Session() as session:
             # First, retrieve the existing blob
-            cursor.execute(
-                "SELECT results_blob FROM processing_results WHERE model_name = ? AND file_id = ?",
-                (model_name, file_id),
-            )
-            row = cursor.fetchone()
-            if not row:
+            result = session.execute(
+                select(ProcessingResult.results_blob)
+                .where(ProcessingResult.model_name == model_name)
+                .where(ProcessingResult.file_id == file_id)
+            ).scalar_one_or_none()
+            
+            if not result:
                 return  # Or handle error
 
             # Deserialize, update, and re-serialize
             results_data = msgpack.unpackb(
-                row[0], object_hook=self._decode_numpy, raw=False
+                result, object_hook=self._decode_numpy, raw=False
             )
             # Restore quantized data before update
             results_data = self._restore_quantized_data(results_data)
@@ -616,11 +514,13 @@ class EmbeddingDatabase:
             )
 
             # Update the blob in the database
-            cursor.execute(
-                "UPDATE processing_results SET results_blob = ? WHERE model_name = ? AND file_id = ?",
-                (updated_blob, model_name, file_id),
-            )
-            conn.commit()
+            stmt = update(ProcessingResult).where(
+                ProcessingResult.model_name == model_name,
+                ProcessingResult.file_id == file_id
+            ).values(results_blob=updated_blob)
+            
+            session.execute(stmt)
+            session.commit()
 
     def _quantize_metrics(self, metrics: Dict[str, float]) -> Dict[str, Any]:
         """Quantize metrics intelligently based on their expected ranges."""

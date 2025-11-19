@@ -405,7 +405,7 @@ class ReportGenerator:
             "silhouette_score": True,
             "inter_cluster_distance_normalized": True,
             "intra_cluster_distance_normalized": True,
-            "internal_coherence_score": False,
+            "embedding_computation_time": False,
         }
 
         plot_metrics = [m for m in metrics_for_radar if m in df.columns]
@@ -499,9 +499,9 @@ class ReportGenerator:
         # but the CSV will contain the detailed data.
         df_for_plots = df.drop(columns=["file_name"]).groupby("model_name").mean()
 
-        if "discriminant_score" in df_for_plots.columns:
+        if "silhouette_score" in df_for_plots.columns:
             df_for_plots = df_for_plots.sort_values(
-                by="discriminant_score", ascending=False
+                by="silhouette_score", ascending=False
             )
 
         # Export detailed metrics to CSV with config prefix
@@ -520,9 +520,7 @@ class ReportGenerator:
             "intra_cluster_distance_normalized": True,
             "inter_cluster_distance_normalized": True,
             "silhouette_score": True,
-            "local_density_index": True,
-            "internal_coherence_score": False,
-            "robustness_score": True,
+
         }
 
         metrics_to_plot = [m for m in metric_preferences if m in df_for_plots.columns]
@@ -574,22 +572,10 @@ def get_metrics_info():
             "higher_is_better": True,
             "range": "-1 to 1",
         },
-        "local_density_index": {
-            "name": "Local Density Index",
-            "description": "Proportion of neighbors sharing the same theme",
-            "higher_is_better": True,
-            "range": "0-1",
-        },
-        "internal_coherence_score": {
-            "name": "Internal Coherence Score",
-            "description": "Stability of similarity measurements",
+        "embedding_computation_time": {
+            "name": "Embedding Computation Time",
+            "description": "Time taken to compute embeddings (seconds)",
             "higher_is_better": False,
             "range": "0+",
-        },
-        "robustness_score": {
-            "name": "Robustness Score",
-            "description": "Stability against noise and perturbations",
-            "higher_is_better": True,
-            "range": "0-1",
         },
     }

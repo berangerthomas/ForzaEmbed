@@ -11,6 +11,13 @@ from ..utils.database import EmbeddingDatabase
 from .config import AppConfig, load_config
 from .processing import Processor
 
+
+# Chunking strategies that ignore chunk_size and chunk_overlap parameters
+# Based on their implementation:
+# - nltk: Uses sentence tokenization (nltk.sent_tokenize) - ignores size/overlap
+# - spacy: Uses spaCy's sentence segmentation - ignores size/overlap
+PARAMETER_INSENSITIVE_STRATEGIES = {"nltk", "spacy"}
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -58,6 +65,75 @@ class ForzaEmbed:
         logging.info(f"Output directory: {self.output_dir}")
         logging.info(f"Config prefix: {self.config_name}")
 
+    def _generate_smart_combinations(self, param_grid: dict) -> list:
+        """
+        Generates parameter combinations intelligently by avoiding redundant
+        combinations for chunking strategies that don't use chunk_size/chunk_overlap.
+
+        Args:
+            param_grid (dict): Dictionary of parameter lists.
+
+        Returns:
+            list: List of valid parameter combinations.
+        """
+        strategies = param_grid["chunking_strategy"]
+        chunk_sizes = param_grid["chunk_size"]
+        chunk_overlaps = param_grid["chunk_overlap"]
+
+        # Separate strategies that are parameter-sensitive and parameter-insensitive
+        sensitive_strategies = [s for s in strategies if s not in PARAMETER_INSENSITIVE_STRATEGIES]
+        insensitive_strategies = [s for s in strategies if s in PARAMETER_INSENSITIVE_STRATEGIES]
+
+        combinations = []
+
+        # For parameter-sensitive strategies (langchain, semchunk, raw),
+        # generate all combinations of chunk_size and chunk_overlap
+        if sensitive_strategies:
+            sensitive_params = {
+                "model_config": param_grid["model_config"],
+                "chunk_size": chunk_sizes,
+                "chunk_overlap": chunk_overlaps,
+                "chunking_strategy": sensitive_strategies,
+                "similarity_metrics": param_grid["similarity_metrics"],
+                "theme_name": param_grid["theme_name"],
+            }
+            sensitive_combinations = list(itertools.product(*sensitive_params.values()))
+            # Filter: chunk_size > chunk_overlap
+            sensitive_combinations = [
+                params for params in sensitive_combinations
+                if params[1] > params[2]  # chunk_size > chunk_overlap
+            ]
+            combinations.extend(sensitive_combinations)
+
+        # For parameter-insensitive strategies (nltk, spacy),
+        # use only one chunk_size and one chunk_overlap (the first values)
+        # since these parameters are ignored anyway
+        if insensitive_strategies:
+            # Use the smallest chunk_size and chunk_overlap (first values) as dummy values
+            dummy_chunk_size = chunk_sizes[0] if chunk_sizes else 100
+            dummy_chunk_overlap = chunk_overlaps[0] if chunk_overlaps else 0
+
+            insensitive_params = {
+                "model_config": param_grid["model_config"],
+                "chunk_size": [dummy_chunk_size],
+                "chunk_overlap": [dummy_chunk_overlap],
+                "chunking_strategy": insensitive_strategies,
+                "similarity_metrics": param_grid["similarity_metrics"],
+                "theme_name": param_grid["theme_name"],
+            }
+            insensitive_combinations = list(itertools.product(*insensitive_params.values()))
+            combinations.extend(insensitive_combinations)
+
+        logging.info(
+            f"Smart combination generation: "
+            f"{len(sensitive_strategies)} parameter-sensitive strategies "
+            f"({', '.join(sensitive_strategies) if sensitive_strategies else 'none'}), "
+            f"{len(insensitive_strategies)} parameter-insensitive strategies "
+            f"({', '.join(insensitive_strategies) if insensitive_strategies else 'none'})"
+        )
+
+        return combinations
+
     def run_grid_search(self, data_source: Any, resume: bool = True):
         """
         Runs the entire grid search pipeline.
@@ -86,12 +162,9 @@ class ForzaEmbed:
             "theme_name": list(self.config.grid_search_params.themes.keys()),
         }
 
-        param_combinations = list(itertools.product(*param_grid.values()))
-        valid_combinations = [
-            params
-            for params in param_combinations
-            if params[1] > params[2]  # chunk_size > chunk_overlap
-        ]
+        # Generate smart combinations that avoid redundant calculations
+        # for chunking strategies that don't use chunk_size/chunk_overlap
+        valid_combinations = self._generate_smart_combinations(param_grid)
 
         # Calculate the exact number of tasks to be processed for an accurate progress bar
         logging.info("Calculating exact number of tasks to process...")

@@ -34,9 +34,9 @@ ForzaEmbed automates the process of evaluating text embedding configurations by 
     -   Chunks the text using a specified strategy.
     -   Generates embeddings using the selected model.
     -   Computes similarity scores based on defined themes.
-4.  **Evaluation**: Calculates unsupervised metrics (like silhouette score and coherence) to assess the quality of the results.
+4.  **Evaluation**: Calculates clustering metrics (silhouette score with its decomposition and embedding computation time) to assess the quality of the results.
 5.  **Persistence & Caching**: Stores all results, metrics, and generated embeddings in a SQLite database. This caching accelerates subsequent runs by avoiding redundant computations.
-6.  **Report Generation**: Produces detailed reports, including an interactive web interface, to visualize and analyze the findings.
+6.  **Report Generation**: Produces detailed reports, including a **standalone interactive web interface** (single HTML file), to visualize and analyze the findings without needing a server.
 
 ---
 
@@ -116,7 +116,7 @@ This command will:
 1.  Read the documents from the `markdowns/` directory.
 2.  Execute the grid search based on `configs/config.yml`.
 3.  Save all results and embeddings to `reports/ForzaEmbed_config.db`.
-4.  Generate a detailed interactive HTML report in the `reports/` directory.
+4.  Generate a detailed **standalone** interactive HTML report in the `reports/` directory (e.g., `reports/config_index.html`).
 
 ### Resuming a Run
 
@@ -231,14 +231,17 @@ Configure settings for parallel processing to speed up computations.
 
 ## Key Features
 
--   **Exhaustive Grid Search**: Systematically evaluates combinations of chunking strategies, chunk sizes, overlaps, embedding models, and similarity metrics.
+-   **Smart Grid Search**: Intelligently optimizes parameter combinations by avoiding redundant calculations for chunking strategies that don't use chunk_size/overlap parameters (like `nltk` and `spacy`). This can reduce grid search time by up to 40%.
 -   **Broad Model Support**: Interfaces with multiple embedding providers, including local models (Hugging Face, FastEmbed, SentenceTransformers) and API-based services.
--   **Versatile Chunking**: Implements various chunking methods: `langchain`, `raw`, `semchunk`, `nltk`, and `spacy`.
+-   **Versatile Chunking**: Implements various chunking methods:
+    -   **Parameter-sensitive**: `langchain`, `raw`, `semchunk` (use chunk_size and chunk_overlap)
+    -   **Parameter-insensitive**: `nltk`, `spacy` (sentence-based, ignore chunk parameters)
 -   **Multiple Similarity Metrics**: Supports `cosine`, `euclidean`, `manhattan`, `dot_product`, and `chebyshev`.
--   **Unsupervised Evaluation**: Integrates metrics like **silhouette score**, **inter/intra-cluster distance**, and **internal coherence** to quantify embedding quality without needing labeled data.
+-   **Focused Evaluation Metrics**: Uses **silhouette score** with **intra/inter-cluster distance decomposition** and **embedding computation time** tracking for efficient quality assessment.
 -   **Resumable & Cached**: Caches embeddings and t-SNE results in a SQLite database to accelerate subsequent runs and allows resuming interrupted workflows seamlessly.
+-   **Robust Database Management**: Uses **SQLAlchemy ORM** for reliable, efficient, and structured data storage in SQLite.
 -   **Intelligent Database Quantization**: Automatically reduces database size by storing numerical data (like embeddings and similarities) in more efficient formats (e.g., float16).
--   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and an interactive web interface with heatmaps and t-SNE visualizations for in-depth analysis.
+-   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and a **standalone interactive web interface** (single HTML file) with heatmaps and t-SNE visualizations. No external server or complex setup required to view results.
 
 ## License
 

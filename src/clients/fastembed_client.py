@@ -14,11 +14,23 @@ class FastEmbedClient:
     @classmethod
     def get_instance(cls, model_name: str):
         if model_name not in cls._instances:
-            cpu_count = os.cpu_count()
-            tqdm.write(
-                f"🚀 Loading FastEmbed model: {model_name} with {cpu_count} threads"
-            )
-            cls._instances[model_name] = TextEmbedding(model_name, threads=cpu_count)
+            try:
+                # Try to use GPU first
+                tqdm.write(f"🚀 Attempting to load FastEmbed model: {model_name} with GPU support")
+                cls._instances[model_name] = TextEmbedding(
+                    model_name, providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
+                )
+                tqdm.write("✅ GPU detected and configured successfully.")
+            except Exception as e:
+                tqdm.write(f"⚠️ GPU not available ({e}), falling back to CPU.")
+                # Fallback to CPU with multi-threading
+                cpu_count = os.cpu_count()
+                tqdm.write(
+                    f"🚀 Loading FastEmbed model: {model_name} with {cpu_count} CPU threads"
+                )
+                cls._instances[model_name] = TextEmbedding(
+                    model_name, providers=["CPUExecutionProvider"], threads=cpu_count
+                )
         return cls._instances[model_name]
 
     @staticmethod

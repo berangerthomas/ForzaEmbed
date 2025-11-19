@@ -28,6 +28,8 @@ class SentenceTransformersClient:
         Generates embeddings for a list of texts using a local model.
         """
         instance = cls.get_instance(model_name)
+        if "jina" in model_name:
+            texts = ["search_document: " + text for text in texts]
         embeddings = instance.encode(texts, convert_to_tensor=False).tolist()
 
         if expected_dimension and embeddings:
