@@ -1,0 +1,55 @@
+# Configuration for ForzaEmbed Grid Search
+
+# Parameters for the grid search
+grid_search_params:
+  chunk_size: [10, 20, 50, 100, 250]
+  chunk_overlap: [0, 5, 10, 25, 50]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
+  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  themes:
+    sports: ["ball", "team", "stadium", "game", "player", "match", "competition", "score", "victory", "defeat", "training"]
+    architecture: ["building", "structure", "design", "construction", "urbanism", "facade", "materials", "bridge", "tower", "window", "roof"]
+    cuisine: ["food", "restaurant", "recipe", "ingredient", "dish", "flavor", "meal", "kitchen", "chef", "taste", "menu"]
+
+# Models to be tested in the grid search
+models_to_test:
+  - type: "sentence_transformers"
+    name: "google/embeddinggemma-300m"
+    dimensions: 768
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    dimensions: 384
+  - type: "fastembed"
+    name: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    dimensions: 768
+  - type: "fastembed"
+    name: "jinaai/jina-embeddings-v3"
+    dimensions: 1024
+
+# General settings
+similarity_threshold: 0.6
+output_dir: "reports"
+generate_filtered_markdowns: false
+
+# Database settings
+database:
+  # Enable intelligent quantization based on data type to reduce storage size.
+  # - Similarity metrics [0,1] → uint16 (65536 levels)
+  # - 2D coordinates → float16
+  # - Other float64 → float32
+  # - Embeddings normalized [-1,1] → float16
+  intelligent_quantization: true
+
+# Multiprocessing settings
+multiprocessing:
+  max_workers_api: 16
+  max_workers_local: null
+  maxtasksperchild: 10
+  embedding_batch_size_api: 100
+  embedding_batch_size_local: 500
+  file_batch_size: 50
+  api_batch_sizes:
+    mistral: 50
+    voyage: 100
+    openai: 100
+    default: 100
