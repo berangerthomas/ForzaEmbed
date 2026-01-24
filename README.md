@@ -4,7 +4,7 @@ ForzaEmbed is a Python framework for systematically benchmarking text embedding 
 
 Check our demo file [here](https://huggingface.co/spaces/berangerthomas/forzaembeddemo).
 
-<video src="https://github.com/berangerthomas/ForzaEmbed/raw/main/docs/assets/demo_forzaembed.mp4" controls autoplay loop muted></video>
+<video src="https://github.com/user-attachments/assets/74e2b6a6-db18-4a25-ba2a-8c6047552942" controls autoplay loop muted></video>
 
 ## Table of Contents
 
