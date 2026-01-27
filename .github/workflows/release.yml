@@ -1,0 +1,63 @@
+name: Create Release from Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Remove 'v' prefix from tag to get version number
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+      
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Extracting changelog for version: $VERSION"
+          
+          # Extract the section between this version header and the next version header
+          # The pattern matches ## [VERSION] and extracts everything until the next ## [
+          awk -v ver="$VERSION" '
+            BEGIN { found=0; printing=0 }
+            /^## \[/ {
+              if (printing) { exit }
+              if (index($0, "[" ver "]") > 0) { found=1; printing=1; next }
+            }
+            printing { print }
+          ' CHANGELOG.md > release_notes.md
+          
+          # Check if we found content
+          if [ ! -s release_notes.md ]; then
+            echo "No changelog entry found for version $VERSION"
+            echo "Using default release notes."
+            echo "Release $VERSION" > release_notes.md
+          else
+            echo "Changelog extracted successfully:"
+            cat release_notes.md
+          fi
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.VERSION }}"
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
