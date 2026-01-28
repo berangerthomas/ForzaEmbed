@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] - 2026-01-27
+
+### Added
+- **Interactive Tooltips**: Help tooltips on report page sliders and individual slider values (chunking strategies, similarity metrics, theme keywords) to guide users.
+
+### Changed
+- **Fast CLI Help**: Lazy loading of heavy dependencies (torch, transformers, etc.) for instant `--help` response.
+
+### Documentation
+- **Sphinx Documentation**: API documentation covering all modules (core, clients, services, metrics, reporting, utils).
+- **CI/CD**: GitHub Actions workflow for automated documentation deployment to GitHub Pages.
+
+
 ## [1.0.1] - 2026-01-27
 
 ### Added

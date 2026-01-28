@@ -47,8 +47,6 @@ class ReportGenerator:
             logging.warning("No aggregated data available. Skipping report generation.")
             return
 
-        df = self._generate_filtered_markdowns_report(aggregated_data, data_source)
-
         processed_data_for_interactive_page = aggregated_data[
             "processed_data_for_interactive_page"
         ]
@@ -62,9 +60,6 @@ class ReportGenerator:
             global_plot_paths = self._generate_global_reports(
                 all_models_metrics, effective_top_n
             )
-            size_reduction_path = self._plot_size_reduction(df, file_prefix="global")
-            if size_reduction_path:
-                global_plot_paths.append(size_reduction_path)
             graph_paths_by_file["global"] = global_plot_paths
         else:
             for file_id in processed_data_for_interactive_page["files"]:
@@ -84,13 +79,6 @@ class ReportGenerator:
                         top_n=effective_top_n,
                         file_prefix=file_prefix,
                     )
-                    size_reduction_path = None
-                    if not df.empty and "original_file" in df.columns:
-                        size_reduction_path = self._plot_size_reduction(
-                            df[df["original_file"] == file_id], file_prefix=file_prefix
-                        )
-                    if size_reduction_path:
-                        plot_paths.append(size_reduction_path)
                     graph_paths_by_file[file_id] = plot_paths
 
         self._generate_main_web_page(
@@ -106,217 +94,6 @@ class ReportGenerator:
         logging.info(f"All reports generated in '{self.output_dir}'.")
         self.data_aggregator.touch_cache()
 
-    def _reconstruct_content_without_overlap(self, phrases: list[str]) -> str:
-        """
-        Reconstruit le contenu à partir d'une liste de phrases (chunks)
-        en éliminant les chevauchements.
-
-        Args:
-            phrases: Liste des phrases filtrées.
-
-        Returns:
-            Texte reconstitué sans duplication.
-        """
-        if not phrases:
-            return ""
-
-        # Trier les phrases par ordre d'apparition implicite (en supposant que l'ordre initial est conservé)
-        # et nettoyer les espaces superflus.
-        unique_phrases = sorted(list(set(phrases)), key=phrases.index)
-
-        reconstructed_text = unique_phrases[0]
-
-        for i in range(1, len(unique_phrases)):
-            next_phrase = unique_phrases[i]
-
-            # Trouver la plus grande longueur de chevauchement possible
-            overlap_len = 0
-            for j in range(min(len(reconstructed_text), len(next_phrase)), 0, -1):
-                if reconstructed_text.endswith(next_phrase[:j]):
-                    overlap_len = j
-                    break
-
-            # Ajouter uniquement la partie non chevauchante de la phrase suivante
-            reconstructed_text += next_phrase[overlap_len:]
-
-        return reconstructed_text
-
-    def _generate_filtered_markdowns_report(
-        self, aggregated_data: Dict[str, Any], data_source: str
-    ):
-        """
-        Generates filtered markdown files and a CSV report comparing their sizes.
-        """
-        if not self.config.get("generate_filtered_markdowns"):
-            logging.info(
-                "Skipping filtered markdown generation as 'generate_filtered_markdowns' is false."
-            )
-            return pd.DataFrame()
-
-        logging.info("--- Generating Filtered Markdowns and Size Comparison Report ---")
-
-        # Filtered markdowns should be at the root of the reports directory
-        filtered_md_dir = self.output_dir
-
-        size_comparison_data = []
-
-        processed_data = aggregated_data.get("processed_data_for_interactive_page", {})
-        all_files_data = processed_data.get("files", {})
-
-        if not all_files_data:
-            logging.warning(
-                "No file data found in aggregated data. Skipping markdown generation."
-            )
-            return pd.DataFrame()
-
-        for file_id, file_data in all_files_data.items():
-            original_file_path = Path(data_source) / f"{file_id}.md"
-            try:
-                original_content = original_file_path.read_text(encoding="utf-8")
-                original_size = len(original_content)
-            except FileNotFoundError:
-                logging.warning(
-                    f"Original markdown file not found: {file_id}. Skipping."
-                )
-                continue
-            except Exception as e:
-                logging.error(f"Error reading file {file_id}: {e}. Skipping.")
-                continue
-
-            # Add original file data to the report
-            size_comparison_data.append(
-                {
-                    "original_file": file_id,
-                    "prefix": "original",
-                    "filtered_size_chars": original_size,
-                    "percentage_of_original": 100.0,
-                }
-            )
-
-            for model_name, embedding_data in file_data.get("embeddings", {}).items():
-                phrases = embedding_data.get("phrases", [])
-                similarities = embedding_data.get("similarities", [])
-
-                if not phrases or not similarities:
-                    continue
-
-                filtered_phrases = [
-                    phrase
-                    for phrase, sim in zip(phrases, similarities)
-                    if sim >= self.similarity_threshold
-                ]
-
-                # Simplement concaténer sans ajouter de séparateur comme demandé
-                if filtered_phrases:
-                    filtered_content = self._reconstruct_content_without_overlap(
-                        filtered_phrases
-                    )
-                else:
-                    filtered_content = ""
-                filtered_size = len(filtered_content)
-
-                # Sanitize model_name for file path
-                sanitized_model_name = model_name.replace("/", "_").replace("\\", "_")
-                output_md_path = (
-                    filtered_md_dir / f"{Path(file_id).stem}_{sanitized_model_name}.md"
-                )
-
-                try:
-                    output_md_path.write_text(filtered_content, encoding="utf-8")
-                except Exception as e:
-                    logging.error(
-                        f"Error writing filtered markdown {output_md_path}: {e}"
-                    )
-                    continue
-
-                percentage = (
-                    (filtered_size / original_size) * 100 if original_size > 0 else 0
-                )
-
-                size_comparison_data.append(
-                    {
-                        "original_file": file_id,
-                        "prefix": model_name,
-                        "filtered_size_chars": filtered_size,
-                        "percentage_of_original": round(percentage, 2),
-                    }
-                )
-
-        if size_comparison_data:
-            df = pd.DataFrame(size_comparison_data)
-            # Sort by filtered size
-            df = df.sort_values(by="filtered_size_chars", ascending=True)
-
-            csv_path = (
-                self.output_dir
-                / f"{self.config_name}_filtered_markdowns_size_comparison.csv"
-            )
-            df.to_csv(csv_path, index=False)
-            logging.info(
-                f"Generated filtered markdowns size comparison report: {csv_path}"
-            )
-        else:
-            df = pd.DataFrame()
-            logging.info("No data to generate a size comparison report.")
-
-        return df
-
-    def _plot_size_reduction(
-        self, df: pd.DataFrame, top_n: int = 25, file_prefix: str = "global"
-    ):
-        """Generates and saves a bar plot for size reduction."""
-        if df.empty or "prefix" not in df.columns:
-            logging.info("No data available for size reduction plot.")
-            return None
-
-        # Exclude 'original' entries and average by prefix
-        df_filtered = df[df["prefix"] != "original"]
-        if df_filtered.empty:
-            logging.info("No filtered data to generate size reduction plot.")
-            return None
-
-        df_agg = (
-            df_filtered.groupby("prefix")["percentage_of_original"].mean().reset_index()
-        )
-
-        df_plot = df_agg.sort_values(by="percentage_of_original", ascending=True).head(
-            top_n
-        )
-
-        plt.figure(figsize=(18, 12))
-        ax = sns.barplot(
-            x="prefix",
-            y="percentage_of_original",
-            data=df_plot,
-            palette="viridis",
-            hue="prefix",
-            legend=False,
-        )
-
-        ax.set_title(
-            "Top Model Configurations by Average Size Reduction",
-            pad=20,
-            fontsize=18,
-        )
-        ax.set_ylabel("Average Percentage of Original Size", fontsize=14)
-        ax.set_xlabel("Model Configuration", fontsize=14)
-
-        labels = [
-            textwrap.fill(label, width=30, break_long_words=False)
-            for label in df_plot["prefix"]
-        ]
-        ax.set_xticklabels(labels, rotation=45, ha="right", rotation_mode="anchor")
-
-        plt.tight_layout(pad=3.0)
-        output_path = (
-            self.output_dir
-            / f"{self.config_name}_{file_prefix}_size_reduction_comparison.png"
-        )
-        plt.savefig(output_path)
-        plt.close()
-        logging.info(f"Saved size reduction plot to {output_path}")
-        return output_path
-
     def _generate_main_web_page(
         self,
         processed_data,
@@ -327,6 +104,13 @@ class ReportGenerator:
         """Generates the main interactive web page."""
         from .web_generator import generate_main_page
 
+        # Extract themes from config for display in tooltips
+        themes_config = {}
+        if hasattr(self.config, 'grid_search_params'):
+            themes_config = self.config.grid_search_params.themes
+        elif isinstance(self.config, dict) and 'grid_search_params' in self.config:
+            themes_config = self.config['grid_search_params'].get('themes', {})
+
         generate_main_page(
             processed_data,
             str(self.output_dir),
@@ -334,6 +118,7 @@ class ReportGenerator:
             single_file=single_file,
             graph_paths=graph_paths,
             config_name=self.config_name,
+            themes_config=themes_config,
         )
 
     def _generate_global_reports(

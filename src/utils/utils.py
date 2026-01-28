@@ -6,7 +6,7 @@ from typing import Dict, List
 import nltk
 import semchunk
 import spacy
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from spacy.language import Language
 
 # --- spaCy model loading ---

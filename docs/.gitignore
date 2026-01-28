@@ -1,0 +1,11 @@
+# Sphinx build outputs
+_build/
+_autosummary/
+
+# Generated files
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/

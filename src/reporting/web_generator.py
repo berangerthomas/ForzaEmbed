@@ -32,6 +32,7 @@ def generate_main_page(
     single_file: bool = False,
     graph_paths: dict | None = None,
     config_name: str = "config",
+    themes_config: dict | None = None,
 ):
     """
     Generates the main interactive web page for heatmap visualization.
@@ -39,6 +40,7 @@ def generate_main_page(
     If single_file is True, creates a single index.html for all files.
     """
     graph_paths = graph_paths or {}
+    themes_config = themes_config or {}
     generation_jobs = []
 
     if single_file:
@@ -75,6 +77,9 @@ def generate_main_page(
             b64_data[i : i + chunk_size] for i in range(0, len(b64_data), chunk_size)
         ]
         js_data_array = "const b64DataChunks = " + json.dumps(b64_chunks) + ";\n"
+        
+        # Add themes config as a separate JS variable for tooltips
+        js_themes_config = "const themesConfig = " + json.dumps(themes_config) + ";\n"
 
         css_content = """
         body {
@@ -363,11 +368,37 @@ self.onmessage = function(event) {
         let processedData = {};
 
         const metricTooltips = {
-
             'intra_cluster_distance_normalized': "Intra-Cluster Cohesion. Measures how tightly grouped texts of the same theme are. HIGHER IS BETTER. (> 0.8: Excellent, 0.6-0.8: Good, 0.4-0.6: Fair, < 0.4: Poor)",
             'inter_cluster_distance_normalized': "Inter-Cluster Separation. Measures how well different themes are separated. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, < 0.3: Poor)",
             'silhouette_score': "Silhouette Score. Global clustering quality combining cohesion and separation. Range: -1 to 1. HIGHER IS BETTER. (> 0.7: Excellent, 0.5-0.7: Good, 0.3-0.5: Fair, 0-0.3: Poor, < 0: Very Poor)",
             'embedding_computation_time': "Embedding Computation Time (seconds). Time required to compute embeddings for both themes and chunks. LOWER IS BETTER."
+        };
+
+        const sliderTooltips = {
+            'file': "Select the markdown file to analyze. Each file is processed independently with all parameter combinations.",
+            'model': "Embedding model used to convert text into vectors. Different models have varying quality, speed, and dimensionality.",
+            'chunk-size': "Size of text segments in characters. Smaller chunks = finer analysis but more noise. Larger chunks = more context but less precision.",
+            'chunk-overlap': "Overlap between consecutive chunks in characters. Helps preserve context across chunk boundaries.",
+            'theme': "Set of keywords defining what semantic content to search for. Chunks are scored by similarity to these themes.",
+            'chunking-strategy': "Algorithm used to split text into chunks. Different strategies handle sentence boundaries and semantic units differently.",
+            'similarity-metric': "Mathematical method to measure distance/similarity between embedding vectors."
+        };
+
+        const valueTooltips = {
+            'chunking-strategy': {
+                'raw': "Simple character-based splitting. Fast but may cut words and sentences arbitrarily.",
+                'langchain': "Recursive character splitter from LangChain. Tries to split on paragraphs, then sentences, then words.",
+                'semchunk': "Semantic chunking that respects sentence boundaries and tries to keep related content together.",
+                'nltk': "Uses NLTK sentence tokenizer. Each sentence becomes a chunk (ignores chunk_size/overlap).",
+                'spacy': "Uses spaCy NLP pipeline for advanced sentence segmentation (ignores chunk_size/overlap)."
+            },
+            'similarity-metric': {
+                'cosine': "Cosine similarity. Measures angle between vectors (0-1). Most common, normalized for vector magnitude.",
+                'dot_product': "Dot product. Combines angle and magnitude. Good for models trained with dot product loss.",
+                'euclidean': "Euclidean distance (L2). Straight-line distance in vector space. Converted to similarity.",
+                'manhattan': "Manhattan distance (L1). Sum of absolute differences. More robust to outliers.",
+                'chebyshev': "Chebyshev distance (L∞). Maximum difference along any dimension."
+            }
         };
 
         const fileSlider = document.getElementById('file-slider');
@@ -555,12 +586,40 @@ self.onmessage = function(event) {
             setupSlider(similarityMetricSlider, params.m, currentValues.m);
         }
 
+        function applySliderTooltips() {
+            const sliderElements = [
+                { slider: fileSlider, key: 'file' },
+                { slider: modelSlider, key: 'model' },
+                { slider: chunkSizeSlider, key: 'chunk-size' },
+                { slider: chunkOverlapSlider, key: 'chunk-overlap' },
+                { slider: themeSlider, key: 'theme' },
+                { slider: chunkingStrategySlider, key: 'chunking-strategy' },
+                { slider: similarityMetricSlider, key: 'similarity-metric' }
+            ];
+            sliderElements.forEach(({ slider, key }) => {
+                const controlGroup = slider.closest('.control-group');
+                if (controlGroup && sliderTooltips[key]) {
+                    controlGroup.title = sliderTooltips[key];
+                }
+            });
+        }
+
+        function updateValueTooltip(sliderKey, value, spanElement) {
+            if (valueTooltips[sliderKey] && valueTooltips[sliderKey][value]) {
+                spanElement.title = valueTooltips[sliderKey][value];
+            } else {
+                spanElement.title = '';
+            }
+        }
+
         function initialize() {
             fileKeys = Object.keys(processedData.files || {}).sort();
             if (fileKeys.length === 0) {
                 console.error("No files found in processed data.");
                 return;
             }
+
+            applySliderTooltips();
 
             const setupSlider = (slider, values, previousValue) => {
                 slider.max = values.length > 0 ? values.length - 1 : 0;
@@ -602,6 +661,17 @@ self.onmessage = function(event) {
             themeNameSpan.textContent = selectedT || 'N/A';
             chunkingStrategyNameSpan.textContent = selectedS || 'N/A';
             similarityMetricNameSpan.textContent = selectedM || 'N/A';
+
+            updateValueTooltip('chunking-strategy', selectedS, chunkingStrategyNameSpan);
+            updateValueTooltip('similarity-metric', selectedM, similarityMetricNameSpan);
+            
+            // Update theme tooltip with keywords from themesConfig
+            if (selectedT && themesConfig && themesConfig[selectedT]) {
+                const keywords = themesConfig[selectedT];
+                themeNameSpan.title = 'Keywords: ' + keywords.join(', ');
+            } else {
+                themeNameSpan.title = '';
+            }
 
             filteredEmbeddingKeys = allEmbeddingKeys.filter(key => {
                 const p = parseEmbeddingKey(key);
@@ -969,6 +1039,7 @@ self.onmessage = function(event) {
         # Combiner les données (en morceaux), le worker et le code statique (non minifié)
         final_js_content = (
             js_data_array
+            + js_themes_config
             + f"const workerScript = `{worker_js_content}`;\n"
             + static_js_content
         )

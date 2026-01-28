@@ -1,8 +1,14 @@
 # ForzaEmbed: Benchmarking Framework for Text Embeddings
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.13+](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://berangerthomas.github.io/ForzaEmbed/)
+[![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97-Demo-yellow.svg)](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)
+[![GitHub release](https://img.shields.io/github/v/release/berangerthomas/ForzaEmbed)](https://github.com/berangerthomas/ForzaEmbed/releases)
+
 ForzaEmbed is a Python framework for systematically benchmarking text embedding models and processing strategies. It performs an exhaustive grid search across a configurable parameter space to help you find the optimal configuration for your document corpus.
 
-Check our demo file [here](https://huggingface.co/spaces/berangerthomas/forzaembeddemo).
+📖 **[Documentation](https://berangerthomas.github.io/ForzaEmbed/)** · 🚀 **[Live Demo](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)** · 📦 **[Releases](https://github.com/berangerthomas/ForzaEmbed/releases)**
 
 <video src="https://github.com/user-attachments/assets/74e2b6a6-db18-4a25-ba2a-8c6047552942" controls autoplay loop muted></video>
 

@@ -1,6 +1,6 @@
 [project]
 name = "forzaembed"
-version = "0.5.0"
+version = "1.1.0"
 description = "A Python framework for text embedding model evaluation and comparison"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -22,6 +22,8 @@ dependencies = [
     "dotenv>=0.9.9",
     "semchunk>=3.2.2",
     "langchain>=0.3.27",
+    "langchain-text-splitters>=0.3.0",
+    "sqlalchemy>=2.0.0",
     "pip>=25.2",
     "plotly>=6.2.0",
     "kaleido>=1.0.0",

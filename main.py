@@ -3,16 +3,15 @@ import logging
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-from huggingface_hub import login
-
-from src.core.core import ForzaEmbed
-
 
 def hf_auth_login():
     """
     Logs in to Hugging Face Hub using a token from a .env file or environment variables.
+    Imports are done lazily to avoid slow startup for --help.
     """
+    from dotenv import load_dotenv
+    from huggingface_hub import login
+
     load_dotenv()
     hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
     if hf_token:
@@ -70,6 +69,18 @@ def main():
     )
     args = parser.parse_args()
 
+    # Exit early if no action specified (avoids loading heavy dependencies)
+    if not args.run and not args.generate_reports:
+        logging.info(
+            "No main action specified. Use --run to start the pipeline or "
+            "--generate-reports to create reports. Use --help for more options."
+        )
+        return
+
+    # Lazy import: only load heavy dependencies when actually running
+    hf_auth_login()
+    from src.core.core import ForzaEmbed
+
     # Instantiate the main application class
     config_name = Path(args.config_path).stem
     db_path = f"reports/{config_name}_ForzaEmbed.db"
@@ -80,13 +91,7 @@ def main():
         app.generate_reports(top_n=args.top_n, single_file=args.single_file)
     elif args.generate_reports:
         app.generate_reports(top_n=args.top_n, single_file=args.single_file)
-    else:
-        logging.info(
-            "No main action specified. Use --run to start the pipeline or "
-            "--generate-reports to create reports. Use --help for more options."
-        )
 
 
 if __name__ == "__main__":
-    hf_auth_login()
     main()
