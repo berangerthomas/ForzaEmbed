@@ -40,7 +40,7 @@ def get_spacy_model(language: str) -> Language:
 # Download nltk data if not already present
 try:
     nltk.data.find("tokenizers/punkt")
-except nltk.downloader.DownloadError:  # type: ignore
+except LookupError:
     nltk.download("punkt")
 
 
