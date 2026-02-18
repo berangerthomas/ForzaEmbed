@@ -1,28 +1,58 @@
-import hashlib
+"""Processing module for embedding analysis.
 
+This module contains the Processor class that handles the core data processing
+logic for embedding generation, similarity calculation, and metric evaluation.
+It coordinates specialized services to execute individual test runs.
+
+Example:
+    Process a test run::
+
+        from src.core.processing import Processor
+
+        processor = Processor(db, config)
+        result = processor.run_test(rows, model_config, ...)
+"""
+
+import hashlib
 import logging
 from typing import Any
 
 import numpy as np
 from langdetect import detect
 from langdetect.lang_detect_exception import LangDetectException
+from tqdm import tqdm
 
 from ..metrics.evaluation_metrics import calculate_all_metrics
-from ..utils.database import EmbeddingDatabase
-from ..utils.utils import chunk_text
-from .config import AppConfig
 from ..services.embedding_service import EmbeddingService
 from ..services.similarity_service import SimilarityService
 from ..services.visualization_service import VisualizationService
+from ..utils.database import EmbeddingDatabase
+from ..utils.utils import chunk_text
+from .config import AppConfig, ModelConfig
 
 
 class Processor:
-    """
-    Handles the core data processing logic for a single test run.
-    Delegates specific tasks to specialized services.
+    """Handle core data processing logic for embedding analysis.
+
+    This class orchestrates the processing pipeline for a single test run,
+    delegating specific tasks to specialized services for embedding generation,
+    similarity calculation, and visualization.
+
+    Attributes:
+        db: The embedding database instance.
+        config: The application configuration.
+        embedding_service: Service for embedding generation and caching.
+        similarity_service: Service for similarity calculations.
+        visualization_service: Service for t-SNE visualization.
     """
 
-    def __init__(self, db: EmbeddingDatabase, config: AppConfig):
+    def __init__(self, db: EmbeddingDatabase, config: AppConfig) -> None:
+        """Initialize the Processor.
+
+        Args:
+            db: The embedding database instance for storing results.
+            config: The application configuration.
+        """
         self.db = db
         self.config = config
         self.embedding_service = EmbeddingService(db, config)
@@ -30,9 +60,16 @@ class Processor:
         self.visualization_service = VisualizationService(db)
 
     def _safe_convert_to_python_types(self, data: Any) -> Any:
-        """
-        Convertit récursivement tous les types NumPy en types Python natifs
-        pour éviter les erreurs de sérialisation JSON.
+        """Recursively convert NumPy types to native Python types.
+
+        Ensures data can be serialized to JSON by converting numpy arrays,
+        floats, and integers to their Python equivalents.
+
+        Args:
+            data: The data to convert, which may contain NumPy types.
+
+        Returns:
+            The data with all NumPy types converted to Python native types.
         """
         if isinstance(data, np.ndarray):
             return data.astype(float).tolist()
@@ -53,7 +90,7 @@ class Processor:
     def run_test(
         self,
         rows: list[tuple[str, str]],
-        model_config: Any,
+        model_config: ModelConfig,
         chunk_size: int,
         chunk_overlap: int,
         themes: list[str],
@@ -61,11 +98,27 @@ class Processor:
         chunking_strategy: str,
         similarity_metric: str,
         processed_files: list[str],
-        pbar: Any,  # Progress bar object
+        pbar: tqdm,
     ) -> dict[str, Any]:
-        """
-        Processes a test run, handling embedding generation, similarity calculation,
-        and metric evaluation.
+        """Process a test run for a specific parameter combination.
+
+        Handles the complete workflow for processing files including embedding
+        generation, similarity calculation, and metric evaluation.
+
+        Args:
+            rows: List of (name, content) tuples for files to process.
+            model_config: The model configuration to use.
+            chunk_size: Size of text chunks in characters.
+            chunk_overlap: Overlap between chunks in characters.
+            themes: List of theme keywords to compare against.
+            theme_name: Name identifier for the theme set.
+            chunking_strategy: The chunking strategy to use.
+            similarity_metric: The similarity metric to use.
+            processed_files: List of file names already processed.
+            pbar: Progress bar object for status updates.
+
+        Returns:
+            Dictionary containing processing results with file data and metrics.
         """
         model_name = model_config.name
         results = {"files": {}}

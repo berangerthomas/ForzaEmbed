@@ -1,32 +1,66 @@
+"""Markdown filtering module for ForzaEmbed.
+
+This module provides the MarkdownFilter class that handles generation of
+filtered markdown files based on similarity threshold, extracting only
+the chunks that are above the threshold.
+
+Example:
+    Generate filtered markdown files::
+
+        from src.reporting.markdown_filter import MarkdownFilter
+
+        filter = MarkdownFilter(db, config, output_dir, "config_name")
+        filter.generate_filtered_markdowns()
+"""
+
 import csv
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from ..utils.database import EmbeddingDatabase
 
 
 class MarkdownFilter:
-    """
-    Handles the generation of filtered markdown files based on similarity threshold.
+    """Handle generation of filtered markdown files based on similarity threshold.
+
+    Creates filtered versions of input markdown files containing only the
+    text chunks that exceed the similarity threshold for each model.
+
+    Attributes:
+        db: The embedding database containing results.
+        config: Configuration dictionary with filter settings.
+        output_dir: Directory path for output files.
+        config_name: Name of the configuration for file prefixes.
+        similarity_threshold: Minimum similarity for including chunks.
     """
 
     def __init__(
         self,
         db: EmbeddingDatabase,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         output_dir: Path,
         config_name: str,
-    ):
+    ) -> None:
+        """Initialize the MarkdownFilter.
+
+        Args:
+            db: The embedding database containing results.
+            config: Configuration dictionary with filter settings.
+            output_dir: Directory path for output files.
+            config_name: Name of the configuration for file prefixes.
+        """
         self.db = db
         self.config = config
         self.output_dir = output_dir
         self.config_name = config_name
         self.similarity_threshold = config.get("similarity_threshold", 0.5)
 
-    def generate_filtered_markdowns(self):
-        """
-        Generates filtered markdown files containing only chunks above similarity threshold.
+    def generate_filtered_markdowns(self) -> None:
+        """Generate filtered markdown files containing only chunks above threshold.
+
+        Creates one filtered markdown file per model-document combination,
+        along with a CSV summary of filtering statistics.
         """
         if not self.config.get("generate_filtered_markdowns", False):
             logging.info("Filtered markdown generation is disabled in config.")
@@ -192,11 +226,15 @@ class MarkdownFilter:
         else:
             logging.warning("No filtered markdown files were generated.")
 
-    def _get_original_file_sizes(self) -> Dict[str, int]:
-        """
-        Calculate original file sizes by loading the source files.
-        Returns a dict mapping file_id to character count.
-        This provides the TRUE original size, independent of chunking parameters.
+    def _get_original_file_sizes(self) -> dict[str, int]:
+        """Calculate original file sizes by loading the source files.
+
+        Loads files from the markdowns directory and measures their
+        character counts to provide the true original size, independent
+        of chunking parameters.
+
+        Returns:
+            Dictionary mapping file_id to character count.
         """
         from ..utils.data_loader import load_markdown_files
 
@@ -233,18 +271,20 @@ class MarkdownFilter:
         chunk_size: int,
         chunk_overlap: int,
     ) -> str:
-        """
-        Reconstruit le contenu en supprimant les overlaps entre chunks consécutifs.
-        Cette version corrigée gère correctement les chunks au contenu identique.
+        """Reconstruct content by removing overlaps between consecutive chunks.
+
+        Handles the case where chunks may have overlapping content due to
+        the chunking strategy. Only removes overlap when two kept chunks
+        are consecutive in the original document.
 
         Args:
-            filtered_chunks: Les chunks filtrés à reconstruire
-            all_chunks: Tous les chunks originaux (pour déterminer les positions)
-            chunk_size: Taille des chunks
-            chunk_overlap: Overlap entre chunks
+            filtered_chunks: The filtered chunks to reconstruct.
+            all_chunks: All original chunks (for determining positions).
+            chunk_size: Size of each chunk in characters.
+            chunk_overlap: Overlap between consecutive chunks in characters.
 
         Returns:
-            Le contenu reconstruit sans overlaps
+            The reconstructed content without overlaps.
         """
         if not filtered_chunks:
             return ""

@@ -1,6 +1,17 @@
-"""Evaluation metrics for text embeddings based on similarity scores."""
+"""Evaluation metrics for text embeddings based on similarity scores.
 
-from typing import Dict
+This module provides functions for calculating clustering quality metrics
+on embedding spaces, particularly silhouette-based metrics that decompose
+into intra-cluster cohesion and inter-cluster separation.
+
+Example:
+    Calculate metrics for document embeddings::
+
+        from src.metrics.evaluation_metrics import calculate_all_metrics
+
+        metrics = calculate_all_metrics(ref_embeddings, doc_embeddings, doc_labels)
+        print(f"Silhouette score: {metrics['silhouette_score']}")
+"""
 
 import numpy as np
 from sklearn.metrics import pairwise_distances, silhouette_score
@@ -10,23 +21,26 @@ from .silhouette_decomposition import enhanced_silhouette_analysis
 
 def calculate_silhouette_metrics(
     embeddings: np.ndarray, labels: np.ndarray, metric: str = "cosine"
-) -> Dict[str, float]:
-    """Calculates silhouette-based clustering metrics with normalized components.
+) -> dict[str, float]:
+    """Calculate silhouette-based clustering metrics with normalized components.
 
     This function decomposes the silhouette score into its constituent parts:
     intra-cluster distance (cohesion) and inter-cluster distance (separation),
     providing normalized versions for better interpretability.
 
     Args:
-        embeddings (np.ndarray): The embeddings of the text chunks.
-        labels (np.ndarray): The theme label for each chunk.
-        metric (str): Distance metric to use for calculations.
+        embeddings: The embeddings of the text chunks, shape (n_samples, n_dims).
+        labels: The theme label for each chunk, shape (n_samples,).
+        metric: Distance metric to use for calculations. Defaults to 'cosine'.
 
     Returns:
-        Dict[str, float]: Dictionary containing:
-            - intra_cluster_distance_normalized: Normalized intra-cluster quality (0-1, higher is better)
-            - inter_cluster_distance_normalized: Normalized inter-cluster separation (0-1, higher is better)
-            - silhouette_score: Standard silhouette score (-1 to 1, higher is better)
+        Dictionary containing:
+            - intra_cluster_distance_normalized: Normalized intra-cluster
+              quality (0-1, higher is better).
+            - inter_cluster_distance_normalized: Normalized inter-cluster
+              separation (0-1, higher is better).
+            - silhouette_score: Standard silhouette score (-1 to 1, higher
+              is better).
     """
     if len(np.unique(labels)) < 2:
         return {
@@ -39,8 +53,8 @@ def calculate_silhouette_metrics(
     distance_matrix = pairwise_distances(embeddings, metric=metric)
 
     n_samples = len(embeddings)
-    a_values = []  # intra-cluster distances
-    b_values = []  # inter-cluster distances
+    a_values: list[float] = []  # intra-cluster distances
+    b_values: list[float] = []  # inter-cluster distances
 
     unique_labels = np.unique(labels)
 
@@ -53,7 +67,7 @@ def calculate_silhouette_metrics(
             a_i = np.mean(distance_matrix[i][same_cluster_mask])
         else:
             a_i = 0.0
-        a_values.append(a_i)
+        a_values.append(float(a_i))
 
         # b(i): Average distance to nearest different cluster
         b_i = np.inf
@@ -66,10 +80,10 @@ def calculate_silhouette_metrics(
 
         if b_i == np.inf:
             b_i = 0.0
-        b_values.append(b_i)
+        b_values.append(float(b_i))
 
-    a_values = np.array(a_values)
-    b_values = np.array(b_values)
+    a_values_arr = np.array(a_values)
+    b_values_arr = np.array(b_values)
 
     # Calculate silhouette score using sklearn for robustness
     try:
@@ -84,11 +98,11 @@ def calculate_silhouette_metrics(
 
     # Intra-cluster quality: 1 - (average_distance / max_distance)
     # Higher values indicate better cohesion (points closer within clusters)
-    intra_normalized = 1 - (np.mean(a_values) / max_possible_distance)
+    intra_normalized = 1 - (np.mean(a_values_arr) / max_possible_distance)
 
     # Inter-cluster separation: average_distance / max_distance
     # Higher values indicate better separation (clusters farther apart)
-    inter_normalized = np.mean(b_values) / max_possible_distance
+    inter_normalized = np.mean(b_values_arr) / max_possible_distance
 
     return {
         "intra_cluster_distance_normalized": float(max(0.0, float(intra_normalized))),
@@ -101,21 +115,25 @@ def calculate_all_metrics(
     ref_embeddings: np.ndarray,
     doc_embeddings: np.ndarray,
     doc_labels: np.ndarray,
-) -> Dict[str, float]:
-    """Calculates minimal essential evaluation metrics.
+) -> dict[str, float]:
+    """Calculate minimal essential evaluation metrics.
 
-    This function computes only the core metrics needed for clustering evaluation:
-    silhouette score and its decomposition (intra/inter cluster distances).
+    This function computes only the core metrics needed for clustering
+    evaluation: silhouette score and its decomposition (intra/inter
+    cluster distances).
 
     Args:
-        ref_embeddings (np.ndarray): Embeddings for reference themes.
-        doc_embeddings (np.ndarray): Embeddings for document chunks.
-        doc_labels (np.ndarray): Theme labels for each document chunk.
+        ref_embeddings: Embeddings for reference themes, shape (n_themes, n_dims).
+        doc_embeddings: Embeddings for document chunks, shape (n_chunks, n_dims).
+        doc_labels: Theme labels for each document chunk, shape (n_chunks,).
 
     Returns:
-        Dict[str, float]: A dictionary containing silhouette-based metrics.
+        Dictionary containing silhouette-based metrics with keys:
+            - silhouette_score
+            - intra_cluster_distance_normalized
+            - inter_cluster_distance_normalized
     """
-    all_metrics: Dict[str, float] = {}
+    all_metrics: dict[str, float] = {}
 
     # Enhanced silhouette analysis for clustering quality
     if len(np.unique(doc_labels)) > 1:

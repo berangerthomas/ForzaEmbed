@@ -1,0 +1,424 @@
+/* =========================================================
+   ForzaEmbed — Professional Report Stylesheet
+   Design: flat, structured, corporate
+   ========================================================= */
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #eef0f3;
+    color: #1a2332;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ---- Page Header ---- */
+.page-header {
+    background-color: #1b3358;
+    color: #ffffff;
+    padding: 18px 28px;
+    border-bottom: 3px solid #2563eb;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 1.25em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #ffffff;
+}
+
+.page-header .subtitle {
+    font-size: 0.82em;
+    color: #94a3c0;
+    margin: 0;
+}
+
+/* ---- Main layout ---- */
+.container {
+    display: flex;
+    flex-direction: column;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px 24px 40px;
+    gap: 16px;
+    visibility: hidden;
+}
+
+/* ---- Section cards ---- */
+.section-card {
+    background-color: #ffffff;
+    border: 1px solid #d0d5dd;
+    border-radius: 3px;
+    padding: 18px 20px;
+}
+
+.section-card h2 {
+    margin: 0 0 14px 0;
+    font-size: 0.82em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    border-bottom: 1px solid #e5e9ef;
+    padding-bottom: 8px;
+}
+
+/* ---- Controls panel ---- */
+.controls {
+    background-color: #ffffff;
+    border: 1px solid #d0d5dd;
+    border-top: 3px solid #2563eb;
+    border-radius: 0 0 3px 3px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px 18px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.control-group label {
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.label-text {
+    white-space: nowrap;
+    color: #64748b;
+}
+
+.label-value {
+    font-weight: 600;
+    color: #1b3358;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    flex-grow: 1;
+    min-width: 0;
+    margin-left: 6px;
+    font-size: 1em;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ---- Range sliders ---- */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #d0d5dd;
+    outline: none;
+    border-radius: 0;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #2563eb;
+    cursor: pointer;
+    border-radius: 2px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #2563eb;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #2563eb;
+    cursor: pointer;
+    border-radius: 2px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #2563eb;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+    background: #94a3b8;
+    box-shadow: 0 0 0 1px #94a3b8;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+    background: #94a3b8;
+    box-shadow: none;
+}
+
+input[type="range"]:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ---- Metrics grid ---- */
+.metrics-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.metric-item {
+    position: relative;
+    flex: 0 0 130px;
+    border: 1px solid #d0d5dd;
+    border-left: 4px solid #2563eb;
+    border-radius: 2px;
+    padding: 12px 12px 28px 12px;
+    background-color: #f8fafc;
+}
+
+.metric-item .value {
+    font-size: 1.45em;
+    font-weight: 700;
+    color: #1a2332;
+    display: block;
+    line-height: 1.2;
+}
+
+.metric-item .label {
+    font-size: 0.72em;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-top: 4px;
+    display: block;
+}
+
+.metric-best-btn {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: transparent;
+    border: 1px solid #d0d5dd;
+    border-radius: 2px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+
+.metric-best-btn:hover {
+    background: #1b3358;
+    color: #ffffff;
+    border-color: #1b3358;
+}
+
+.metric-best-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+/* ---- Textual heatmap ---- */
+.visualization {
+    overflow-y: auto;
+    line-height: 2;
+}
+
+.heatmap-content span {
+    padding: 1px 2px;
+    border-radius: 1px;
+    cursor: pointer;
+    font-size: 0.85em;
+    line-height: 1.3;
+    font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---- Scatter plot ---- */
+#scatter-plot-container {
+    width: 100%;
+    height: 500px;
+}
+
+/* ---- File links ---- */
+.file-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.file-links-grid a {
+    display: block;
+    padding: 8px 12px;
+    background-color: #f0f4fa;
+    border: 1px solid #c8d4e8;
+    border-left: 3px solid #2563eb;
+    border-radius: 2px;
+    color: #1b3358;
+    text-decoration: none;
+    font-size: 0.82em;
+    font-weight: 500;
+    transition: background-color 0.15s;
+}
+
+.file-links-grid a:hover {
+    background-color: #dde8f8;
+}
+
+/* ---- Loading indicator ---- */
+#loading-indicator {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #eef0f3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#loading-indicator h2 {
+    color: #1b3358;
+    font-weight: 600;
+    font-size: 1.1em;
+    margin-bottom: 6px;
+}
+
+#loading-indicator p {
+    color: #64748b;
+    font-size: 0.85em;
+    margin: 0;
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #d0d5dd;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- Footer ---- */
+.footer {
+    margin-top: 24px;
+    padding: 14px 0 0;
+    border-top: 1px solid #d0d5dd;
+}
+
+.footer-content {
+    font-size: 0.78em;
+    color: #94a3b8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.footer-content a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.footer-content a:hover {
+    text-decoration: underline;
+}
+
+.footer-logo {
+    font-weight: 700;
+    color: #1b3358;
+}
+
+/* ---- Metrics note ---- */
+.metrics-note {
+    font-size: 0.76em;
+    color: #94a3b8;
+    margin: -8px 0 10px 0;
+    font-style: italic;
+}
+
+/* ---- t-SNE threshold control ---- */
+.threshold-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    background-color: #f8fafc;
+    border: 1px solid #d0d5dd;
+    border-top: 2px solid #2563eb;
+    border-radius: 0 0 3px 3px;
+    margin-top: 12px;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.threshold-inner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.threshold-label {
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.threshold-control input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.threshold-value {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: #2563eb;
+    min-width: 2.4em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.threshold-hint {
+    font-size: 0.70em;
+    color: #b0bac8;
+    font-style: italic;
+    white-space: nowrap;
+    flex-shrink: 0;
+}

@@ -1,12 +1,36 @@
+"""Transformers client for local embedding generation.
+
+This module provides a client for generating embeddings using the Hugging Face
+transformers library directly, with special handling for Jina models.
+
+Example:
+    Generate embeddings using Transformers::
+
+        from src.clients.transformers_client import TransformersClient
+
+        embeddings = TransformersClient.get_embeddings(
+            texts=["Hello world"],
+            model_name="BAAI/bge-small-en-v1.5"
+        )
+"""
+
 from typing import Dict, Tuple
 
 import torch
 from transformers import AutoModel, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 
 
-def mean_pooling(token_embeddings, attention_mask):
-    """
-    Performs mean pooling on the token embeddings.
+def mean_pooling(
+    token_embeddings: torch.Tensor, attention_mask: torch.Tensor
+) -> torch.Tensor:
+    """Perform mean pooling on token embeddings.
+
+    Args:
+        token_embeddings: Tensor of token-level embeddings.
+        attention_mask: Attention mask for the input tokens.
+
+    Returns:
+        Mean-pooled sentence embeddings tensor.
     """
     input_mask_expanded = (
         attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -17,8 +41,13 @@ def mean_pooling(token_embeddings, attention_mask):
 
 
 class TransformersClient:
-    """
-    Client to manage local embedding models from transformers library as singletons.
+    """Client for managing local transformers embedding models.
+
+    Implements singleton pattern for model instances with special handling
+    for Jina models and their task labels.
+
+    Attributes:
+        _instances: Class-level cache of loaded model and tokenizer instances.
     """
 
     _instances: Dict[str, Tuple[PreTrainedModel, PreTrainedTokenizer]] = {}
@@ -27,9 +56,13 @@ class TransformersClient:
     def get_instance(
         cls, model_name: str
     ) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
-        """
-        Retrieves an instance of the embedding model and tokenizer.
-        If the instance does not exist, it is created.
+        """Get or create a transformers model and tokenizer instance.
+
+        Args:
+            model_name: Name of the transformers model.
+
+        Returns:
+            Tuple of (model, tokenizer) instances.
         """
         if model_name not in cls._instances:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -41,8 +74,22 @@ class TransformersClient:
     def get_embeddings(
         cls, texts: list[str], model_name: str, expected_dimension: int | None = None
     ) -> list[list[float]]:
-        """
-        Generates embeddings for a list of texts using a local transformers model.
+        """Generate embeddings using a local transformers model.
+
+        Handles special cases for Jina models including task labels and
+        different output formats.
+
+        Args:
+            texts: List of texts to embed.
+            model_name: Name of the transformers model.
+            expected_dimension: Expected embedding dimension for validation.
+
+        Returns:
+            List of normalized embedding vectors as lists of floats.
+
+        Raises:
+            ValueError: If embedding dimension doesn't match expected or
+                embeddings cannot be extracted.
         """
         model, tokenizer = cls.get_instance(model_name)
 

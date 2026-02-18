@@ -1,8 +1,21 @@
-"""
-Décomposition du score silhouette en cohésion intra-cluster et séparation inter-cluster
+"""Silhouette score decomposition into intra-cluster and inter-cluster components.
+
+This module provides functions for decomposing the silhouette score into
+its constituent parts: intra-cluster cohesion (a(i)) and inter-cluster
+separation (b(i)). This decomposition helps understand clustering quality
+in more detail than the aggregate silhouette score alone.
+
+Example:
+    Perform enhanced silhouette analysis::
+
+        from src.metrics.silhouette_decomposition import enhanced_silhouette_analysis
+
+        analysis = enhanced_silhouette_analysis(embeddings, labels)
+        print(f"Global metrics: {analysis['global_metrics']}")
+        print(f"Per-cluster: {analysis['cluster_analysis']}")
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 from sklearn.metrics import pairwise_distances, silhouette_samples, silhouette_score
@@ -10,58 +23,60 @@ from sklearn.metrics import pairwise_distances, silhouette_samples, silhouette_s
 
 def decompose_silhouette_score(
     embeddings: np.ndarray, labels: np.ndarray
-) -> Dict[str, float]:
-    """
-    Décompose le score silhouette en ses composantes a(i) et b(i).
+) -> dict[str, float]:
+    """Decompose the silhouette score into its a(i) and b(i) components.
 
-    Le score silhouette s(i) = (b(i) - a(i)) / max(a(i), b(i))
-    où:
-    - a(i) = distance moyenne intra-cluster (cohésion) - PLUS BAS = MEILLEUR
-    - b(i) = distance moyenne vers le cluster le plus proche - PLUS HAUT = MEILLEUR
+    The silhouette score s(i) = (b(i) - a(i)) / max(a(i), b(i)) where:
+    - a(i) = average intra-cluster distance (cohesion) - LOWER = BETTER
+    - b(i) = average distance to nearest cluster - HIGHER = BETTER
 
     Args:
-        embeddings: Matrice des embeddings (n_samples, n_features)
-        labels: Labels des clusters (n_samples,)
+        embeddings: Embedding matrix of shape (n_samples, n_features).
+        labels: Cluster labels of shape (n_samples,).
 
     Returns:
-        Dict contenant les moyennes de a(i), b(i) et le score silhouette
+        Dictionary containing:
+            - mean_intra_cluster_distance: Average a(i) across samples.
+            - mean_inter_cluster_distance: Average b(i) across samples.
+            - silhouette_score: Aggregate silhouette score.
+            - intra_cluster_quality: Normalized cohesion (0-1, higher = better).
+            - inter_cluster_separation: Normalized separation (0-1, higher = better).
     """
-
     n_samples = len(embeddings)
     unique_labels = np.unique(labels)
     n_clusters = len(unique_labels)
 
-    # Validation stricte : besoin d'au moins 2 clusters ET suffisamment d'échantillons
+    # Strict validation: need at least 2 clusters AND enough samples
     if n_clusters < 2 or n_samples <= n_clusters:
         return {
             "mean_intra_cluster_distance": 0.0,
             "mean_inter_cluster_distance": 0.0,
             "silhouette_score": -1.0,
-            "intra_cluster_quality": 0.0,  # 1 - normalized a(i)
-            "inter_cluster_separation": 0.0,  # normalized b(i)
+            "intra_cluster_quality": 0.0,
+            "inter_cluster_separation": 0.0,
         }
 
-    # Utiliser toujours 'cosine' pour l'analyse silhouette
+    # Always use 'cosine' for silhouette analysis
     clustering_metric = "cosine"
 
-    # Calcul de la matrice des distances
+    # Compute distance matrix
     distance_matrix = pairwise_distances(embeddings, metric=clustering_metric)
 
-    a_values = []  # cohésion intra-cluster
-    b_values = []  # séparation inter-cluster
+    a_values: list[float] = []  # intra-cluster cohesion
+    b_values: list[float] = []  # inter-cluster separation
 
     for i in range(n_samples):
         current_label = labels[i]
 
-        # a(i): Distance moyenne intra-cluster
+        # a(i): Average intra-cluster distance
         same_cluster_mask = (labels == current_label) & (np.arange(n_samples) != i)
         if np.sum(same_cluster_mask) > 0:
-            a_i = np.mean(distance_matrix[i][same_cluster_mask])
+            a_i = float(np.mean(distance_matrix[i][same_cluster_mask]))
         else:
             a_i = 0.0
         a_values.append(a_i)
 
-        # b(i): Distance moyenne vers le cluster le plus proche
+        # b(i): Average distance to nearest cluster
         b_i = np.inf
         for other_label in unique_labels:
             if other_label != current_label:
@@ -72,61 +87,64 @@ def decompose_silhouette_score(
 
         if b_i == np.inf:
             b_i = 0.0
-        b_values.append(b_i)
+        b_values.append(float(b_i))
 
-    a_values = np.array(a_values)
-    b_values = np.array(b_values)
+    a_values_arr = np.array(a_values)
+    b_values_arr = np.array(b_values)
 
-    # Calcul du score silhouette pour vérification
+    # Compute silhouette score for verification
     silhouette_computed = silhouette_score(embeddings, labels, metric=clustering_metric)
 
-    # Normalisation pour obtenir des métriques interprétables (0-1)
-    max_possible_distance = np.max(distance_matrix)
+    # Normalization for interpretable metrics (0-1)
+    max_possible_distance = float(np.max(distance_matrix))
 
-    # Qualité intra-cluster: 1 - (distance_moyenne / distance_max)
-    # Plus proche de 1 = meilleure cohésion
+    # Intra-cluster quality: 1 - (mean_distance / max_distance)
+    # Closer to 1 = better cohesion
     intra_quality = (
-        1 - (np.mean(a_values) / max_possible_distance)
+        1 - (np.mean(a_values_arr) / max_possible_distance)
         if max_possible_distance > 0
         else 0
     )
 
-    # Séparation inter-cluster: distance_moyenne / distance_max
-    # Plus proche de 1 = meilleure séparation
+    # Inter-cluster separation: mean_distance / max_distance
+    # Closer to 1 = better separation
     inter_separation = (
-        np.mean(b_values) / max_possible_distance if max_possible_distance > 0 else 0
+        np.mean(b_values_arr) / max_possible_distance if max_possible_distance > 0 else 0
     )
 
     return {
-        "mean_intra_cluster_distance": float(np.mean(a_values)),
-        "mean_inter_cluster_distance": float(np.mean(b_values)),
+        "mean_intra_cluster_distance": float(np.mean(a_values_arr)),
+        "mean_inter_cluster_distance": float(np.mean(b_values_arr)),
         "silhouette_score": float(silhouette_computed),
-        "intra_cluster_quality": float(intra_quality),  # 0-1, plus haut = meilleur
-        "inter_cluster_separation": float(
-            inter_separation
-        ),  # 0-1, plus haut = meilleur
+        "intra_cluster_quality": float(intra_quality),
+        "inter_cluster_separation": float(inter_separation),
     }
 
 
 def analyze_silhouette_by_cluster(
     embeddings: np.ndarray, labels: np.ndarray
-) -> Dict[int, Dict[str, float]]:
-    """
-    Analyse détaillée du score silhouette par cluster.
+) -> dict[int, dict[str, float]]:
+    """Perform detailed silhouette score analysis per cluster.
 
     Args:
-        embeddings: Matrice des embeddings
-        labels: Labels des clusters
+        embeddings: Embedding matrix of shape (n_samples, n_features).
+        labels: Cluster labels of shape (n_samples,).
 
     Returns:
-        Dict avec pour chaque cluster ses statistiques silhouette
+        Dictionary mapping cluster label to its silhouette statistics:
+            - mean_silhouette: Average silhouette score for the cluster.
+            - std_silhouette: Standard deviation of silhouette scores.
+            - min_silhouette: Minimum silhouette score in cluster.
+            - max_silhouette: Maximum silhouette score in cluster.
+            - size: Number of samples in the cluster.
+            - proportion_positive: Fraction of samples with positive score.
+        Returns empty dict if fewer than 2 clusters or insufficient samples.
     """
-
     n_samples = len(embeddings)
     unique_labels = np.unique(labels)
     n_clusters = len(unique_labels)
 
-    # Validation stricte : même condition que decompose_silhouette_score
+    # Strict validation: same condition as decompose_silhouette_score
     if n_clusters < 2 or n_samples <= n_clusters:
         return {}
 
@@ -134,9 +152,7 @@ def analyze_silhouette_by_cluster(
         silhouette_samples(embeddings, labels, metric="cosine")
     )
 
-    unique_labels = np.unique(labels)
-
-    cluster_analysis = {}
+    cluster_analysis: dict[int, dict[str, float]] = {}
 
     for label in unique_labels:
         cluster_mask = labels == label
@@ -159,21 +175,25 @@ def analyze_silhouette_by_cluster(
 
 def enhanced_silhouette_analysis(
     embeddings: np.ndarray, labels: np.ndarray
-) -> Dict[str, Any]:
-    """
-    Analyse complète du clustering avec décomposition silhouette.
+) -> dict[str, Any]:
+    """Perform complete clustering analysis with silhouette decomposition.
 
-    Note: Utilise toujours 'cosine' comme métrique pour l'analyse de clustering,
-    indépendamment de la métrique de similarité utilisée pour l'évaluation des embeddings.
+    Combines global silhouette decomposition with per-cluster analysis to
+    provide a comprehensive view of clustering quality.
+
+    Note:
+        Always uses 'cosine' as the distance metric for clustering analysis,
+        regardless of the similarity metric used for embedding evaluation.
 
     Args:
-        embeddings: Matrice des embeddings
-        labels: Labels des clusters
+        embeddings: Embedding matrix of shape (n_samples, n_features).
+        labels: Cluster labels of shape (n_samples,).
 
     Returns:
-        Analyse détaillée avec métriques globales et par cluster
+        Dictionary containing:
+            - global_metrics: Results from decompose_silhouette_score().
+            - cluster_analysis: Results from analyze_silhouette_by_cluster().
     """
-
     global_decomp = decompose_silhouette_score(embeddings, labels)
     cluster_analysis = analyze_silhouette_by_cluster(embeddings, labels)
 

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForzaEmbed — Embedding Analysis Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+%%MINIFIED_CSS%%
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen -->
+    <div id="loading-indicator">
+        <div class="spinner"></div>
+        <h2>Loading Report Data</h2>
+        <p>Decompressing and parsing results, please wait…</p>
+    </div>
+
+    <!-- Page header (always visible once loaded) -->
+    <header class="page-header">
+        <h1>ForzaEmbed — Embedding Analysis Report</h1>
+        <p class="subtitle">%%TOTAL_COMBINATIONS%% parameter combinations evaluated</p>
+    </header>
+
+    <!-- Main content -->
+    <div class="container">
+
+        <!-- Parameter controls (sticky) -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="file-slider">
+                    <span class="label-text">File</span>
+                    <span id="file-name" class="label-value"></span>
+                </label>
+                <input type="range" id="file-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="model-slider">
+                    <span class="label-text">Model</span>
+                    <span id="model-name" class="label-value"></span>
+                </label>
+                <input type="range" id="model-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="theme-slider">
+                    <span class="label-text">Theme Set</span>
+                    <span id="theme-name" class="label-value"></span>
+                </label>
+                <input type="range" id="theme-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunk-size-slider">
+                    <span class="label-text">Chunk Size</span>
+                    <span id="chunk-size-value" class="label-value"></span>
+                </label>
+                <input type="range" id="chunk-size-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunk-overlap-slider">
+                    <span class="label-text">Chunk Overlap</span>
+                    <span id="chunk-overlap-value" class="label-value"></span>
+                </label>
+                <input type="range" id="chunk-overlap-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="chunking-strategy-slider">
+                    <span class="label-text">Chunking Strategy</span>
+                    <span id="chunking-strategy-name" class="label-value"></span>
+                </label>
+                <input type="range" id="chunking-strategy-slider" min="0" max="0" value="0">
+            </div>
+            <div class="control-group">
+                <label for="similarity-metric-slider">
+                    <span class="label-text">Similarity Metric</span>
+                    <span id="similarity-metric-name" class="label-value"></span>
+                </label>
+                <input type="range" id="similarity-metric-slider" min="0" max="0" value="0">
+            </div>
+        </div>
+
+        <!-- Quality metrics -->
+        <div class="section-card">
+            <h2>Quality Metrics</h2>
+            <p class="metrics-note">Metrics are statistically meaningful only with a sufficient number of chunks.</p>
+            <div id="metrics-grid" class="metrics-grid"></div>
+        </div>
+
+        <!-- Textual heatmap -->
+        <div class="section-card visualization">
+            <h2>Textual Similarity Heatmap</h2>
+            <div id="heatmap-container" class="heatmap-content"></div>
+        </div>
+
+        <!-- Reports & scatter plot -->
+        <div class="section-card visualization">
+            <h2>Reports &amp; Visualisations</h2>
+            <div id="file-links-container" class="file-links-grid">
+%%GRAPH_LINKS%%
+            </div>
+
+            <div id="scatter-plot-container"></div>
+
+            <!-- Threshold control — shown only when scatter data is available -->
+            <div id="threshold-control" class="threshold-control" style="display:none;">
+                <div class="threshold-inner">
+                    <span class="threshold-label">Similarity threshold</span>
+                    <span id="threshold-value-display" class="threshold-value">0.50</span>
+                </div>
+                <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0.5">
+                <span class="threshold-hint">Drag to reclassify points instantly</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span>Generated by</span>
+                <span class="footer-logo">ForzaEmbed</span>
+                <span>&bull;</span>
+                <a href="https://github.com/berangerthomas/ForzaEmbed"
+                   target="_blank" rel="noopener noreferrer">View on GitHub</a>
+            </div>
+        </footer>
+
+    </div><!-- /.container -->
+
+    <script>
+%%JS_PAYLOAD%%
+    </script>
+</body>
+</html>

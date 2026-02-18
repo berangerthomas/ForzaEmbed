@@ -1,53 +1,87 @@
+"""Database management module for ForzaEmbed.
+
+This module provides the EmbeddingDatabase class for managing all database
+operations including storing embeddings, results, and metadata. It implements
+intelligent quantization for efficient storage and caching mechanisms for
+improved performance.
+
+Example:
+    Basic database usage::
+
+        from src.utils.database import EmbeddingDatabase
+
+        db = EmbeddingDatabase("results.db", config)
+        db.save_embeddings_batch("model_name", embeddings_dict)
+        cached = db.get_embeddings_by_hashes("model_name", ["hash1", "hash2"])
+"""
+
 import logging
 import os
 import zlib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import msgpack
 import numpy as np
-from sqlalchemy import create_engine, select, text, delete, update
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, delete, select, text, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import sessionmaker
 
 from ..core.config import AppConfig
 from .models import (
     Base,
-    Model,
+    EmbeddingCache,
     EvaluationMetric,
     GeneratedFile,
     GlobalChart,
+    Model,
     ProcessingResult,
-    EmbeddingCache,
     TSNECoordinate,
 )
 
 
 class EmbeddingDatabase:
-    """
-    Manages the SQLite database for storing embeddings, results, and metadata.
-    Includes intelligent quantization to reduce storage size.
+    """Manage SQLite database for embeddings, results, and metadata.
+
+    This class handles all database operations for ForzaEmbed, including
+    storing and retrieving embeddings, processing results, and various
+    metadata. Implements intelligent quantization to reduce storage size.
+
+    Attributes:
+        db_path: Path to the SQLite database file.
+        config: Application configuration (dict or AppConfig).
+        quantization_enabled: Whether intelligent quantization is enabled.
+        engine: SQLAlchemy database engine.
+        Session: SQLAlchemy session factory.
     """
 
-    def __init__(self, db_path: str, config: AppConfig | Dict[str, Any]):
+    def __init__(
+        self, db_path: str, config: Union[AppConfig, Dict[str, Any]]
+    ) -> None:
+        """Initialize the EmbeddingDatabase.
+
+        Args:
+            db_path: Path to the SQLite database file.
+            config: Application configuration, either as AppConfig or dict.
+        """
         self.db_path = db_path
         self.config = config
         if isinstance(config, dict):
-            self.quantization_enabled = config.get("database", {}).get(
+            self.quantization_enabled: bool = config.get("database", {}).get(
                 "intelligent_quantization", True
             )
         else:
             self.quantization_enabled = config.database.intelligent_quantization
-        
+
         db_dir = os.path.dirname(db_path)
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
-        
+
         # Initialize SQLAlchemy engine and session
         self.engine = create_engine(f"sqlite:///{self.db_path}")
         self.Session = sessionmaker(bind=self.engine)
         self._init_database()
 
-    def _init_database(self):
+    def _init_database(self) -> None:
         """Initialize the database tables."""
         Base.metadata.create_all(self.engine)
 
@@ -61,8 +95,19 @@ class EmbeddingDatabase:
         theme_name: str,
         chunking_strategy: str,
         similarity_metric: str,
-    ):
-        """Adds a model to the database."""
+    ) -> None:
+        """Add a model run to the database.
+
+        Args:
+            name: Unique run name identifier.
+            base_model_name: The underlying model name.
+            model_type: Type of model (api, fastembed, etc.).
+            chunk_size: Chunk size used.
+            chunk_overlap: Chunk overlap used.
+            theme_name: Theme set name.
+            chunking_strategy: Chunking strategy used.
+            similarity_metric: Similarity metric used.
+        """
         with self.Session() as session:
             stmt = sqlite_insert(Model).values(
                 name=name,
@@ -77,14 +122,21 @@ class EmbeddingDatabase:
             session.execute(stmt)
             session.commit()
 
-    def add_evaluation_metrics(self, model_name: str, metrics: Dict[str, float]):
-        """Adds or updates evaluation metrics for a model."""
+    def add_evaluation_metrics(
+        self, model_name: str, metrics: Dict[str, float]
+    ) -> None:
+        """Add or update evaluation metrics for a model.
+
+        Args:
+            model_name: The model run name.
+            metrics: Dictionary of metric names to values.
+        """
         with self.Session() as session:
             # Delete existing metrics for this model
             session.execute(
                 delete(EvaluationMetric).where(EvaluationMetric.model_name == model_name)
             )
-            
+
             # Insert new metrics
             metric = EvaluationMetric(
                 model_name=model_name,
@@ -96,8 +148,16 @@ class EmbeddingDatabase:
             session.add(metric)
             session.commit()
 
-    def add_generated_file(self, model_name: str, file_type: str, file_path: str):
-        """Adds a generated file to the database."""
+    def add_generated_file(
+        self, model_name: str, file_type: str, file_path: str
+    ) -> None:
+        """Add a generated file record to the database.
+
+        Args:
+            model_name: The model run name.
+            file_type: Type of the generated file.
+            file_path: Path to the generated file.
+        """
         with self.Session() as session:
             file_entry = GeneratedFile(
                 model_name=model_name,
@@ -107,8 +167,13 @@ class EmbeddingDatabase:
             session.add(file_entry)
             session.commit()
 
-    def add_global_chart(self, chart_type: str, file_path: str):
-        """Adds or updates a global chart in the database."""
+    def add_global_chart(self, chart_type: str, file_path: str) -> None:
+        """Add or update a global chart record.
+
+        Args:
+            chart_type: Type identifier for the chart.
+            file_path: Path to the chart image file.
+        """
         with self.Session() as session:
             # Delete existing chart of this type
             session.execute(
@@ -120,7 +185,14 @@ class EmbeddingDatabase:
             session.commit()
 
     def model_exists(self, name: str) -> bool:
-        """Checks if a model with the specified run name already exists."""
+        """Check if a model with the specified run name exists.
+
+        Args:
+            name: The run name to check.
+
+        Returns:
+            True if the model exists, False otherwise.
+        """
         with self.Session() as session:
             result = session.execute(
                 select(Model).where(Model.name == name)
@@ -129,8 +201,14 @@ class EmbeddingDatabase:
 
     def save_processing_result(
         self, model_name: str, file_id: str, results: Dict[str, Any]
-    ):
-        """Saves the detailed processing result for a file and a model."""
+    ) -> None:
+        """Save detailed processing result for a file and model.
+
+        Args:
+            model_name: The model run name.
+            file_id: Identifier for the processed file.
+            results: Dictionary of processing results.
+        """
         # Apply intelligent quantization before serialization
         quantized_results = self._apply_intelligent_quantization(results)
         results_blob = msgpack.packb(
@@ -153,8 +231,12 @@ class EmbeddingDatabase:
 
     def save_processing_results_batch(
         self, results_batch: List[Tuple[str, str, Dict[str, Any]]]
-    ):
-        """Saves a batch of processing results in a single transaction."""
+    ) -> None:
+        """Save a batch of processing results in a single transaction.
+
+        Args:
+            results_batch: List of (model_name, file_id, results) tuples.
+        """
         items_to_insert = []
         for model_name, file_id, results in results_batch:
             # Apply intelligent quantization before serialization
@@ -181,7 +263,14 @@ class EmbeddingDatabase:
             session.commit()
 
     def get_processed_files(self, model_name: str) -> List[str]:
-        """Retrieves the list of file_ids that have been processed for a model."""
+        """Retrieve file IDs that have been processed for a model.
+
+        Args:
+            model_name: The model run name.
+
+        Returns:
+            List of file IDs that have been processed.
+        """
         with self.Session() as session:
             result = session.execute(
                 select(ProcessingResult.file_id).where(ProcessingResult.model_name == model_name)
@@ -189,7 +278,14 @@ class EmbeddingDatabase:
             return [row[0] for row in result.fetchall()]
 
     def get_model_info(self, run_name: str) -> Optional[Dict[str, Any]]:
-        """Retrieves information about a model by its run name."""
+        """Retrieve information about a model by its run name.
+
+        Args:
+            run_name: The unique run name identifier.
+
+        Returns:
+            Dictionary with model information, or None if not found.
+        """
         with self.Session() as session:
             model = session.execute(
                 select(Model).where(Model.name == run_name)
@@ -207,9 +303,12 @@ class EmbeddingDatabase:
             return None
 
     def get_all_processing_results(self) -> Dict[str, Any]:
-        """
-        Retrieves all processing results, organized by model run name.
-        This method fetches raw file-level results without model-level aggregation.
+        """Retrieve all processing results organized by model run name.
+
+        Fetches raw file-level results without model-level aggregation.
+
+        Returns:
+            Dictionary mapping model names to their file results.
         """
         all_results: Dict[str, Dict[str, Any]] = {}
         with self.Session() as session:
@@ -225,7 +324,11 @@ class EmbeddingDatabase:
         return all_results
 
     def get_all_models(self) -> List[Dict[str, Any]]:
-        """Retrieves all models with their metrics."""
+        """Retrieve all models with their metrics.
+
+        Returns:
+            List of dictionaries containing model information and metrics.
+        """
         with self.Session() as session:
             # Left join Model and EvaluationMetric
             stmt = select(Model, EvaluationMetric).outerjoin(
@@ -255,7 +358,14 @@ class EmbeddingDatabase:
             return models
 
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:
-        """Retrieves all generated files for a model."""
+        """Retrieve all generated files for a model.
+
+        Args:
+            model_name: The model run name.
+
+        Returns:
+            List of dictionaries with file type and path.
+        """
         with self.Session() as session:
             files = session.execute(
                 select(GeneratedFile).where(GeneratedFile.model_name == model_name).order_by(GeneratedFile.file_type)
@@ -264,7 +374,11 @@ class EmbeddingDatabase:
             return [{"type": f.file_type, "path": f.file_path} for f in files]
 
     def get_global_charts(self) -> List[Dict[str, str]]:
-        """Retrieves all global charts."""
+        """Retrieve all global charts.
+
+        Returns:
+            List of dictionaries with chart type and path.
+        """
         with self.Session() as session:
             charts = session.execute(
                 select(GlobalChart).order_by(GlobalChart.chart_type)
@@ -272,22 +386,30 @@ class EmbeddingDatabase:
 
             return [{"type": c.chart_type, "path": c.file_path} for c in charts]
 
-    def vacuum_database(self):
-        """Vacuums the database to reclaim space."""
+    def vacuum_database(self) -> None:
+        """Vacuum the database to reclaim space."""
         with self.Session() as session:
             session.execute(text("VACUUM"))
 
     def get_all_run_names(self) -> list[str]:
-        """Récupère tous les run_names existants."""
+        """Retrieve all existing run names.
+
+        Returns:
+            List of unique run name identifiers.
+        """
         with self.Session() as session:
             return session.execute(
                 select(Model.name).distinct()
             ).scalars().all()
 
     def get_processed_files_with_similarities(self, run_name: str) -> list[str]:
-        """
-        Récupère la liste des fichiers qui ont été traités avec des similarités calculées
-        pour un run donné.
+        """Retrieve files that have been processed with similarity scores.
+
+        Args:
+            run_name: The model run name.
+
+        Returns:
+            List of file IDs that have similarity data.
         """
         processed_files = []
         with self.Session() as session:
@@ -307,7 +429,15 @@ class EmbeddingDatabase:
     def get_embeddings_by_hashes(
         self, base_model_name: str, text_hashes: List[str]
     ) -> Dict[str, np.ndarray]:
-        """Retrieves embeddings from the cache by base model and text hashes."""
+        """Retrieve embeddings from cache by model and text hashes.
+
+        Args:
+            base_model_name: The base model name used for embeddings.
+            text_hashes: List of text hash values to retrieve.
+
+        Returns:
+            Dictionary mapping text hashes to embedding arrays.
+        """
         if not text_hashes:
             return {}
 
@@ -328,8 +458,15 @@ class EmbeddingDatabase:
 
     def save_embeddings_batch(
         self, base_model_name: str, embeddings: Dict[str, np.ndarray]
-    ):
-        """Saves a batch of embeddings to the cache using the base model name."""
+    ) -> None:
+        """Save a batch of embeddings to the cache.
+
+        Applies intelligent quantization to reduce storage size when enabled.
+
+        Args:
+            base_model_name: The base model name for the embeddings.
+            embeddings: Dictionary mapping text hashes to embedding arrays.
+        """
         if not embeddings:
             return
 
@@ -368,8 +505,14 @@ class EmbeddingDatabase:
 
     def save_tsne_coordinates(
         self, tsne_key: str, file_id: str, coordinates: Dict[str, List[float]]
-    ):
-        """Sauvegarde les coordonnées t-SNE pour une combinaison donnée."""
+    ) -> None:
+        """Save t-SNE coordinates for a given configuration.
+
+        Args:
+            tsne_key: Unique key for the t-SNE configuration.
+            file_id: Identifier for the file.
+            coordinates: Dictionary with 'x' and 'y' coordinate lists.
+        """
         coordinates_blob = msgpack.packb(coordinates, use_bin_type=True)
 
         with self.Session() as session:
@@ -388,7 +531,15 @@ class EmbeddingDatabase:
     def get_tsne_coordinates(
         self, tsne_key: str, file_id: str
     ) -> Optional[Dict[str, List[float]]]:
-        """Récupère les coordonnées t-SNE pour une combinaison donnée."""
+        """Retrieve t-SNE coordinates for a given configuration.
+
+        Args:
+            tsne_key: Unique key for the t-SNE configuration.
+            file_id: Identifier for the file.
+
+        Returns:
+            Dictionary with 'x' and 'y' coordinate lists, or None if not found.
+        """
         with self.Session() as session:
             result = session.execute(
                 select(TSNECoordinate.coordinates)
@@ -400,14 +551,21 @@ class EmbeddingDatabase:
                 return msgpack.unpackb(result, raw=False)
             return None
 
-    def clear_tsne_cache(self):
-        """Vide le cache des coordonnées t-SNE."""
+    def clear_tsne_cache(self) -> None:
+        """Clear all cached t-SNE coordinates."""
         with self.Session() as session:
             session.execute(delete(TSNECoordinate))
             session.commit()
 
     def get_run_details(self, run_name: str) -> Optional[Dict[str, Any]]:
-        """Retrieves detailed information for a specific run."""
+        """Retrieve detailed information for a specific run.
+
+        Args:
+            run_name: The unique run name identifier.
+
+        Returns:
+            Dictionary with full run details, or None if not found.
+        """
         with self.Session() as session:
             model = session.execute(
                 select(Model).where(Model.name == run_name)
@@ -431,7 +589,14 @@ class EmbeddingDatabase:
     def get_all_processing_results_for_run(
         self, model_name: str
     ) -> Dict[str, Dict[str, Any]]:
-        """Get all processing results for a specific run with proper dequantization."""
+        """Get all processing results for a specific run with dequantization.
+
+        Args:
+            model_name: The model run name.
+
+        Returns:
+            Dictionary mapping file IDs to their processing results.
+        """
         results = {}
         with self.Session() as session:
             query_results = session.execute(
@@ -450,8 +615,13 @@ class EmbeddingDatabase:
         return results
 
     def _to_native_python_types(self, obj: Any) -> Any:
-        """
-        Recursively converts NumPy types in an object to native Python types.
+        """Recursively convert NumPy types to native Python types.
+
+        Args:
+            obj: Object potentially containing NumPy types.
+
+        Returns:
+            Object with all NumPy types converted to Python native types.
         """
         if isinstance(obj, dict):
             return {k: self._to_native_python_types(v) for k, v in obj.items()}
@@ -468,8 +638,17 @@ class EmbeddingDatabase:
             return bool(obj)
         return obj
 
-    def _dequantize_similarities(self, similarities):
-        """Ensure similarities are properly dequantized to [0,1] range"""
+    def _dequantize_similarities(
+        self, similarities: np.ndarray | list[float]
+    ) -> list[float]:
+        """Dequantize similarities to [0,1] range.
+
+        Args:
+            similarities: Quantized or raw similarity values.
+
+        Returns:
+            List of dequantized similarity values in [0,1] range.
+        """
         if isinstance(similarities, list):
             similarities = np.array(similarities)
 
@@ -486,8 +665,14 @@ class EmbeddingDatabase:
 
     def update_metrics_for_file(
         self, model_name: str, file_id: str, metrics: Dict[str, Any]
-    ):
-        """Updates the metrics for a specific file in a model run."""
+    ) -> None:
+        """Update metrics for a specific file in a model run.
+
+        Args:
+            model_name: The model run name.
+            file_id: Identifier for the file.
+            metrics: Dictionary of metric values to update.
+        """
         with self.Session() as session:
             # First, retrieve the existing blob
             result = session.execute(
@@ -523,7 +708,17 @@ class EmbeddingDatabase:
             session.commit()
 
     def _quantize_metrics(self, metrics: Dict[str, float]) -> Dict[str, Any]:
-        """Quantize metrics intelligently based on their expected ranges."""
+        """Quantize metrics based on their expected ranges.
+
+        Applies intelligent quantization to reduce storage size while
+        maintaining precision for the metric's expected range.
+
+        Args:
+            metrics: Dictionary of metric names to values.
+
+        Returns:
+            Dictionary with quantized metric values.
+        """
         if not self.quantization_enabled:
             return metrics
 
@@ -567,7 +762,16 @@ class EmbeddingDatabase:
         return quantized
 
     def _dequantize_metrics(self, metrics: Dict[str, Any]) -> Dict[str, float | None]:
-        """Dequantize metrics back to their original ranges."""
+        """Dequantize metrics back to their original ranges.
+
+        Reverses the quantization process to restore original metric values.
+
+        Args:
+            metrics: Dictionary of quantized metric values.
+
+        Returns:
+            Dictionary with dequantized float values.
+        """
         if not self.quantization_enabled:
             return {k: float(v) if v is not None else None for k, v in metrics.items()}
 
@@ -600,11 +804,25 @@ class EmbeddingDatabase:
         return dequantized
 
     def get_db_modification_time(self) -> float:
-        """Returns the last modification time of the database file."""
+        """Get the last modification time of the database file.
+
+        Returns:
+            Unix timestamp of the last modification.
+        """
         return os.path.getmtime(self.db_path)
 
     def _apply_intelligent_quantization(self, obj: Any) -> Any:
-        """Apply intelligent quantization based on data type and content."""
+        """Apply intelligent quantization based on data type and content.
+
+        Optimizes storage by quantizing data based on its type and expected
+        value ranges.
+
+        Args:
+            obj: Object to quantize.
+
+        Returns:
+            Quantized object with reduced precision where appropriate.
+        """
         if not self.quantization_enabled:
             return obj
 
@@ -678,7 +896,16 @@ class EmbeddingDatabase:
         return obj
 
     def _restore_quantized_data(self, obj: Any) -> Any:
-        """Restore quantized data to original format."""
+        """Restore quantized data to original format.
+
+        Reverses the quantization process to restore full precision.
+
+        Args:
+            obj: Quantized object to restore.
+
+        Returns:
+            Object with restored full-precision values.
+        """
         if not self.quantization_enabled:
             return obj
 
@@ -722,8 +949,20 @@ class EmbeddingDatabase:
 
         return obj
 
-    def _numpy_default(self, obj):
-        """Custom encoder for numpy data types for msgpack, with compression."""
+    def _numpy_default(self, obj: Any) -> Any:
+        """Custom encoder for numpy data types for msgpack.
+
+        Handles numpy arrays by compressing them with zlib.
+
+        Args:
+            obj: Object to encode.
+
+        Returns:
+            Encoded representation suitable for msgpack.
+
+        Raises:
+            TypeError: If the object is not serializable.
+        """
         if isinstance(obj, np.integer):
             return int(obj)
         if isinstance(obj, np.floating):
@@ -739,8 +978,17 @@ class EmbeddingDatabase:
             }
         raise TypeError(f"Object of type {obj.__class__.__name__} is not serializable")
 
-    def _decode_numpy(self, obj):
-        """Custom decoder for numpy data types for msgpack."""
+    def _decode_numpy(self, obj: Any) -> Any:
+        """Custom decoder for numpy data types for msgpack.
+
+        Decompresses and reconstructs numpy arrays from msgpack format.
+
+        Args:
+            obj: Object to decode.
+
+        Returns:
+            Decoded object, with numpy arrays reconstructed.
+        """
         if isinstance(obj, dict) and "__ndarray__" in obj:
             data = zlib.decompress(obj["data"])
             return np.frombuffer(data, dtype=np.dtype(obj["dtype"])).reshape(

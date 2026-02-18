@@ -1,14 +1,31 @@
+"""Core orchestration module for ForzaEmbed.
+
+This module contains the main ForzaEmbed class that orchestrates the entire
+embedding analysis pipeline, including grid search execution and report
+generation. It manages the workflow for testing multiple parameter combinations
+and generating comprehensive reports.
+
+Example:
+    Run a complete analysis::
+
+        from src.core.core import ForzaEmbed
+
+        app = ForzaEmbed(db_path="reports/results.db", config_path="configs/config.yml")
+        app.run_grid_search(data_source="markdowns", resume=True)
+        app.generate_reports(top_n=25)
+"""
+
 import itertools
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 from tqdm import tqdm
 
 from ..reporting.reporting import ReportGenerator
 from ..utils.data_loader import load_markdown_files
 from ..utils.database import EmbeddingDatabase
-from .config import AppConfig, load_config
+from .config import AppConfig, ModelConfig, load_config
 from .processing import Processor
 
 
@@ -16,7 +33,7 @@ from .processing import Processor
 # Based on their implementation:
 # - nltk: Uses sentence tokenization (nltk.sent_tokenize) - ignores size/overlap
 # - spacy: Uses spaCy's sentence segmentation - ignores size/overlap
-PARAMETER_INSENSITIVE_STRATEGIES = {"nltk", "spacy"}
+PARAMETER_INSENSITIVE_STRATEGIES: set[str] = {"nltk", "spacy"}
 
 # Configure logging
 logging.basicConfig(
@@ -25,21 +42,33 @@ logging.basicConfig(
 
 
 class ForzaEmbed:
-    """
-    Main class for managing the embedding grid search and reporting pipeline.
+    """Main orchestrator for the embedding analysis and reporting pipeline.
+
+    This class manages the complete workflow for embedding analysis, including
+    loading configurations, running grid searches across multiple parameter
+    combinations, and generating comprehensive reports.
+
+    Attributes:
+        db_path: Path to the SQLite database file.
+        config_path: Path to the YAML configuration file.
+        config: The loaded application configuration.
+        config_name: Name derived from the configuration file.
+        db: The embedding database instance.
+        output_dir: Directory for output files.
+        processor: The data processor instance.
+        report_generator: The report generator instance.
     """
 
     def __init__(
         self,
         db_path: str = "reports/config_ForzaEmbed.db",
         config_path: str = "configs/config.yml",
-    ):
-        """
-        Initializes the ForzaEmbed instance.
+    ) -> None:
+        """Initialize the ForzaEmbed instance.
 
         Args:
-            db_path (str): Path to the SQLite database file.
-            config_path (str): Path to the YAML configuration file.
+            db_path: Path to the SQLite database file for storing results.
+            config_path: Path to the YAML configuration file.
         """
         self.db_path = Path(db_path)
         self.config_path = Path(config_path)
@@ -65,16 +94,17 @@ class ForzaEmbed:
         logging.info(f"Output directory: {self.output_dir}")
         logging.info(f"Config prefix: {self.config_name}")
 
-    def _generate_smart_combinations(self, param_grid: dict) -> list:
-        """
-        Generates parameter combinations intelligently by avoiding redundant
-        combinations for chunking strategies that don't use chunk_size/chunk_overlap.
+    def _generate_smart_combinations(self, param_grid: dict[str, Any]) -> list[tuple[Any, ...]]:
+        """Generate parameter combinations intelligently.
+
+        Avoids redundant combinations for chunking strategies that don't use
+        chunk_size/chunk_overlap parameters (like nltk and spacy).
 
         Args:
-            param_grid (dict): Dictionary of parameter lists.
+            param_grid: Dictionary mapping parameter names to lists of values.
 
         Returns:
-            list: List of valid parameter combinations.
+            List of valid parameter combination tuples.
         """
         strategies = param_grid["chunking_strategy"]
         chunk_sizes = param_grid["chunk_size"]
@@ -134,15 +164,19 @@ class ForzaEmbed:
 
         return combinations
 
-    def run_grid_search(self, data_source: Any, resume: bool = True):
-        """
-        Runs the entire grid search pipeline.
+    def run_grid_search(
+        self, data_source: Union[str, Path, list[str]], resume: bool = True
+    ) -> None:
+        """Run the complete grid search pipeline.
+
+        Executes the embedding analysis across all parameter combinations
+        defined in the configuration. Supports resumption from the last
+        completed combination.
 
         Args:
-            data_source (Any): The source of the markdown data. Can be a
-                               directory path (str or Path) or a list of
-                               markdown content strings.
-            resume (bool): If True, resumes from the last completed combination.
+            data_source: The source of markdown data. Can be a directory path
+                (str or Path) or a list of markdown content strings.
+            resume: If True, resumes from the last completed combination.
         """
         self.data_source = data_source  # Store data_source
         logging.info("--- Starting Data Processing ---")
@@ -256,26 +290,41 @@ class ForzaEmbed:
 
     def _generate_run_name(
         self,
-        model_config,
-        chunk_size,
-        chunk_overlap,
-        chunking_strategy,
-        similarity_metric,
-        theme_name,
-    ):
-        """Generates a standardized run name for a parameter combination."""
+        model_config: ModelConfig,
+        chunk_size: int,
+        chunk_overlap: int,
+        chunking_strategy: str,
+        similarity_metric: str,
+        theme_name: str,
+    ) -> str:
+        """Generate a standardized run name for a parameter combination.
+
+        Args:
+            model_config: The model configuration.
+            chunk_size: The chunk size parameter.
+            chunk_overlap: The chunk overlap parameter.
+            chunking_strategy: The chunking strategy name.
+            similarity_metric: The similarity metric name.
+            theme_name: The theme set name.
+
+        Returns:
+            A unique string identifier for the parameter combination.
+        """
         model_name = model_config.name.replace("/", "_")
         dimensions = model_config.dimensions
         return f"{model_name}_d{dimensions}_cs{chunk_size}_co{chunk_overlap}_t{theme_name}_s{chunking_strategy}_m{similarity_metric}"
 
-    def generate_reports(self, top_n: int = 25, single_file: bool = False):
-        """
-        Generates all reports and visualizations.
+    def generate_reports(self, top_n: int = 25, single_file: bool = False) -> None:
+        """Generate all reports and visualizations.
+
+        Creates comprehensive reports from the data stored in the database,
+        including metric comparisons, charts, and interactive visualizations.
 
         Args:
-            top_n (int): Number of top combinations to include in reports.
-                         Use -1 for all.
-            single_file (bool): If True, generates a single HTML file.
+            top_n: Number of top combinations to include in reports.
+                Use -1 to include all combinations.
+            single_file: If True, generates a single HTML file containing
+                all results. If False, generates separate files per input.
         """
         # Use stored data_source or default to "markdowns"
         data_source = getattr(self, 'data_source', 'markdowns')

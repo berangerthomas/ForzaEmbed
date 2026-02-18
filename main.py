@@ -1,19 +1,44 @@
+"""Main entry point for the ForzaEmbed CLI application.
+
+This module provides the command-line interface for running the ForzaEmbed
+embedding analysis and reporting pipeline. It handles Hugging Face authentication
+and orchestrates the grid search and report generation workflows.
+
+Example:
+    Run the full pipeline::
+
+        $ python main.py --config-path configs/config.yml --data-source markdowns --run
+
+    Generate reports only::
+
+        $ python main.py --config-path configs/config.yml --generate-reports
+"""
+
 import argparse
 import logging
 import os
 from pathlib import Path
 
 
-def hf_auth_login():
-    """
-    Logs in to Hugging Face Hub using a token from a .env file or environment variables.
-    Imports are done lazily to avoid slow startup for --help.
+def hf_auth_login() -> None:
+    """Authenticate to Hugging Face Hub using environment credentials.
+
+    Attempts to log in to the Hugging Face Hub using a token from a .env file
+    or environment variables. Imports are done lazily to avoid slow startup
+    when only displaying help.
+
+    Note:
+        The token should be stored in the environment variable
+        ``HUGGING_FACE_HUB_TOKEN`` or in a ``.env`` file.
+
+    Raises:
+        No exceptions are raised; authentication failures are logged as errors.
     """
     from dotenv import load_dotenv
     from huggingface_hub import login
 
     load_dotenv()
-    hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
+    hf_token: str | None = os.getenv("HUGGING_FACE_HUB_TOKEN")
     if hf_token:
         try:
             login(token=hf_token)
@@ -27,9 +52,20 @@ def hf_auth_login():
         )
 
 
-def main():
-    """
-    Main function to run the ForzaEmbed pipeline from the command line.
+def main() -> None:
+    """Execute the ForzaEmbed pipeline from command-line arguments.
+
+    Parses command-line arguments to configure and run the embedding analysis
+    pipeline. Supports running a full grid search, generating reports from
+    existing data, or both.
+
+    Command-line Arguments:
+        --config-path: Path to the YAML configuration file.
+        --data-source: Path to the directory containing markdown files.
+        --run: Run the full grid search and reporting pipeline.
+        --generate-reports: Generate reports from existing data only.
+        --top-n: Number of top combinations to display in charts.
+        --single-file: Generate a single HTML file for all markdown files.
     """
     parser = argparse.ArgumentParser(
         description="Run embedding analysis and reporting for ForzaEmbed."

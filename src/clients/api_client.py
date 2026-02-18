@@ -1,3 +1,22 @@
+"""API client for production embedding services.
+
+This module provides a client for obtaining embeddings from production APIs
+including OpenAI, Mistral, and VoyageAI. It handles authentication, batching,
+and automatic retry with batch size reduction on errors.
+
+Example:
+    Get embeddings from an API::
+
+        from src.clients.api_client import ProductionEmbeddingClient
+
+        client = ProductionEmbeddingClient(
+            base_url="https://api.openai.com/v1",
+            model="text-embedding-ada-002",
+            expected_dimension=1536
+        )
+        embeddings = client.get_embeddings(["Hello", "World"])
+"""
+
 import json
 import os
 from typing import List
@@ -9,16 +28,18 @@ from tqdm import tqdm
 load_dotenv()
 
 
-# Client class to obtain embeddings via a production API.
 class ProductionEmbeddingClient:
-    """
-    Client to obtain embeddings from a production API.
+    """Client for obtaining embeddings from production APIs.
 
-    Args:
-        base_url (str): Base URL of the API.
-        model (str): Name of the embedding model to use.
-        expected_dimension (int, optional): The expected dimension of the embeddings.
-        timeout (int, optional): Timeout for the request in seconds. Defaults to 30.
+    Supports OpenAI-compatible APIs with automatic API key selection based
+    on the model name. Implements automatic batch splitting and retries.
+
+    Attributes:
+        base_url: Base URL of the API.
+        model: Name of the embedding model.
+        expected_dimension: Expected embedding dimension for validation.
+        timeout: Request timeout in seconds.
+        session: Requests session with authentication headers.
     """
 
     def __init__(
@@ -29,6 +50,15 @@ class ProductionEmbeddingClient:
         timeout: int = 30,
         initial_batch_size: int | None = None,
     ) -> None:
+        """Initialize the ProductionEmbeddingClient.
+
+        Args:
+            base_url: Base URL of the API.
+            model: Name of the embedding model to use.
+            expected_dimension: Expected dimension of embeddings for validation.
+            timeout: Timeout for requests in seconds.
+            initial_batch_size: Initial batch size for requests.
+        """
         self.base_url = base_url
         self.model = model
         self.expected_dimension = expected_dimension
@@ -48,10 +78,16 @@ class ProductionEmbeddingClient:
         if api_key:
             self.session.headers.update({"Authorization": f"Bearer {api_key}"})
 
-    # Retrieves embeddings for a list of texts via the API.
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Retrieves embeddings for a list of texts via the API with automatic batch splitting.
+        """Retrieve embeddings for a list of texts via the API.
+
+        Implements automatic batch splitting for large requests.
+
+        Args:
+            texts: List of texts to embed.
+
+        Returns:
+            List of embedding vectors as lists of floats.
         """
         if not texts:
             return []
@@ -67,8 +103,17 @@ class ProductionEmbeddingClient:
     def _get_embeddings_with_retry(
         self, texts: List[str], initial_batch_size: int, max_retries: int = 3
     ) -> List[List[float]]:
-        """
-        Internal method to handle batch subdivision and retries.
+        """Handle batch subdivision and retries for embedding requests.
+
+        Automatically reduces batch size on 400 errors related to batch limits.
+
+        Args:
+            texts: List of texts to embed.
+            initial_batch_size: Starting batch size.
+            max_retries: Maximum number of retry attempts.
+
+        Returns:
+            List of embedding vectors.
         """
         batch_size = min(initial_batch_size, len(texts))
         total_embeddings = []
@@ -137,8 +182,17 @@ class ProductionEmbeddingClient:
         return total_embeddings
 
     def _single_api_call(self, texts: List[str]) -> List[List[float]]:
-        """
-        Makes a single API call without retry logic.
+        """Make a single API call without retry logic.
+
+        Args:
+            texts: List of texts to embed in this call.
+
+        Returns:
+            List of embedding vectors.
+
+        Raises:
+            requests.exceptions.HTTPError: On API errors.
+            ValueError: If embedding dimension doesn't match expected.
         """
         url = f"{self.base_url}/embeddings"
         payload = {"model": self.model, "input": texts}

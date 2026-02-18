@@ -1,5 +1,22 @@
+"""Similarity calculation service for ForzaEmbed.
+
+This module provides the SimilarityService class that handles various
+similarity and distance metric calculations between embeddings. It supports
+cosine, dot product, euclidean, manhattan, and chebyshev metrics.
+
+Example:
+    Calculate similarity between theme and phrase embeddings::
+
+        from src.services.similarity_service import SimilarityService
+
+        similarities = SimilarityService.calculate_similarity(
+            embed_themes, embed_phrases, "cosine"
+        )
+        validated = SimilarityService.validate_similarities(similarities, "cosine")
+"""
 
 import logging
+
 import numpy as np
 from sklearn.metrics.pairwise import (
     cosine_similarity,
@@ -8,18 +25,33 @@ from sklearn.metrics.pairwise import (
     pairwise_distances,
 )
 
+
 class SimilarityService:
+    """Handle similarity calculations and validation.
+
+    Provides static methods for computing various similarity metrics
+    between embedding matrices and validating/normalizing the results.
     """
-    Handles similarity calculations and validation.
-    """
-    
+
     @staticmethod
     def calculate_similarity(
         embed_themes: np.ndarray, embed_phrases: np.ndarray, metric: str
     ) -> np.ndarray:
-        """Calculate similarity between theme embeddings and phrase embeddings."""
-        
-        similarity_functions = {
+        """Calculate similarity between theme embeddings and phrase embeddings.
+
+        Args:
+            embed_themes: Theme embeddings array of shape (n_themes, n_dims).
+            embed_phrases: Phrase embeddings array of shape (n_phrases, n_dims).
+            metric: The similarity metric to use. One of 'cosine', 'dot_product',
+                'euclidean', 'manhattan', or 'chebyshev'.
+
+        Returns:
+            Similarity matrix of shape (n_themes, n_phrases).
+
+        Raises:
+            ValueError: If an unknown similarity metric is specified.
+        """
+        similarity_functions: dict[str, callable] = {
             "cosine": cosine_similarity,
             "dot_product": lambda themes, phrases: themes @ phrases.T,
             "euclidean": lambda themes, phrases: 1 / (1 + euclidean_distances(themes, phrases)),
@@ -36,13 +68,23 @@ class SimilarityService:
     def validate_similarities(
         similarities: np.ndarray, metric: str
     ) -> np.ndarray:
+        """Validate and clean similarities based on the metric used.
+
+        Handles NaN and infinite values, then normalizes the similarity
+        values to an appropriate range based on the metric type.
+
+        Args:
+            similarities: Raw similarity matrix to validate.
+            metric: The similarity metric that was used. One of 'cosine',
+                'dot_product', 'euclidean', 'manhattan', or 'chebyshev'.
+
+        Returns:
+            Cleaned and normalized similarity matrix with values in [0, 1].
         """
-        Valide et nettoie les similarités selon la métrique utilisée.
-        """
-        # Remplacer NaN et inf par des valeurs appropriées
+        # Replace NaN and inf with appropriate values
         similarities = np.nan_to_num(similarities, nan=0.0, posinf=1.0, neginf=0.0)
 
-        # Validation selon la métrique
+        # Validation based on metric
         if metric == "cosine":
             # Cosine similarity is in [-1, 1]. Normalize to [0, 1].
             if similarities.min() < -1.1 or similarities.max() > 1.1:
@@ -61,8 +103,8 @@ class SimilarityService:
                 # All values are the same, set to 0.5 (neutral)
                 similarities = np.full_like(similarities, 0.5)
         elif metric in ["euclidean", "manhattan", "chebyshev"]:
-            # Distance metrics convertis en similarité: [0, +inf) → similarity dans [0, 1]
-            # Les valeurs sont déjà converties par 1/(1+distance), donc devraient être dans [0, 1]
+            # Distance metrics converted to similarity: [0, +inf) → similarity in [0, 1]
+            # Values are already converted by 1/(1+distance), so should be in [0, 1]
             if similarities.min() < 0 or similarities.max() > 1.1:
                 logging.warning(
                     f"{metric} similarities out of expected range [0,1]: min={similarities.min()}, max={similarities.max()}"

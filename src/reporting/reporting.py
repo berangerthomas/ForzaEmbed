@@ -1,7 +1,22 @@
+"""Report generation module for ForzaEmbed.
+
+This module provides the ReportGenerator class that handles the generation
+of all reports and visualizations, including comparison charts, radar charts,
+and interactive web pages.
+
+Example:
+    Generate reports from processing results::
+
+        from src.reporting.reporting import ReportGenerator
+
+        generator = ReportGenerator(db, config, output_dir, "config_name")
+        generator.generate_all(top_n=25, single_file=False)
+"""
+
 import logging
 import textwrap
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,17 +29,36 @@ from .markdown_filter import MarkdownFilter
 
 
 class ReportGenerator:
-    """
-    Handles the generation of all reports and visualizations.
+    """Handle the generation of all reports and visualizations.
+
+    Coordinates the generation of comparison charts, radar charts, filtered
+    markdowns, and interactive web pages from processing results.
+
+    Attributes:
+        db: The embedding database containing results.
+        config: Configuration dictionary with report settings.
+        output_dir: Directory path for output files.
+        config_name: Name of the configuration for file prefixes.
+        similarity_threshold: Threshold for similarity-based filtering.
+        data_aggregator: Helper for aggregating data from database.
+        markdown_filter: Helper for generating filtered markdowns.
     """
 
     def __init__(
         self,
         db: EmbeddingDatabase,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         output_dir: Path,
         config_name: str,
-    ):
+    ) -> None:
+        """Initialize the ReportGenerator.
+
+        Args:
+            db: The embedding database containing results.
+            config: Configuration dictionary with report settings.
+            output_dir: Directory path for output files.
+            config_name: Name of the configuration for file prefixes.
+        """
         self.db = db
         self.config = config
         self.output_dir = output_dir
@@ -35,9 +69,15 @@ class ReportGenerator:
 
     def generate_all(
         self, top_n: int = 25, single_file: bool = False, data_source: str = "markdowns"
-    ):
-        """
-        Generates all reports from the data in the database.
+    ) -> None:
+        """Generate all reports from the data in the database.
+
+        Args:
+            top_n: Maximum number of top models to include in reports.
+                Use -1 for all models. Defaults to 25.
+            single_file: If True, creates a single HTML file for all results.
+                If False, creates one HTML per markdown file. Defaults to False.
+            data_source: Source directory name for data files. Defaults to 'markdowns'.
         """
         logging.info("--- Generating All Reports ---")
         effective_top_n = None if top_n == -1 else top_n
@@ -96,16 +136,23 @@ class ReportGenerator:
 
     def _generate_main_web_page(
         self,
-        processed_data,
-        total_combinations,
+        processed_data: dict[str, Any],
+        total_combinations: int,
         single_file: bool = False,
-        graph_paths: Dict[str, Any] | None = None,
-    ):
-        """Generates the main interactive web page."""
+        graph_paths: dict[str, Any] | None = None,
+    ) -> None:
+        """Generate the main interactive web page.
+
+        Args:
+            processed_data: Processed data dictionary for visualization.
+            total_combinations: Total number of model combinations processed.
+            single_file: Whether to generate a single file or per-document files.
+            graph_paths: Dictionary mapping file IDs to their graph paths.
+        """
         from .web_generator import generate_main_page
 
         # Extract themes from config for display in tooltips
-        themes_config = {}
+        themes_config: dict[str, Any] = {}
         if hasattr(self.config, 'grid_search_params'):
             themes_config = self.config.grid_search_params.themes
         elif isinstance(self.config, dict) and 'grid_search_params' in self.config:
@@ -122,9 +169,21 @@ class ReportGenerator:
         )
 
     def _generate_global_reports(
-        self, all_models_metrics, top_n=None, file_prefix: str = "global"
-    ):
-        """Generates global comparison charts."""
+        self,
+        all_models_metrics: dict[str, list[dict[str, Any]]],
+        top_n: int | None = None,
+        file_prefix: str = "global",
+    ) -> list[Path]:
+        """Generate global comparison charts.
+
+        Args:
+            all_models_metrics: Dictionary mapping model names to their metrics.
+            top_n: Maximum number of top models to include. None for all.
+            file_prefix: Prefix for output files. Defaults to 'global'.
+
+        Returns:
+            List of paths to generated plot files.
+        """
         logging.info(f"Generating reports for prefix: {file_prefix}...")
         if all_models_metrics:
             plot_paths = self._analyze_and_visualize_clustering_metrics(
@@ -145,7 +204,15 @@ class ReportGenerator:
         higher_is_better: bool,
         top_n: int | None = None,
     ) -> None:
-        """Generates and saves a sorted bar plot for a single metric."""
+        """Generate and save a sorted bar plot for a single metric.
+
+        Args:
+            df: DataFrame with model names as index and metrics as columns.
+            metric: Name of the metric column to plot.
+            output_path: Path where to save the plot image.
+            higher_is_better: If True, sorts descending; if False, ascending.
+            top_n: Maximum number of models to show. None for all.
+        """
         sorted_df = df.sort_values(by=metric, ascending=not higher_is_better)
 
         if top_n:
@@ -185,7 +252,18 @@ class ReportGenerator:
     def _generate_radar_chart(
         self, df: pd.DataFrame, file_prefix: str = "global"
     ) -> Path | None:
-        """Generates a radar chart for the most important metrics."""
+        """Generate a radar chart for the most important metrics.
+
+        Creates a polar plot comparing normalized metric values across
+        models for key clustering quality metrics.
+
+        Args:
+            df: DataFrame with model names as index and metrics as columns.
+            file_prefix: Prefix for the output file. Defaults to 'global'.
+
+        Returns:
+            Path to the generated radar chart image, or None if not enough metrics.
+        """
         metrics_for_radar = {
             "silhouette_score": True,
             "inter_cluster_distance_normalized": True,
@@ -244,14 +322,23 @@ class ReportGenerator:
 
     def _analyze_and_visualize_clustering_metrics(
         self,
-        all_models_metrics: Dict[str, Any],
+        all_models_metrics: dict[str, list[dict[str, Any]]],
         top_n: int | None = None,
         file_prefix: str = "global",
     ) -> list[Path]:
-        """
-        Analyzes clustering metrics, visualizes each in a separate plot,
-        and generates a summary radar chart.
-        Returns a list of paths to the generated plots.
+        """Analyze clustering metrics and generate visualization plots.
+
+        Creates individual bar plots for each metric and a summary radar chart.
+        Exports detailed metrics to CSV.
+
+        Args:
+            all_models_metrics: Dictionary mapping model names to lists of
+                metric dictionaries.
+            top_n: Maximum number of top models to include. None for all.
+            file_prefix: Prefix for output files. Defaults to 'global'.
+
+        Returns:
+            List of paths to the generated plot files.
         """
         if not all_models_metrics:
             return []
@@ -336,8 +423,16 @@ class ReportGenerator:
         return plot_paths
 
 
-def get_metrics_info():
-    """Return information about metrics including names, descriptions, and whether higher is better."""
+def get_metrics_info() -> dict[str, dict[str, Any]]:
+    """Return information about metrics including names, descriptions, and preferences.
+
+    Returns:
+        Dictionary mapping metric keys to their metadata:
+            - name: Human-readable metric name.
+            - description: Explanation of what the metric measures.
+            - higher_is_better: Whether higher values indicate better performance.
+            - range: Expected value range as a string.
+    """
     return {
         "intra_cluster_distance_normalized": {
             "name": "Intra-Cluster Quality",

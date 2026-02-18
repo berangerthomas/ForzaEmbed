@@ -1,3 +1,19 @@
+"""Hugging Face embedding client using transformers library.
+
+This module provides functions for generating embeddings using generic
+Hugging Face models with mean pooling and normalization.
+
+Example:
+    Generate embeddings using a Hugging Face model::
+
+        from src.clients.huggingface_client import get_huggingface_embeddings
+
+        embeddings = get_huggingface_embeddings(
+            texts=["Hello world"],
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+"""
+
 from typing import List
 
 import torch
@@ -5,9 +21,17 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
 
-def mean_pooling(model_output, attention_mask):
-    """
-    Performs mean pooling on the last hidden state to get a sentence embedding.
+def mean_pooling(
+    model_output: torch.Tensor, attention_mask: torch.Tensor
+) -> torch.Tensor:
+    """Perform mean pooling on token embeddings to get sentence embedding.
+
+    Args:
+        model_output: Model output containing token embeddings.
+        attention_mask: Attention mask for the input tokens.
+
+    Returns:
+        Mean-pooled sentence embeddings tensor.
     """
     token_embeddings = model_output[
         0
@@ -23,15 +47,21 @@ def mean_pooling(model_output, attention_mask):
 def get_huggingface_embeddings(
     texts: List[str], model_name: str, expected_dimension: int | None = None
 ) -> List[List[float]]:
-    """
-    Generates embeddings for a list of texts using a generic Hugging Face model.
+    """Generate embeddings using a generic Hugging Face model.
+
+    Loads the model and tokenizer, processes texts, and applies mean pooling
+    with L2 normalization.
 
     Args:
-        texts (List[str]): The list of texts to embed.
-        model_name (str): The name of the Hugging Face model to use.
+        texts: List of texts to embed.
+        model_name: Name of the Hugging Face model to use.
+        expected_dimension: Expected embedding dimension for validation.
 
     Returns:
-        The list of embeddings.
+        List of normalized embedding vectors as lists of floats.
+
+    Raises:
+        ValueError: If embedding dimension doesn't match expected.
     """
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name)

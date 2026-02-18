@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-02-18
+
+### Added
+- **Threshold slider**: interactive similarity threshold slider on the t-SNE scatter plot - reclassifies points instantly (above/below threshold).
+- **Externalized templates**: report templates (`template.html`, `style.css`, `main.js`, `worker.js`) moved to `src/reporting/templates/`; `web_generator.py` reads them dynamically at build time.
+
+### Changed
+- **Report aesthetics**: redesign of the HTML report stylesheet.
+- **Type annotations**: type hints added across all modules.
+- **Docstrings**: Google/Sphinx-style docstrings.
+
+
 ## [1.1.0] - 2026-01-27
 
 ### Added

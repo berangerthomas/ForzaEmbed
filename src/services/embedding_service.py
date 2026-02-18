@@ -1,3 +1,18 @@
+"""Embedding service for ForzaEmbed.
+
+This module provides the EmbeddingService class that handles embedding
+generation and caching. It abstracts the different embedding clients and
+provides a unified interface for the processing pipeline.
+
+Example:
+    Generate embeddings using the service::
+
+        from src.services.embedding_service import EmbeddingService
+
+        service = EmbeddingService(db, config)
+        embed_func = service.get_embedding_function(model_config)
+        embeddings, time = service.get_or_create_embeddings(embed_func, "model", texts)
+"""
 
 import hashlib
 import logging
@@ -11,20 +26,49 @@ from ..clients.fastembed_client import FastEmbedClient
 from ..clients.huggingface_client import get_huggingface_embeddings
 from ..clients.sentencetransformers_client import SentenceTransformersClient
 from ..clients.transformers_client import TransformersClient
+from ..core.config import AppConfig, ModelConfig
 from ..utils.database import EmbeddingDatabase
-from ..core.config import AppConfig
+
+# Type alias for embedding functions
+EmbeddingFunc = Callable[[List[str]], List[List[float]]]
+
 
 class EmbeddingService:
+    """Handle embedding generation and caching.
+
+    Provides a unified interface for generating embeddings using different
+    backends (API, FastEmbed, Sentence Transformers, etc.) with automatic
+    caching.
+
+    Attributes:
+        db: The embedding database for caching.
+        config: The application configuration.
+        multiprocessing_config: Multiprocessing settings from config.
     """
-    Handles embedding generation and caching.
-    """
-    def __init__(self, db: EmbeddingDatabase, config: AppConfig):
+
+    def __init__(self, db: EmbeddingDatabase, config: AppConfig) -> None:
+        """Initialize the EmbeddingService.
+
+        Args:
+            db: The embedding database for caching.
+            config: The application configuration.
+        """
         self.db = db
         self.config = config
         self.multiprocessing_config = self.config.multiprocessing
 
-    def get_embedding_function(self, model_config: Any) -> Callable:
-        """Creates the appropriate embedding function based on model type."""
+    def get_embedding_function(self, model_config: ModelConfig) -> EmbeddingFunc:
+        """Create the appropriate embedding function based on model type.
+
+        Args:
+            model_config: Configuration for the embedding model.
+
+        Returns:
+            A callable that takes a list of texts and returns embeddings.
+
+        Raises:
+            ValueError: If the model type is unsupported or API model lacks base_url.
+        """
         model_type = model_config.type
         model_name = model_config.name
 
@@ -74,15 +118,25 @@ class EmbeddingService:
 
     def get_or_create_embeddings(
         self,
-        embedding_function: Callable,
+        embedding_function: EmbeddingFunc,
         base_model_name: str,
-        phrases: List[str],
-    ) -> Tuple[Dict[str, np.ndarray], float]:
-        """
-        Retrieves embeddings from cache or generates and caches them.
-        
+        phrases: list[str],
+    ) -> tuple[dict[str, np.ndarray], float]:
+        """Retrieve embeddings from cache or generate and cache them.
+
+        Checks the database cache for existing embeddings. For phrases not
+        in cache, generates new embeddings using the provided function and
+        stores them.
+
+        Args:
+            embedding_function: Function to generate embeddings for texts.
+            base_model_name: Name of the embedding model for cache key.
+            phrases: List of text phrases to embed.
+
         Returns:
-            tuple: (embeddings_dict, computation_time_seconds)
+            A tuple containing:
+                - Dictionary mapping text hashes to embedding arrays.
+                - Computation time in seconds for new embeddings.
         """
         phrase_hashes = {phrase: self.get_text_hash(phrase) for phrase in phrases}
         existing_embeddings = self.db.get_embeddings_by_hashes(
@@ -117,5 +171,12 @@ class EmbeddingService:
 
     @staticmethod
     def get_text_hash(text: str) -> str:
-        """Generates a SHA-256 hash for a given text."""
+        """Generate a SHA-256 hash for a given text.
+
+        Args:
+            text: The text to hash.
+
+        Returns:
+            Hexadecimal string of the SHA-256 hash.
+        """
         return hashlib.sha256(text.encode("utf-8")).hexdigest()

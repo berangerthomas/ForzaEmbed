@@ -1,6 +1,20 @@
+"""Data aggregation module for ForzaEmbed reporting.
+
+This module provides the DataAggregator class that handles aggregation
+and caching of processed data from the database for report generation.
+
+Example:
+    Aggregate data for reporting::
+
+        from src.reporting.aggregator import DataAggregator
+
+        aggregator = DataAggregator(db, output_dir, "config_name")
+        data = aggregator.get_aggregated_data()
+"""
+
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import joblib
 import numpy as np
@@ -10,18 +24,45 @@ from ..utils.database import EmbeddingDatabase
 
 
 class DataAggregator:
-    """
-    Handles the aggregation and caching of processed data from the database.
+    """Handle aggregation and caching of processed data from the database.
+
+    Aggregates processing results from the database into a format suitable
+    for report generation, with caching to avoid redundant computation.
+
+    Attributes:
+        db: The embedding database containing results.
+        output_dir: Directory path for cache files.
+        cache_path: Path to the cache file.
     """
 
-    def __init__(self, db: EmbeddingDatabase, output_dir: Path, config_name: str):
+    def __init__(
+        self, db: EmbeddingDatabase, output_dir: Path, config_name: str
+    ) -> None:
+        """Initialize the DataAggregator.
+
+        Args:
+            db: The embedding database containing results.
+            output_dir: Directory path for cache files.
+            config_name: Name of the configuration for cache file prefix.
+        """
         self.db = db
         self.output_dir = output_dir
         self.cache_path = self.output_dir / f"{config_name}_reports_cache.joblib"
 
-    def get_aggregated_data(self) -> Dict[str, Any] | None:
-        """
-        Loads aggregated data from cache if valid, otherwise aggregates from scratch.
+    def get_aggregated_data(self) -> dict[str, Any] | None:
+        """Load aggregated data from cache if valid, otherwise aggregate from scratch.
+
+        Checks if the cache is newer than the database modification time.
+        If valid, loads from cache; otherwise, aggregates fresh data.
+
+        Returns:
+            Dictionary containing aggregated data for reporting, or None if
+            no processing results are available. Contains keys:
+                - all_results: Raw results from database.
+                - processed_data_for_interactive_page: Optimized web data.
+                - all_models_metrics: Metrics organized by model.
+                - model_embeddings_for_variance: Embeddings for analysis.
+                - total_combinations: Count of model combinations.
         """
         db_mod_time = self.db.get_db_modification_time()
         use_cache = (
@@ -43,11 +84,18 @@ class DataAggregator:
         logging.info(f"Saved aggregated data to cache: {self.cache_path}")
         return aggregated_data
 
-    def _aggregate_data(self, all_results: dict) -> Dict[str, Any]:
-        """Aggregates data from results for reporting."""
-        processed_data_for_interactive_page = {"files": {}}
-        all_models_metrics = {}
-        model_embeddings_for_variance = {}
+    def _aggregate_data(self, all_results: dict[str, Any]) -> dict[str, Any]:
+        """Aggregate data from results for reporting.
+
+        Args:
+            all_results: Dictionary of processing results from database.
+
+        Returns:
+            Dictionary containing aggregated and processed data.
+        """
+        processed_data_for_interactive_page: dict[str, Any] = {"files": {}}
+        all_models_metrics: dict[str, list[dict[str, Any]]] = {}
+        model_embeddings_for_variance: dict[str, dict[str, Any]] = {}
 
         # First, normalize dot product scores globally if needed
         all_results = self._normalize_dot_product_globally(all_results)
@@ -56,8 +104,8 @@ class DataAggregator:
             all_results.items(), desc="Aggregating data for reports"
         ):
             # Aggregate embeddings and labels from all files for this model
-            aggregated_embeddings = []
-            aggregated_labels = []
+            aggregated_embeddings: list[Any] = []
+            aggregated_labels: list[Any] = []
             for file_id, file_data in model_results.get("files", {}).items():
                 if "embeddings" in file_data and file_data["embeddings"] is not None:
                     aggregated_embeddings.extend(file_data["embeddings"])
@@ -85,10 +133,10 @@ class DataAggregator:
                 }
 
             # Store detailed metrics for each file
-            detailed_metrics = []
+            detailed_metrics: list[dict[str, Any]] = []
             for file_id, file_data in model_results.get("files", {}).items():
                 if "metrics" in file_data and file_data["metrics"]:
-                    metric_record = {"file_name": file_id}
+                    metric_record: dict[str, Any] = {"file_name": file_id}
                     metric_record.update(file_data["metrics"])
                     detailed_metrics.append(metric_record)
             all_models_metrics[model_name] = detailed_metrics
@@ -105,13 +153,18 @@ class DataAggregator:
             "total_combinations": len(all_results),
         }
 
-    def _optimize_data_for_web(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Optimizes the data structure for web output by rounding floats.
+    def _optimize_data_for_web(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Optimize the data structure for web output by rounding floats.
+
+        Args:
+            data: Data dictionary to optimize.
+
+        Returns:
+            Optimized data dictionary with floats rounded to 4 decimal places.
         """
         from typing import cast
 
-        def round_floats(obj):
+        def round_floats(obj: Any) -> Any:
             if isinstance(obj, list):
                 return [round_floats(v) for v in obj]
             if isinstance(obj, dict):
@@ -120,18 +173,25 @@ class DataAggregator:
                 return round(obj, 4)
             return obj
 
-        return cast(Dict[str, Any], round_floats(data))
+        return cast(dict[str, Any], round_floats(data))
 
-    def _normalize_dot_product_globally(self, all_results: dict) -> dict:
-        """
-        Performs a global min-max scaling on dot product similarities for each run.
+    def _normalize_dot_product_globally(
+        self, all_results: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Perform global min-max scaling on dot product similarities.
+
+        Args:
+            all_results: Dictionary of processing results.
+
+        Returns:
+            Results with dot product similarities normalized to [0, 1].
         """
         for model_name, model_results in all_results.items():
             model_info = self.db.get_model_info(model_name)
             if not model_info or model_info.get("similarity_metric") != "dot_product":
                 continue
 
-            all_similarities = [
+            all_similarities: list[float] = [
                 sim
                 for file_data in model_results.get("files", {}).values()
                 if file_data.get("similarities") is not None
@@ -160,8 +220,8 @@ class DataAggregator:
 
         return all_results
 
-    def touch_cache(self):
-        """Updates the cache file's modification time to the current time."""
+    def touch_cache(self) -> None:
+        """Update the cache file's modification time to the current time."""
         if self.cache_path.exists():
             self.cache_path.touch()
             logging.info(f"Updated cache timestamp: {self.cache_path}")
