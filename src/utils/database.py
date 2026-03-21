@@ -69,8 +69,12 @@ class EmbeddingDatabase:
             self.quantization_enabled: bool = config.get("database", {}).get(
                 "intelligent_quantization", True
             )
+            self.quantize_metrics: bool = config.get("database", {}).get(
+                "quantize_metrics", True
+            )
         else:
             self.quantization_enabled = config.database.intelligent_quantization
+            self.quantize_metrics = config.database.quantize_metrics
 
         db_dir = os.path.dirname(db_path)
         if db_dir:
@@ -499,8 +503,11 @@ class EmbeddingDatabase:
             delattr(self, "_cache_storage")
 
         with self.Session() as session:
-            stmt = sqlite_insert(EmbeddingCache).values(items_to_insert).on_conflict_do_nothing()
-            session.execute(stmt)
+            # Pass items as the second argument to trigger SQLAlchemy's executemany
+            # mode, which avoids the SQLite 999-variable limit that occurs when
+            # using .values(large_list) which inlines all parameters in one statement.
+            stmt = sqlite_insert(EmbeddingCache).on_conflict_do_nothing()
+            session.execute(stmt, items_to_insert)
             session.commit()
 
     def save_tsne_coordinates(
@@ -877,8 +884,12 @@ class EmbeddingDatabase:
                             scatter_quantized[scatter_key] = scatter_value
                     quantized[key] = scatter_quantized
                 elif key == "metrics" and isinstance(value, dict):
-                    # Apply metric-specific quantization
-                    quantized[key] = self._quantize_metrics(value)
+                    # Apply metric-specific quantization only if enabled
+                    if self.quantize_metrics:
+                        quantized[key] = self._quantize_metrics(value)
+                    else:
+                        quantized[key] = {k: np.float32(v) if isinstance(v, float) else v 
+                                         for k, v in value.items()}
                 else:
                     quantized[key] = self._apply_intelligent_quantization(value)
             return quantized

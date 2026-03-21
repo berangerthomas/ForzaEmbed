@@ -28,6 +28,7 @@ from ..clients.sentencetransformers_client import SentenceTransformersClient
 from ..clients.transformers_client import TransformersClient
 from ..core.config import AppConfig, ModelConfig
 from ..utils.database import EmbeddingDatabase
+from ..utils.embedding_pooling import pool_embeddings, split_text_into_chunks
 
 # Type alias for embedding functions
 EmbeddingFunc = Callable[[List[str]], List[List[float]]]
@@ -82,8 +83,24 @@ class EmbeddingService:
 
         if model_type in local_model_map:
             embedding_func = local_model_map[model_type]
+            
+            # Get batch size from config for local models
+            batch_size = self.multiprocessing_config.embedding_batch_size_local or 32
+            # Get max_tokens from model config
+            max_tokens = model_config.max_tokens
 
             def get_embeddings(texts):
+                # Pass batch_size and max_tokens for local models to control memory usage
+                if model_type in ("fastembed", "sentence_transformers"):
+                    pooling_strategy = model_config.pooling_strategy or "max"
+                    return embedding_func(
+                        texts,
+                        model_name=model_name,
+                        expected_dimension=model_config.dimensions,
+                        batch_size=batch_size,
+                        max_tokens=max_tokens,
+                        pooling_strategy=pooling_strategy,
+                    )
                 return embedding_func(
                     texts,
                     model_name=model_name,

@@ -483,34 +483,37 @@ function updateHeatmap(phrases, similarities) {
 
 // ---- Scatter plot ----
 
-// Palette for t-SNE: classic, clearly distinct
-const SCATTER_PALETTE = {
-    'Above Threshold': { bg: 'rgba(34, 139, 34, 0.72)',  border: 'rgba(22, 100, 22, 1)'   },  // Forest green
-    'Below Threshold': { bg: 'rgba(200, 40,  40,  0.70)', border: 'rgba(150, 20, 20, 1)'   }   // Deep red
-};
-
 // Store the current plot data so threshold can be reapplied without rebuilding t-SNE
 let currentPlotData = null;
+let currentThreshold = 0.0;
 
 /**
- * Build two datasets (above/below) from raw plot data at a given threshold.
+ * Build single dataset from raw plot data at a given threshold.
  */
 function _buildDatasetsAtThreshold(plotData, threshold) {
-    const aboveData = [];
-    const belowData = [];
+    const dataPoints = [];
+    const bgColors = [];
+    const borderColors = [];
+
     for (let i = 0; i < plotData.similarities.length; i++) {
-        const pt = { x: plotData.x[i], y: plotData.y[i], similarity: plotData.similarities[i] };
-        if (plotData.similarities[i] >= threshold) aboveData.push(pt);
-        else                                        belowData.push(pt);
+        const sim = plotData.similarities[i];
+        dataPoints.push({ x: plotData.x[i], y: plotData.y[i], similarity: sim });
+        
+        if (sim >= threshold) {
+            const colorInfo = cmap_heatmap(sim);
+            const rgba = colorInfo.rgb.replace('rgb', 'rgba').replace(')', ', 0.72)');
+            bgColors.push(rgba);
+            borderColors.push(colorInfo.rgb);
+        } else {
+            bgColors.push('rgba(160, 160, 160, 0.5)'); // Gray
+            borderColors.push('rgba(100, 100, 100, 0.8)');
+        }
     }
+
     return [
-        { label: 'Above Threshold', data: aboveData,
-          backgroundColor: SCATTER_PALETTE['Above Threshold'].bg,
-          borderColor:     SCATTER_PALETTE['Above Threshold'].border,
-          borderWidth: 1, pointRadius: 4, pointHoverRadius: 6 },
-        { label: 'Below Threshold', data: belowData,
-          backgroundColor: SCATTER_PALETTE['Below Threshold'].bg,
-          borderColor:     SCATTER_PALETTE['Below Threshold'].border,
+        { label: 'Chunks', data: dataPoints,
+          backgroundColor: bgColors,
+          borderColor:     borderColors,
           borderWidth: 1, pointRadius: 4, pointHoverRadius: 6 }
     ];
 }
@@ -522,8 +525,8 @@ function _buildDatasetsAtThreshold(plotData, threshold) {
 function reapplyThreshold(threshold) {
     if (!scatterChart || !currentPlotData) return;
     const newDatasets = _buildDatasetsAtThreshold(currentPlotData, threshold);
-    scatterChart.data.datasets[0].data = newDatasets[0].data;
-    scatterChart.data.datasets[1].data = newDatasets[1].data;
+    scatterChart.data.datasets[0].backgroundColor = newDatasets[0].backgroundColor;
+    scatterChart.data.datasets[0].borderColor = newDatasets[0].borderColor;
     scatterChart.update('none');  // 'none' = no animation
 }
 
@@ -544,6 +547,7 @@ function _initThresholdControl(threshold) {
     newSlider.value = threshold;
     newSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
+        currentThreshold = val;
         document.getElementById('threshold-value-display').textContent = val.toFixed(2);
         reapplyThreshold(val);
     });
@@ -563,7 +567,7 @@ function updateScatterPlot(plotData) {
     }
 
     currentPlotData = plotData;
-    const threshold = plotData.threshold ?? 0.5;
+    const threshold = currentThreshold;
 
     const canvas = document.createElement('canvas');
     scatterPlotContainer.appendChild(canvas);

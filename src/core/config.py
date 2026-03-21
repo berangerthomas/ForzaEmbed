@@ -48,6 +48,15 @@ class ModelConfig(BaseModel):
         dimensions: The embedding dimension of the model.
         base_url: Optional base URL for API-based models.
         timeout: Optional request timeout in seconds for API models.
+        max_tokens: Optional maximum number of tokens per text. When a text exceeds 
+            this limit, it will be split into smaller chunks and recombined.
+            If None, uses model default (typically 512).
+        pooling_strategy: Optional strategy for combining chunk embeddings when text 
+            exceeds max_tokens. Options: "max" (default), "average", "weighted", "last".
+            - "max": Max pooling - captures most salient features
+            - "average": Mean of all chunks - preserves overall semantics
+            - "weighted": First chunks weighted more - useful for structured documents
+            - "last": Uses only last chunk - useful for summaries/conclusions
     """
 
     type: str
@@ -55,6 +64,8 @@ class ModelConfig(BaseModel):
     dimensions: int
     base_url: str | None = None
     timeout: int | None = None
+    max_tokens: int | None = None
+    pooling_strategy: str = "max"
 
 
 class DatabaseSettings(BaseModel):
@@ -63,9 +74,36 @@ class DatabaseSettings(BaseModel):
     Attributes:
         intelligent_quantization: Whether to enable intelligent quantization
             for reducing storage size.
+        quantize_metrics: Whether to quantize metrics (similarities, scores).
+            If True, metrics are stored with reduced precision (uint16) to save space.
+            If False, metrics are stored in full float32 precision.
+            Set to False if you need exact metric values without any quantization loss.
     """
 
     intelligent_quantization: bool
+    quantize_metrics: bool = True
+
+
+class EmbeddingPoolingStrategy(str):
+    """Strategy for combining embeddings when text exceeds model token limit.
+    
+    When a text is too long for the embedding model, it's split into smaller
+    chunks and their embeddings are combined using one of these strategies:
+    
+    - "max": Max pooling - takes the maximum value across all chunks for each 
+             dimension. Best for capturing the most salient features.
+    - "average": Average pooling - computes the mean of all chunk embeddings.
+                 Preserves overall semantic content but may dilute important features.
+    - "weighted": Weighted pooling - gives more importance to the first chunks.
+                  Useful when the beginning of text is more informative.
+    - "last": Uses only the last chunk embedding. Useful when the end of text 
+              contains summaries or conclusions.
+    """
+    
+    MAX = "max"
+    AVERAGE = "average"
+    WEIGHTED = "weighted"
+    LAST = "last"
 
 
 class MultiprocessingSettings(BaseModel):

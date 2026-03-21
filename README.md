@@ -238,7 +238,8 @@ Configure settings for parallel processing to speed up computations.
 ## Key Features
 
 -   **Smart Grid Search**: Intelligently optimizes parameter combinations by avoiding redundant calculations for chunking strategies that don't use chunk_size/overlap parameters (like `nltk` and `spacy`). This can reduce grid search time by up to 40%.
--   **Broad Model Support**: Interfaces with multiple embedding providers, including local models (Hugging Face, FastEmbed, SentenceTransformers) and API-based services.
+-   **Broad Model Support**: Interfaces with multiple embedding providers, including local models (Hugging Face, FastEmbed, SentenceTransformers) and API-based services. Memory usage is safely managed via configurable batch sizes.
+-   **Dynamic Token Pooling**: Automatically splits and recombines (via max, average, or weighted pooling) texts that exceed local model token limits, preventing truncation data loss.
 -   **Versatile Chunking**: Implements various chunking methods:
     -   **Parameter-sensitive**: `langchain`, `raw`, `semchunk` (use chunk_size and chunk_overlap)
     -   **Parameter-insensitive**: `nltk`, `spacy` (sentence-based, ignore chunk parameters)
@@ -246,8 +247,8 @@ Configure settings for parallel processing to speed up computations.
 -   **Focused Evaluation Metrics**: Uses **silhouette score** with **intra/inter-cluster distance decomposition** and **embedding computation time** tracking for efficient quality assessment.
 -   **Resumable & Cached**: Caches embeddings and t-SNE results in a SQLite database to accelerate subsequent runs and allows resuming interrupted workflows seamlessly.
 -   **Robust Database Management**: Uses **SQLAlchemy ORM** for reliable, efficient, and structured data storage in SQLite.
--   **Intelligent Database Quantization**: Automatically reduces database size by storing numerical data (like embeddings and similarities) in more efficient formats (e.g., float16).
--   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and a **standalone interactive web interface** (single HTML file) with heatmaps and t-SNE visualizations. No external server or complex setup required to view results.
+-   **Intelligent Database Quantization**: Automatically reduces database size by storing numerical data (like embeddings and similarities) in more efficient formats (e.g., float16) with fully customizable precision toggles.
+-   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and a **standalone interactive web interface** (single HTML file) featuring persistent dynamic thresholds, continuous similarity color-grading, text heatmaps, and zero-dependency t-SNE scatter visualizations. No external server or complex setup required to view results.
 
 ## License
 

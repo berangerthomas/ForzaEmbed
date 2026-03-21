@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] - 2026-03-21
+
+### Fixed
+- **GPU caching**: Removed permanent GPU/CPU fallback caching in FastEmbed client. GPU detection now re-attempts on each call for dynamic GPU availability. Added `reset_instance()` method for manual model reload.
+
+### Added
+- **Visualization**: Added a continuous color gradient legend for textual similarity in the HTML report.
+- **Token length protection**: New `max_tokens` parameter in `ModelConfig` for FastEmbed and SentenceTransformers. Texts exceeding this limit are now split into smaller chunks and recombined using pooling.
+- **Dynamic embedding chunking**: When `max_tokens` is set, long texts are automatically split into chunks that fit within the token limit, and their embeddings are combined using a pooling strategy. Four strategies available:
+  - `max` (default): Max pooling - captures most salient features
+  - `average`: Mean pooling - preserves overall semantic content
+  - `weighted`: Weighted pooling - gives more importance to first chunks
+  - `last`: Uses only the last chunk - useful for summaries/conclusions
+- **SentenceTransformers batch size**: Added `batch_size` parameter to control memory usage.
+- **Quantization toggle**: New `quantize_metrics` option in database settings. Set to `false` to store metrics in full float32 precision without quantization loss.
+- **New utility module**: `src/utils/embedding_pooling.py` provides `split_text_into_chunks()` and `pool_embeddings()` functions.
+
+### Changed
+- **Visualization**: Unified the t-SNE scatter plot point colors with the textual similarity heatmap palette.
+- **Visualization**: The threshold slider now greys out points below the threshold (instead of assigning them a specific color) to better highlight relevant chunks.
+- **Visualization**: The threshold slider's value is now preserved across parameter switches in the UI, and defaults to `0.00`.
+
 ## [1.2.0] - 2026-02-18
 
 ### Added
