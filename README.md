@@ -3,70 +3,49 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://berangerthomas.github.io/ForzaEmbed/)
-[![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97-Demo-yellow.svg)](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)
+[![Hugging Face Demo](https://img.shields.io/badge/🤗-Demo-yellow.svg)](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)
 [![GitHub release](https://img.shields.io/github/v/release/berangerthomas/ForzaEmbed)](https://github.com/berangerthomas/ForzaEmbed/releases)
 
-ForzaEmbed is a Python framework for systematically benchmarking text embedding models and processing strategies. It performs an exhaustive grid search across a configurable parameter space to help you find the optimal configuration for your document corpus.
+ForzaEmbed is a Python framework for **benchmarking text embedding models** and processing strategies.
+
+It runs a grid search over configurable hyperparameters (embedding model, chunking strategy, chunk size, similarity metric, etc.) and produces a **textual heatmap** highlighting theme-relevant text regions, alongside **t-SNE, UMAP, and PCA visualizations** to analyze embedding structure.
 
 📖 **[Documentation](https://berangerthomas.github.io/ForzaEmbed/)** · 🚀 **[Live Demo](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)** · 📦 **[Releases](https://github.com/berangerthomas/ForzaEmbed/releases)**
 
-<video src="https://github.com/user-attachments/assets/74e2b6a6-db18-4a25-ba2a-8c6047552942" controls autoplay loop muted></video>
-
-## Table of Contents
-
-- [How It Works](#how-it-works)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-  - [1. Installation](#1-installation)
-  - [2. Place Your Documents](#2-place-your-documents)
-  - [3. Configure the Analysis](#3-configure-the-analysis)
-  - [4. Run the Pipeline](#4-run-the-pipeline)
-- [Command-Line Usage](#command-line-usage)
-  - [First Run](#first-run)
-  - [Resuming a Run](#resuming-a-run)
-  - [Generating Reports Only](#generating-reports-only)
-- [Key Features](#key-features)
-- [License](#license)
+<!-- demo video -->
+https://github.com/user-attachments/assets/74e2b6a6-db18-4a25-ba2a-8c6047552942
 
 ---
 
 ## How It Works
 
-ForzaEmbed automates the process of evaluating text embedding configurations by following these steps:
+You drop your `.md` documents into `markdowns/`, define the parameter space in a YAML config file, and run `main.py`. ForzaEmbed then:
 
-1.  **Data Loading**: Ingests source documents from the `markdowns/` directory.
-2.  **Grid Search**: Iterates through every combination of parameters defined in your configuration file (e.g., `configs/config.yml`).
-3.  **Processing Pipeline**: For each combination, the framework:
-    -   Chunks the text using a specified strategy.
-    -   Generates embeddings using the selected model.
-    -   Computes similarity scores based on defined themes.
-4.  **Evaluation**: Calculates clustering metrics (silhouette score with its decomposition and embedding computation time) to assess the quality of the results.
-5.  **Persistence & Caching**: Stores all results, metrics, and generated embeddings in a SQLite database. This caching accelerates subsequent runs by avoiding redundant computations.
-6.  **Report Generation**: Produces detailed reports, including a **standalone interactive web interface** (single HTML file), to visualize and analyze the findings without needing a server.
+1. reads all documents from `markdowns/`;
+2. expands the config into every combination of chunk size, overlap, chunking strategy, embedding model, and similarity metric;
+3. for each combination: chunks the text, generates embeddings, and scores chunks against your defined themes;
+4. evaluates each configuration using silhouette score (with intra/inter-cluster decomposition) and embedding computation time;
+5. caches all results and embeddings in a SQLite database — completed combinations are skipped on subsequent runs;
+6. generates a standalone interactive HTML report (heatmaps, t-SNE visualizations, CSV exports) in `reports/`.
+
+> **Note on chunking strategies**: `langchain`, `raw`, and `semchunk` are parameter-sensitive (they use `chunk_size` and `chunk_overlap`). `nltk` and `spacy` are sentence-based and ignore those parameters — ForzaEmbed avoids generating redundant combinations for them, which can reduce the total number of runs by up to 40%.
 
 ---
 
 ## Project Structure
 
-Understanding the directory layout is key to using ForzaEmbed effectively.
-
 ```
 ForzaEmbed/
-├── configs/
-│   └── config.yml        # Your analysis configuration files go here.
-├── markdowns/
-│   └── document.md       # Your source text files (.md) go here.
-├── reports/
-│   └── ForzaEmbed_config.db # SQLite database for results.
-├── src/
-│   └── ...               # Source code of the application.
-└── main.py               # The main script to run the tool.
+├── configs/          # YAML configuration files
+├── docs/             # Documentation source (GitHub Pages)
+├── markdowns/        # Source .md documents to analyse
+├── reports/          # Generated reports and SQLite databases
+├── src/              # Application source code
+├── main.py           # Entry point
+└── pyproject.toml    # Project metadata and dependencies
 ```
 
--   **`configs/`**: This directory holds your YAML configuration files. You can create multiple configurations for different experiments (e.g., `config_horaires.yml`, `config_topics.yml`).
--   **`markdowns/`**: Place the text documents you want to analyze here. The tool will process all `.md` files in this folder.
--   **`reports/`**: This is where all outputs are stored, including the SQLite database and the final interactive web report.
-    -   **`ForzaEmbed_<config_name>.db`**: The central SQLite database. It stores all experiment results and metrics.
+Each config run produces a dedicated database file: `reports/ForzaEmbed_<config_name>.db`.
 
 ---
 
@@ -74,182 +53,101 @@ ForzaEmbed/
 
 ### 1. Installation
 
-This project uses `uv` for fast and efficient package management.
-
 ```bash
-# 1. Clone the repository
+# Install uv (https://docs.astral.sh/uv/)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# On Windows: winget install --id=astral-sh.uv -e
+
+# Clone and install
 git clone https://github.com/berangerthomas/ForzaEmbed.git
 cd ForzaEmbed
-
-# 2. Install dependencies
-pip install uv
 uv sync
 ```
 
-### 2. Place Your Documents
+### 2. Add your documents
 
-Put your markdown (`.md`) files into the `markdowns/` directory.
+Put your `.md` files into `markdowns/`.
 
-### 3. Configure the Analysis
+### 3. Configure and run
 
-Open a configuration file (e.g., `configs/config.yml`) and define the parameters for your grid search. This includes:
--   Chunking strategies, sizes, and overlaps.
--   Embedding models to test (from Hugging Face, FastEmbed, etc.).
--   Similarity metrics.
--   Thematic keywords for the analysis.
+Edit `configs/config.yml` (see [Configuration Guide](#configuration-guide) below), then:
 
-Refer to the [Configuration Guide](#configuration-guide) below for detailed explanations.
-
-### 4. Run the Pipeline
-
-Execute the main script from your terminal to start the process. See the [Command-Line Usage](#command-line-usage) section below for detailed commands.
+```bash
+python main.py --run --config-path configs/config.yml
+```
 
 ---
 
 ## Command-Line Usage
 
-ForzaEmbed is controlled via a command-line interface.
-
-### First Run
-
-To start a new analysis from scratch, use the `--run` command and specify your configuration file.
+### First run
 
 ```bash
 python main.py --run --config-path configs/config.yml
 ```
 
-This command will:
-1.  Read the documents from the `markdowns/` directory.
-2.  Execute the grid search based on `configs/config.yml`.
-3.  Save all results and embeddings to `reports/ForzaEmbed_config.db`.
-4.  Generate a detailed **standalone** interactive HTML report in the `reports/` directory (e.g., `reports/config_index.html`).
+Reads documents from `markdowns/`, runs the grid search, saves results to `reports/ForzaEmbed_config.db`, and generates `reports/config_index.html`.
 
-### Resuming a Run
+### Resuming an interrupted run
 
-If a run is interrupted, simply execute the same command again. ForzaEmbed automatically detects completed work and resumes from where it left off.
+Re-run the same command. Completed combinations are detected and skipped automatically.
 
-```bash
-python main.py --run --config-path configs/config.yml
-```
+### Regenerating reports only
 
-### Generating Reports Only
-
-If you want to regenerate the reports from existing data in the database without re-running the computations, use the `--generate-reports` command.
+To rebuild reports from existing database data (e.g. to change `--top-n`) without rerunning computations:
 
 ```bash
 python main.py --generate-reports --config-path configs/config.yml
 ```
 
-This is useful for changing the number of top results displayed (`--top-n`) or tweaking report settings.
-
 ---
 
 ## Configuration Guide
 
-The `config.yml` file is the control center for your analysis. It's written in YAML and is divided into several sections. Here’s a breakdown based on a real-world example for analyzing text related to business hours:
+Below is an annotated example. For the full parameter reference, see the [documentation](https://berangerthomas.github.io/ForzaEmbed/).
 
 ```yaml
-# Parameters for the grid search
 grid_search_params:
   chunk_size: [50, 100, 250, 500]
   chunk_overlap: [10, 25, 50]
   chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
   similarity_metrics: ["cosine", "euclidean", "dot_product"]
   themes:
-    horaires_ouverture: ["horaires d'ouverture", "heures d'ouverture", "accueil du public"]
-    jours_fermeture: ["jour de fermeture", "fermeture exceptionnelle", "fermeture annuelle", "jours fériés"]
-    jours_semaine: ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    opening_hours: ["opening hours", "public reception hours"]
+    closing_days: ["closing day", "exceptional closure", "public holidays"]
+    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
-# Models to be tested in the grid search
 models_to_test:
   - type: "fastembed"
     name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     dimensions: 384
-  - type: "fastembed"
-    name: "intfloat/multilingual-e5-large"
-    dimensions: 1024
   - type: "huggingface"
     name: "Qwen/Qwen3-Embedding-0.6B"
     dimensions: 1024
   - type: "api"
     name: "nomic-embed-text"
-    base_url: "https://api.nomic.ai/v1" # Example, replace with your provider
+    base_url: "https://api.nomic.ai/v1"  # replace with your provider
     dimensions: 768
     timeout: 240
 
-# General settings
-similarity_threshold: 0.6
+similarity_threshold: 0.6  # highlights points above this value in t-SNE
 output_dir: "reports"
 
-# Database settings
 database:
-  # Enable intelligent quantization to reduce storage size.
-  # For example, embeddings are converted from float64 to float16.
-  intelligent_quantization: true
+  intelligent_quantization: true  # stores embeddings as float16 to reduce DB size
 
-# Multiprocessing settings
 multiprocessing:
   max_workers_api: 16
-  max_workers_local: null # Set to a number to limit CPU cores for local models
-  maxtasksperchild: 10
+  max_workers_local: null  # null = all available cores
   embedding_batch_size_api: 100
   embedding_batch_size_local: 500
-  file_batch_size: 50
-  api_batch_sizes:
-    mistral: 50
-    default: 100
 ```
 
-### `grid_search_params`
-
-This section defines the parameter space for the grid search. The framework will test every possible combination of the values you provide.
-
--   `chunk_size`: A list of integers representing the different chunk sizes (in tokens or characters, depending on the strategy) to test.
--   `chunk_overlap`: A list of integers for the number of tokens/characters to overlap between chunks.
--   `chunking_strategy`: A list of chunking algorithms to evaluate.
--   `similarity_metrics`: A list of metrics for calculating similarity scores.
--   `themes`: A dictionary where each key is a theme name (e.g., `Economics_and_Finance`) and the value is a list of keywords and phrases related to that theme. The analysis will be based on these themes.
-
-### `models_to_test`
-
-A list of embedding models to evaluate. Each model is an object with the following properties:
-
--   `type`: The provider of the model. Can be `fastembed`, `huggingface`, `sentence_transformers`, or `api`.
--   `name`: The official model name (e.g., `"intfloat/multilingual-e5-large"`).
--   `dimensions`: The embedding dimension of the model.
--   `base_url` (for `api` type): The base URL of the embedding API endpoint.
--   `timeout` (for `api` type, optional): The request timeout in seconds.
-
-### General & Database Settings
-
--   `similarity_threshold`: A float between 0.0 and 1.0. In the t-SNE visualization, points with a similarity score above this threshold will be highlighted.
--   `output_dir`: The directory where reports will be saved (default is `"reports"`).
--   `database.intelligent_quantization`: If `true`, enables optimizations to reduce the database size by storing numerical data in more efficient formats.
-
-### `multiprocessing`
-
-Configure settings for parallel processing to speed up computations.
-
--   `max_workers_api` / `max_workers_local`: The number of parallel workers for API-based and local models.
--   `embedding_batch_size_api` / `embedding_batch_size_local`: The number of texts to process in a single batch for embedding generation.
+Supported model types: `fastembed`, `huggingface`, `sentence_transformers`, `api`.  
+Supported similarity metrics: `cosine`, `euclidean`, `manhattan`, `dot_product`, `chebyshev`.
 
 ---
 
-## Key Features
-
--   **Smart Grid Search**: Intelligently optimizes parameter combinations by avoiding redundant calculations for chunking strategies that don't use chunk_size/overlap parameters (like `nltk` and `spacy`). This can reduce grid search time by up to 40%.
--   **Broad Model Support**: Interfaces with multiple embedding providers, including local models (Hugging Face, FastEmbed, SentenceTransformers) and API-based services. Memory usage is safely managed via configurable batch sizes.
--   **Dynamic Token Pooling**: Automatically splits and recombines (via max, average, or weighted pooling) texts that exceed local model token limits, preventing truncation data loss.
--   **Versatile Chunking**: Implements various chunking methods:
-    -   **Parameter-sensitive**: `langchain`, `raw`, `semchunk` (use chunk_size and chunk_overlap)
-    -   **Parameter-insensitive**: `nltk`, `spacy` (sentence-based, ignore chunk parameters)
--   **Multiple Similarity Metrics**: Supports `cosine`, `euclidean`, `manhattan`, `dot_product`, and `chebyshev`.
--   **Focused Evaluation Metrics**: Uses **silhouette score** with **intra/inter-cluster distance decomposition** and **embedding computation time** tracking for efficient quality assessment.
--   **Resumable & Cached**: Caches embeddings and t-SNE results in a SQLite database to accelerate subsequent runs and allows resuming interrupted workflows seamlessly.
--   **Robust Database Management**: Uses **SQLAlchemy ORM** for reliable, efficient, and structured data storage in SQLite.
--   **Intelligent Database Quantization**: Automatically reduces database size by storing numerical data (like embeddings and similarities) in more efficient formats (e.g., float16) with fully customizable precision toggles.
--   **Rich Reporting**: Produces detailed comparison charts, CSV exports, and a **standalone interactive web interface** (single HTML file) featuring persistent dynamic thresholds, continuous similarity color-grading, text heatmaps, and zero-dependency t-SNE scatter visualizations. No external server or complex setup required to view results.
-
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
