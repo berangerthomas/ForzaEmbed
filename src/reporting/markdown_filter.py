@@ -54,7 +54,9 @@ class MarkdownFilter:
         self.config = config
         self.output_dir = output_dir
         self.config_name = config_name
-        self.similarity_threshold = config.get("similarity_threshold", 0.5)
+        # Server-side similarity-based filtering has been removed.
+        # Keep initialization for compatibility; no threshold is read from config anymore.
+        self.similarity_threshold = None
 
     def generate_filtered_markdowns(self) -> None:
         """Generate filtered markdown files containing only chunks above threshold.
@@ -66,7 +68,12 @@ class MarkdownFilter:
             logging.info("Filtered markdown generation is disabled in config.")
             return
 
-        logging.info("Generating filtered markdown files...")
+        # Server-side similarity threshold filtering removed — skip generation.
+        logging.warning(
+            "Server-side similarity-based filtered markdown generation has been removed. "
+            "Use the client-side threshold slider in the HTML report to interactively filter content."
+        )
+        return
 
         # Create filtered markdowns directory
         filtered_dir = self.output_dir / "filtered_markdowns"

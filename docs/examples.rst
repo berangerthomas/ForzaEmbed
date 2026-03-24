@@ -1,4 +1,5 @@
 Examples
+Examples
 ========
 
 Common use cases and example configurations for ForzaEmbed.
@@ -34,7 +35,6 @@ Configuration
         name: "BAAI/bge-small-en-v1.5"
         dimensions: 384
 
-    similarity_threshold: 0.6
     output_dir: "reports"
 
     database:
@@ -103,7 +103,6 @@ Configuration
         name: "all-mpnet-base-v2"
         dimensions: 768
 
-    similarity_threshold: 0.6
     output_dir: "reports"
 
 Python Code
@@ -205,22 +204,6 @@ Smart Grid Search Optimization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ForzaEmbed automatically optimizes grid search by detecting chunking strategies that don't use chunk_size and chunk_overlap parameters.
-
-**Parameter-Insensitive Strategies** (sentence-based):
-
-* ``nltk``: Uses ``nltk.sent_tokenize()`` - ignores chunk parameters
-* ``spacy``: Uses spaCy's sentence segmentation - ignores chunk parameters
-
-**Parameter-Sensitive Strategies** (size-based):
-
-* ``langchain``: Uses RecursiveCharacterTextSplitter with exact size control
-* ``semchunk``: Semantic chunking with size limits
-* ``raw``: Character-based chunking with overlap
-
-**Impact Example:**
-
-With a configuration having:
-
 * 7 chunk_sizes × 7 chunk_overlaps = 35 valid pairs
 * 5 strategies (3 sensitive + 2 insensitive)
 * 6 models, 5 metrics, 3 themes

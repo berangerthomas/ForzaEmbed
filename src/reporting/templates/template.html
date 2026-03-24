@@ -7,6 +7,138 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <style>
 %%MINIFIED_CSS%%
+        /* Dimmed chunk style for heatmap thresholding */
+        .chunk--dimmed {
+            opacity: 0.28;
+            color: #9ca3af;
+            transition: opacity 160ms linear, color 160ms linear;
+        }
+        /* Floating threshold control (scaled: narrower and slightly shorter) */
+        .floating-threshold {
+            position: fixed;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 72px; /* reduced further a bit */
+            height: 255px; /* reduced by 25% from 340px */
+            background: rgba(255,255,255,0.98);
+            border: 1px solid #e6eef8;
+            box-shadow: 0 8px 26px rgba(18,38,63,0.12);
+            border-radius: 8px;
+            padding: 4px;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 6px;
+            user-select: none;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .floating-threshold .floating-header {
+            font-size: 0.72em;
+            color: #475569;
+            text-align: center;
+            cursor: grab;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: linear-gradient(180deg, rgba(8,145,255,0.03), transparent);
+            box-sizing: border-box;
+        }
+        .floating-threshold .floating-header:active { cursor: grabbing; }
+        .floating-threshold .floating-value { font-size: 0.85em; color: #0f172a; font-weight: 700; margin-top: 2px; }
+
+        /* visual track container for the vertical slider */
+        .floating-threshold .floating-track {
+            width: 38px; /* slightly narrower to match overall shrink */
+            height: 165px; /* scaled vertically (220 * 0.75) */
+            background: #f8fafc;
+            border: 1px solid #e6eef8;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 4px; /* slightly reduced to match scaling */
+            box-sizing: border-box;
+            overflow: hidden; /* prevent the rotated input from overflowing the visual rail */
+        }
+        .floating-threshold input[type="range"] {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) rotate(-90deg);
+            transform-origin: center center;
+            /* width tuned to avoid overflowing the rail (inner length minus borders/padding) */
+            width: 135px; /* (165 - 8) / 0.75 to account for vertical scaling */
+            height: 20px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            margin: 0;
+            padding: 0;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .floating-threshold input[type="range"]:focus { outline: none; }
+        /* Use the same thumb and track visuals as the horizontal sliders in style.css */
+        .floating-threshold input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 10px;
+            height: 10px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #2563eb;
+            /* Centre le thumb sur la rampe :
+               margin-top = -(hauteur totale thumb - hauteur track) / 2
+               = -(14px - 3px) / 2 = -5.5px */
+            margin-top: -3.5px;
+        }
+        .floating-threshold input[type="range"]::-moz-range-thumb {
+            width: 10px;
+            height: 10px;
+            background: #2563eb;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px #2563eb;
+        }
+        .floating-threshold input[type="range"]:disabled::-webkit-slider-thumb {
+            background: #94a3b8;
+            box-shadow: 0 0 0 1px #94a3b8;
+        }
+        .floating-threshold input[type="range"]:disabled::-moz-range-thumb {
+            background: #94a3b8;
+        }
+        .floating-threshold input[type="range"]::-webkit-slider-runnable-track {
+            height: 3px;
+            background: #d0d5dd;
+            border-radius: 0;
+        }
+        .floating-threshold input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: #d0d5dd;
+            border-radius: 0;
+        }
+        .floating-hint {
+            font-size: 0.68em;
+            color: #b0bac8;
+            font-style: italic;
+            white-space: normal;
+            margin-top: 6px;
+            text-align: center;
+            width: 44px; /* reduced horizontally a bit more */
+            line-height: 1.1;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -78,6 +210,12 @@
                 </label>
                 <input type="range" id="similarity-metric-slider" min="0" max="0" value="0">
             </div>
+            <div class="control-group" style="margin-top: 8px;">
+                <label>
+                    <span class="label-text" title="The total number of text chunks generated by the selected chunking strategy and size parameters.">Chunks Generated</span>
+                    <span id="chunk-count-value" class="label-value">-</span>
+                </label>
+            </div>
         </div>
 
         <!-- Quality metrics -->
@@ -100,21 +238,54 @@
 
         <!-- Reports & scatter plot -->
         <div class="section-card visualization">
-            <h2>Reports &amp; Visualisations</h2>
-            <div id="file-links-container" class="file-links-grid">
+
+            <h2>Projection Visualisation</h2>
+            <div class="similarity-legend" style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px; font-size: 0.85em; color: #64748b;">
+                <span style="margin-right: 10px;">Low Similarity (0.0)</span>
+                <div style="width: 300px; height: 12px; border-radius: 6px; background: linear-gradient(to right, rgb(58,112,189), rgb(108,187,170), rgb(254,246,140), rgb(240,140,50), rgb(200,40,40)); border: 1px solid #e2e8f0;"></div>
+                <span style="margin-left: 10px;">High Similarity (1.0)</span>
+            </div>
+            <div style="display: flex; gap: 0px; margin-bottom: 0px; justify-content: center;" id="projection-buttons">
+                <button id="btn-tsne" class="proj-btn active" style="padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-weight: 500;">t-SNE</button>
+                <button id="btn-umap" class="proj-btn" style="padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #475569; cursor: pointer; font-weight: 500;">UMAP</button>
+                <button id="btn-pca" class="proj-btn" style="padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #475569; cursor: pointer; font-weight: 500;">PCA</button>
+            </div>
+            <div id="file-links-container" class="file-links-grid" style="margin-bottom:0px;">
 %%GRAPH_LINKS%%
             </div>
 
             <div id="scatter-plot-container"></div>
 
-            <!-- Threshold control — shown only when scatter data is available -->
-            <div id="threshold-control" class="threshold-control" style="display:none;">
-                <div class="threshold-inner">
-                    <span class="threshold-label">Similarity threshold</span>
-                    <span id="threshold-value-display" class="threshold-value">0.00</span>
+            <!-- Controls and Metadata for t-SNE -->
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; margin-top: 12px;">
+                
+                <!-- Metadata Badges -->
+                <div id="tsne-metadata" style="display: none; gap: 8px;">
+                    <div title="Kullback-Leibler Divergence: Measures how well the 2D projection preserves the original high-dimensional distances. Closer to 0.0 is better." 
+                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                        <span style="font-weight: 600; margin-right: 4px;">KL Div:</span>
+                        <span id="tsne-kl-value">N/A</span>
+                    </div>
+                    <div title="Perplexity: The balance between local and global attention in the algorithm. Auto-calculated based on chunk count (max 30)." 
+                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                        <span style="font-weight: 600; margin-right: 4px;">Perplexity:</span>
+                        <span id="tsne-perplexity-value">N/A</span>
+                    </div>
+                    <div title="Iterations: The number of optimization steps performed by the t-SNE algorithm before converging." 
+                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                        <span style="font-weight: 600; margin-right: 4px;">Iter:</span>
+                        <span id="tsne-iter-value">N/A</span>
+                    </div>
                 </div>
-                <input type="range" id="threshold-slider" min="0" max="1" step="0.01" value="0">
-                <span class="threshold-hint">Points below threshold are greyed out</span>
+
+                <!-- (Removed) horizontal threshold control — replaced by floating control -->
+            </div>
+
+            <div id="tsne-static-params" style="display: none; font-size: 0.72em; color: #94a3b8; text-align: center; margin-top: 14px; font-style: italic;">
+                Algorithm Parameters: 
+                <span style="font-weight: 500;">init</span>="<span id="tsne-init-value">pca</span>" &bull; 
+                <span style="font-weight: 500;">learning_rate</span>="<span id="tsne-lr-value">auto</span>" &bull; 
+                <span style="font-weight: 500;">max_iter</span>=<span id="tsne-maxiter-value">1000</span>
             </div>
         </div>
 
@@ -130,6 +301,16 @@
         </footer>
 
     </div><!-- /.container -->
+
+    <!-- Floating draggable threshold control (left side) -->
+    <div id="floating-threshold" class="floating-threshold" role="region" aria-label="Similarity threshold control">
+        <div id="floating-threshold-hdr" class="floating-header">Similarity threshold</div>
+        <div class="floating-track">
+            <input id="floating-threshold-slider" type="range" min="0" max="1" step="0.01" value="0" aria-label="Similarity threshold">
+        </div>
+        <div id="floating-threshold-value" class="floating-value">0.00</div>
+        <div class="floating-hint" title="Chunks and points with similarity below the threshold are dimmed">Dimmed<br/>below threshold</div>
+    </div>
 
     <script>
 %%JS_PAYLOAD%%

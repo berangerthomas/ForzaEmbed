@@ -214,14 +214,13 @@ class Processor:
             # Convert metrics to safe Python types
             all_metrics = self._safe_convert_to_python_types(all_metrics)
 
-            # Generate t-SNE coordinates
+            # Generate projection coordinates (UMAP, t-SNE, PCA)
             tsne_key = f"{model_config.name}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
-            scatter_plot_data = self.visualization_service.get_or_create_tsne_data(
+            scatter_plot_data = self.visualization_service.get_or_create_projections(
                 item_embed_phrases,
                 tsne_key,
                 name,
                 similarites,
-                self.config.similarity_threshold,
             )
 
             # Ensure all data is properly converted

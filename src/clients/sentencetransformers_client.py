@@ -45,7 +45,13 @@ class SentenceTransformersClient:
             Loaded SentenceTransformer model instance.
         """
         if model_name not in cls._instances:
-            cls._instances[model_name] = SentenceTransformer(model_name)
+            try:
+                cls._instances[model_name] = SentenceTransformer(model_name)
+            except Exception:
+                cls._instances[model_name] = SentenceTransformer(
+                    model_name,
+                    trust_remote_code=True
+                )
         return cls._instances[model_name]
 
     @classmethod

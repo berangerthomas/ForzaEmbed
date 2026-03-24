@@ -63,7 +63,8 @@ class ReportGenerator:
         self.config = config
         self.output_dir = output_dir
         self.config_name = config_name
-        self.similarity_threshold = config.get("similarity_threshold", 0.6)
+        # Server-side similarity threshold removed; report generator no longer reads it.
+        self.similarity_threshold = None
         self.data_aggregator = DataAggregator(db, output_dir, config_name)
         self.markdown_filter = MarkdownFilter(db, config, output_dir, config_name)
 

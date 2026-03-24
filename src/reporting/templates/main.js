@@ -69,6 +69,7 @@ let processedData = {};
 let fileKeys = [];
 let allEmbeddingKeys = [];
 let filteredEmbeddingKeys = [];
+let activeProjection = "tsne";
 const params = { model: [], cs: [], co: [], t: [], s: [], m: [] };
 
 // ---------------------------------------------------------------------------
@@ -133,7 +134,32 @@ function getMetricColor(metricKey, value) {
         normalizedScore = (clampedValue - config.min) / (config.max - config.min);
     }
 
-    return cmap_metrics(normalizedScore);
+    const result = cmap_metrics(normalizedScore);
+    result.normalizedScore = normalizedScore;
+    return result;
+}
+
+// ---- t-SNE Metadata coloring ----
+function getTSNEColor(metricKey, value) {
+    if (value === 'N/A' || value == null) return { rgb: '#f1f5f9' };
+    
+    // Muted: dark-slate red → pale gold → forest green
+    const cmap_metrics = createCmap([
+        { r: 192, g: 62,  b: 62  },  // Muted red
+        { r: 250, g: 235, b: 170 },  // Pale gold
+        { r: 46,  g: 130, b: 86  }   // Forest green
+    ]);
+
+    // For KL Divergence, lower is better. Range typical: 0.0 (perfect) to ~2.0+ (poor)
+    if (metricKey === 'kl_divergence') {
+        const min = 0.0;
+        const max = 2.0; 
+        const clampedValue = Math.max(min, Math.min(max, value));
+        const normalizedScore = (max - clampedValue) / (max - min); // Inverse: lower value = higher score
+        return cmap_metrics(normalizedScore);
+    }
+    
+    return { rgb: '#f1f5f9' }; // default for Iterations and Perplexity
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +288,32 @@ function initialize() {
             updateView(fileKeys[parseInt(fileSlider.value, 10)]);
         });
     });
+
+    ['tsne', 'umap', 'pca'].forEach(proj => {
+        const btn = document.getElementById('btn-' + proj);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                activeProjection = proj;
+                document.querySelectorAll('.proj-btn').forEach(b => b.classList.remove('active', 'btn-selected'));
+                document.querySelectorAll('.proj-btn').forEach(b => {b.style.background = 'white'; b.style.color = '#475569';});
+                btn.style.background = '#3b82f6';
+                btn.style.color = 'white';
+                // Trigger re-render of currently selected data
+                if (fileKeys.length > 0) {
+                    updateView(fileKeys[parseInt(fileSlider.value, 10)]);
+                }
+            });
+        }
+    });
+
+
+
+    [modelSlider, chunkSizeSlider, chunkOverlapSlider, themeSlider,
+     chunkingStrategySlider, similarityMetricSlider].forEach(slider => {
+        slider.addEventListener('input', () => {
+            updateView(fileKeys[parseInt(fileSlider.value, 10)]);
+        });
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -366,6 +418,8 @@ function updateView(fileKey, repopulate = false, highlightedMetric = null) {
 
     if (filteredEmbeddingKeys.length === 0) {
         showEmptyState('No data for this parameter combination.');
+        const chunkCountValueEL = document.getElementById('chunk-count-value');
+        if (chunkCountValueEL) chunkCountValueEL.textContent = '-';
         return;
     }
 
@@ -373,20 +427,43 @@ function updateView(fileKey, repopulate = false, highlightedMetric = null) {
     const embeddingData = fileData.embeddings[embeddingKey];
     if (!embeddingData) {
         showEmptyState('Error: Embedding data not found.');
+        const chunkCountValueEL = document.getElementById('chunk-count-value');
+        if (chunkCountValueEL) chunkCountValueEL.textContent = '-';
         return;
+    }
+
+    const chunkCountValueEL = document.getElementById('chunk-count-value');
+    if (chunkCountValueEL) {
+        chunkCountValueEL.textContent = (embeddingData.phrases && embeddingData.phrases.length > 0) ? embeddingData.phrases.length : '-';
     }
 
     const hasMetrics    = embeddingData.metrics && Object.keys(embeddingData.metrics).length > 0;
     const hasHeatmap    = embeddingData.phrases   && embeddingData.similarities &&
                           embeddingData.phrases.length > 0;
-    const hasScatter    = embeddingData.scatter_plot_data &&
-                          embeddingData.scatter_plot_data.x &&
-                          embeddingData.scatter_plot_data.x.length > 0;
+    const hasScatter    = embeddingData.scatter_plot_data;
+    
+    let plotDataToPass = null;
+    let finalHasScatter = false;
+    if (hasScatter && typeof embeddingData.scatter_plot_data === 'object') {
+        if (embeddingData.scatter_plot_data.x) {
+            plotDataToPass = embeddingData.scatter_plot_data;
+            finalHasScatter = true;
+        } else if (embeddingData.scatter_plot_data[activeProjection] && embeddingData.scatter_plot_data[activeProjection].x) {
+            plotDataToPass = embeddingData.scatter_plot_data[activeProjection];
+            finalHasScatter = true;
+        } else if (embeddingData.scatter_plot_data['umap']) {
+            plotDataToPass = embeddingData.scatter_plot_data['umap'];
+            finalHasScatter = true;
+        } else if (embeddingData.scatter_plot_data['tsne']) {
+            plotDataToPass = embeddingData.scatter_plot_data['tsne'];
+            finalHasScatter = true;
+        }
+    }
 
     if (hasMetrics && hasHeatmap) {
         updateMetrics(embeddingData.metrics, highlightedMetric);
         updateHeatmap(embeddingData.phrases, embeddingData.similarities);
-        updateScatterPlot(hasScatter ? embeddingData.scatter_plot_data : null);
+        updateScatterPlot(finalHasScatter ? plotDataToPass : null, activeProjection);
     } else {
         const missing = [];
         if (!hasMetrics) missing.push('metrics');
@@ -472,6 +549,8 @@ function updateHeatmap(phrases, similarities) {
         const score     = similarities[index] || 0.0;
         const colorInfo = cmap_heatmap(score);
         const span      = document.createElement('span');
+        span.className = 'chunk';
+        span.dataset.similarity = (typeof score === 'number') ? score.toFixed(2) : '0.00';
         span.style.backgroundColor = colorInfo.rgb;
         span.style.color           = colorInfo.isDark ? '#ffffff' : '#1a2332';
         span.textContent           = phrase;
@@ -479,6 +558,10 @@ function updateHeatmap(phrases, similarities) {
         content.appendChild(span);
     });
     heatmapContainer.appendChild(content);
+    // Ensure heatmap respects the current global threshold (if any)
+    if (typeof reapplyHeatmapThreshold === 'function') {
+        try { reapplyHeatmapThreshold(currentThreshold || 0.0); } catch (e) { /* tolerate */ }
+    }
 }
 
 // ---- Scatter plot ----
@@ -505,17 +588,31 @@ function _buildDatasetsAtThreshold(plotData, threshold) {
             bgColors.push(rgba);
             borderColors.push(colorInfo.rgb);
         } else {
-            bgColors.push('rgba(160, 160, 160, 0.5)'); // Gray
-            borderColors.push('rgba(100, 100, 100, 0.8)');
+            // Instead of turning points uniformly gray, desaturate / blend them towards white
+            const colorInfo = cmap_heatmap(sim);
+            // parse rgb(r,g,b)
+            const m = colorInfo.rgb.match(/rgb\s*\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)/);
+            if (m) {
+                const r = parseInt(m[1], 10), g = parseInt(m[2], 10), b = parseInt(m[3], 10);
+                const blend = 0.75; // how much to move towards white (0..1)
+                const dr = Math.round(r + (255 - r) * blend);
+                const dg = Math.round(g + (255 - g) * blend);
+                const db = Math.round(b + (255 - b) * blend);
+                bgColors.push(`rgba(${dr}, ${dg}, ${db}, 0.40)`);
+                borderColors.push(`rgb(${Math.round(r + (255 - r) * 0.33)}, ${Math.round(g + (255 - g) * 0.33)}, ${Math.round(b + (255 - b) * 0.33)})`);
+            } else {
+                bgColors.push('rgba(220,220,220,0.6)');
+                borderColors.push('rgba(200,200,200,0.8)');
+            }
         }
     }
 
-    return [
-        { label: 'Chunks', data: dataPoints,
-          backgroundColor: bgColors,
-          borderColor:     borderColors,
-          borderWidth: 1, pointRadius: 4, pointHoverRadius: 6 }
-    ];
+        return [
+                { data: dataPoints,
+                    backgroundColor: bgColors,
+                    borderColor:     borderColors,
+                    borderWidth: 1, pointRadius: 4, pointHoverRadius: 6 }
+        ];
 }
 
 /**
@@ -528,6 +625,24 @@ function reapplyThreshold(threshold) {
     scatterChart.data.datasets[0].backgroundColor = newDatasets[0].backgroundColor;
     scatterChart.data.datasets[0].borderColor = newDatasets[0].borderColor;
     scatterChart.update('none');  // 'none' = no animation
+}
+
+// Apply threshold to textual heatmap: dim chunks with similarity < threshold
+function reapplyHeatmapThreshold(threshold) {
+    try {
+        const chunks = document.querySelectorAll('#heatmap-container .chunk');
+        chunks.forEach(el => {
+            const sim = parseFloat(el.dataset.similarity || 0);
+            if (Number.isNaN(sim)) return;
+            if (sim < threshold) {
+                el.classList.add('chunk--dimmed');
+            } else {
+                el.classList.remove('chunk--dimmed');
+            }
+        });
+    } catch (e) {
+        // tolerate environments where DOM isn't ready
+    }
 }
 
 /** Initialise (or update) the threshold slider for the active plot. */
@@ -550,16 +665,105 @@ function _initThresholdControl(threshold) {
         currentThreshold = val;
         document.getElementById('threshold-value-display').textContent = val.toFixed(2);
         reapplyThreshold(val);
+        if (typeof reapplyHeatmapThreshold === 'function') reapplyHeatmapThreshold(val);
+        if (typeof _syncFloatingThresholdUI === 'function') _syncFloatingThresholdUI(val);
     });
 }
 
-function updateScatterPlot(plotData) {
+// Synchronize threshold UI across the original slider and the floating slider
+function _syncFloatingThresholdUI(threshold) {
+    const floatSlider = document.getElementById('floating-threshold-slider');
+    const floatDisplay = document.getElementById('floating-threshold-value');
+    const mainDisplay = document.getElementById('threshold-value-display');
+    const mainSlider = document.getElementById('threshold-slider');
+    if (floatSlider) floatSlider.value = threshold;
+    if (floatDisplay) floatDisplay.textContent = threshold.toFixed(2);
+    if (mainSlider) mainSlider.value = threshold;
+    if (mainDisplay) mainDisplay.textContent = threshold.toFixed(2);
+}
+
+// Initialize floating threshold control: drag, persistence, and event wiring
+function initFloatingThreshold() {
+    const container = document.getElementById('floating-threshold');
+    const hdr = document.getElementById('floating-threshold-hdr');
+    const slider = document.getElementById('floating-threshold-slider');
+    const display = document.getElementById('floating-threshold-value');
+    if (!container || !hdr || !slider || !display) return;
+
+    // restore position
+    try {
+        const raw = localStorage.getItem('floatingThresholdPos');
+        if (raw) {
+            const pos = JSON.parse(raw);
+            if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
+                container.style.transform = 'translateY(0)';
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    // Dragging
+    let dragging = false;
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+    hdr.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        dragging = true;
+        startX = ev.clientX; startY = ev.clientY;
+        origLeft = container.getBoundingClientRect().left; origTop = container.getBoundingClientRect().top;
+        document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (ev) => {
+        if (!dragging) return;
+        const dx = ev.clientX - startX; const dy = ev.clientY - startY;
+        let nx = origLeft + dx; let ny = origTop + dy;
+        // constrain
+        nx = Math.max(6, Math.min(window.innerWidth - container.offsetWidth - 6, nx));
+        ny = Math.max(6, Math.min(window.innerHeight - container.offsetHeight - 6, ny));
+        container.style.left = nx + 'px'; container.style.top = ny + 'px'; container.style.transform = 'translateY(0)';
+    });
+    window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false; document.body.style.userSelect = '';
+        // persist
+        try {
+            const rect = container.getBoundingClientRect();
+            localStorage.setItem('floatingThresholdPos', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+        } catch (e) { /* ignore */ }
+    });
+
+    // touch support
+    hdr.addEventListener('touchstart', (ev) => { ev.preventDefault(); const t = ev.touches[0]; hdr.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY })); });
+    window.addEventListener('touchmove', (ev) => { const t = ev.touches[0]; window.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY })); });
+    window.addEventListener('touchend', () => { window.dispatchEvent(new MouseEvent('mouseup')); });
+
+    // slider interaction → update global threshold and sync
+    slider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        currentThreshold = val;
+        display.textContent = val.toFixed(2);
+        // sync main UI if present
+        _syncFloatingThresholdUI(val);
+        reapplyThreshold(val);
+        if (typeof reapplyHeatmapThreshold === 'function') reapplyHeatmapThreshold(val);
+    });
+
+    // ensure initial sync
+    _syncFloatingThresholdUI(currentThreshold || 0.0);
+}
+
+function updateScatterPlot(plotData, projName = "tsne") {
     if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
     scatterPlotContainer.innerHTML = '';
 
-    // Hide threshold control when no data
+    // Hide threshold and metadata control when no data
     const control = document.getElementById('threshold-control');
+    const metadata = document.getElementById('tsne-metadata');
+    const staticParams = document.getElementById('tsne-static-params');
+    
     if (control) control.style.display = 'none';
+    if (metadata) metadata.style.display = 'none';
+    if (staticParams) staticParams.style.display = 'none';
 
     if (!plotData || !plotData.x || plotData.x.length === 0) {
         scatterPlotContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:0.85em;">No scatter plot data available.</div>';
@@ -582,13 +786,9 @@ function updateScatterPlot(plotData) {
             animation: false,
             plugins: {
                 title: {
-                    display: true,
-                    text: plotData.title || 't-SNE Visualisation',
-                    font: { size: 13, weight: '600' },
-                    color: '#1a2332',
-                    padding: { bottom: 12 }
+                    display: false
                 },
-                legend: { position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
+                legend: { display: false, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
                 tooltip: {
                     callbacks: {
                         label: (ctx) => `Similarity: ${ctx.raw.similarity.toFixed(4)}`
@@ -597,12 +797,12 @@ function updateScatterPlot(plotData) {
             },
             scales: {
                 x: {
-                    title: { display: true, text: 't-SNE Dimension 1', font: { size: 11 }, color: '#64748b' },
+                    title: { display: true, text: projName.toUpperCase() + ' Component 1', font: { size: 11 }, color: '#64748b' },
                     grid:  { color: '#e5e9ef' },
                     ticks: { color: '#64748b', font: { size: 11 } }
                 },
                 y: {
-                    title: { display: true, text: 't-SNE Dimension 2', font: { size: 11 }, color: '#64748b' },
+                    title: { display: true, text: projName.toUpperCase() + ' Component 2', font: { size: 11 }, color: '#64748b' },
                     grid:  { color: '#e5e9ef' },
                     ticks: { color: '#64748b', font: { size: 11 } }
                 }
@@ -612,6 +812,47 @@ function updateScatterPlot(plotData) {
 
     // Show and configure threshold slider
     _initThresholdControl(threshold);
+
+    // Update Metadata badges
+    if (metadata) {
+        metadata.style.display = 'flex';
+        
+        const klSpan = document.getElementById('tsne-kl-value');
+        const klContainer = klSpan ? klSpan.parentElement : null;
+        if (klSpan && klContainer) {
+            const klValue = typeof plotData.kl_divergence === 'number' ? plotData.kl_divergence : null;
+            klSpan.textContent = klValue !== null ? klValue.toFixed(3) : (plotData.kl_divergence || 'N/A');
+            
+            if (klValue !== null) {
+                const colorInfo = getTSNEColor('kl_divergence', klValue);
+                klContainer.style.borderLeft = `3px solid ${colorInfo.rgb}`;
+            } else {
+                klContainer.style.borderLeft = '1px solid #e2e8f0';
+            }
+        }
+
+        const perpSpan = document.getElementById('tsne-perplexity-value');
+        if (perpSpan) {
+            perpSpan.textContent = plotData.perplexity || 'N/A';
+        }
+
+        const iterSpan = document.getElementById('tsne-iter-value');
+        if (iterSpan) {
+            iterSpan.textContent = plotData.n_iter || 'N/A';
+        }
+    }
+
+    // Show algorithm static hyperparameters
+    if (staticParams) {
+        staticParams.style.display = 'block';
+        const initEl = document.getElementById('tsne-init-value');
+        const lrEl = document.getElementById('tsne-lr-value');
+        const maxIterEl = document.getElementById('tsne-maxiter-value');
+        
+        if (initEl) initEl.textContent = plotData.init || 'random';
+        if (lrEl) lrEl.textContent = plotData.learning_rate || 'auto';
+        if (maxIterEl) maxIterEl.textContent = plotData.max_iter || 'N/A';
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -653,4 +894,13 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     worker.postMessage(b64Data);
+});
+
+function getCurrentEmbeddingData() {
+    return _findOptimalOrFirstValidData(filteredEmbeddingKeys);
+}
+
+// Initialize floating control once DOM is ready and data loaded
+document.addEventListener('DOMContentLoaded', () => {
+    try { initFloatingThreshold(); } catch (e) { /* tolerate */ }
 });

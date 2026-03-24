@@ -17,7 +17,6 @@ A typical configuration file has four main sections:
       # Embedding models to evaluate
       
     # General settings
-    similarity_threshold: 0.6
     output_dir: "reports"
     
     database:
@@ -165,21 +164,9 @@ Requires setting environment variables::
 
     export OPENAI_API_KEY="your-api-key"
 
+
 General Settings
 ----------------
-
-similarity_threshold
-~~~~~~~~~~~~~~~~~~~~
-
-Threshold for classifying chunks as "similar" or "different".
-
-.. code-block:: yaml
-
-    similarity_threshold: 0.6
-
-* Values range from 0.0 to 1.0
-* Higher values = stricter filtering
-* Affects T-SNE visualization coloring
 
 output_dir
 ~~~~~~~~~~
@@ -188,7 +175,15 @@ Directory for saving reports and databases.
 
 .. code-block:: yaml
 
-    output_dir: "reports"
+  output_dir: "reports"
+
+Note
+~~~~
+
+The server-side `similarity_threshold` configuration has been removed. The
+interactive HTML report includes a client-side similarity slider that
+reclassifies and highlights points in the visualization; use that slider to
+adjust thresholding at view time.
 
 generate_filtered_markdowns
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -263,7 +258,6 @@ Complete Example
         name: "BAAI/bge-small-en-v1.5"
         dimensions: 384
 
-    similarity_threshold: 0.6
     output_dir: "reports"
     generate_filtered_markdowns: false
 

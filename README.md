@@ -8,7 +8,7 @@
 
 ForzaEmbed is a Python framework for **benchmarking text embedding models** and processing strategies.
 
-It runs a grid search over configurable hyperparameters (embedding model, chunking strategy, chunk size, similarity metric, etc.) and produces a **textual heatmap** highlighting theme-relevant text regions, alongside **t-SNE, UMAP, and PCA visualizations** to analyze embedding structure.
+It runs a grid search over configurable hyperparameters (embedding model, chunking strategy, chunk size, similarity metric, etc.) and produces a **textual heatmap** highlighting theme-relevant text regions, alongside **t-SNE, UMAP, and PCA visualizations** to analyze embedding structure. The generated standalone HTML report is interactive: you can switch between projection methods and use a draggable floating vertical similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
 
 📖 **[Documentation](https://berangerthomas.github.io/ForzaEmbed/)** · 🚀 **[Live Demo](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)** · 📦 **[Releases](https://github.com/berangerthomas/ForzaEmbed/releases)**
 
@@ -26,7 +26,7 @@ You drop your `.md` documents into `markdowns/`, define the parameter space in a
 3. for each combination: chunks the text, generates embeddings, and scores chunks against your defined themes;
 4. evaluates each configuration using silhouette score (with intra/inter-cluster decomposition) and embedding computation time;
 5. caches all results and embeddings in a SQLite database — completed combinations are skipped on subsequent runs;
-6. generates a standalone interactive HTML report (heatmaps, t-SNE visualizations, CSV exports) in `reports/`.
+6. generates a standalone interactive HTML report (heatmaps, t-SNE/UMAP/PCA visualizations, CSV exports) in `reports/`. The report includes UI controls for selecting projection method and a draggable floating similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
 
 > **Note on chunking strategies**: `langchain`, `raw`, and `semchunk` are parameter-sensitive (they use `chunk_size` and `chunk_overlap`). `nltk` and `spacy` are sentence-based and ignore those parameters — ForzaEmbed avoids generating redundant combinations for them, which can reduce the total number of runs by up to 40%.
 
@@ -75,6 +75,14 @@ Edit `configs/config.yml` (see [Configuration Guide](#configuration-guide) below
 ```bash
 python main.py --run --config-path configs/config.yml
 ```
+
+To reproduce the Hugging Face demo page locally, run:
+
+```bash
+uv run .\main.py --run --config-path configs/chicago.yml
+```
+
+Use the supplied `configs/chicago.yml` and place the provided `chicago.md` file into the `markdowns/` directory before running.
 
 ---
 
@@ -130,7 +138,6 @@ models_to_test:
     dimensions: 768
     timeout: 240
 
-similarity_threshold: 0.6  # highlights points above this value in t-SNE
 output_dir: "reports"
 
 database:

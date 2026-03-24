@@ -134,7 +134,6 @@ class AppConfig(BaseModel):
     Attributes:
         grid_search_params: Configuration for grid search parameters.
         models_to_test: List of model configurations to evaluate.
-        similarity_threshold: Threshold for similarity-based filtering.
         output_dir: Directory path for output files.
         generate_filtered_markdowns: Whether to generate filtered markdown files.
         database: Database-related settings.
@@ -143,7 +142,6 @@ class AppConfig(BaseModel):
 
     grid_search_params: GridSearchParams
     models_to_test: List[ModelConfig]
-    similarity_threshold: float
     output_dir: str
     generate_filtered_markdowns: bool = False
     database: DatabaseSettings

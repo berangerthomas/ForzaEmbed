@@ -54,7 +54,6 @@ Create a YAML configuration file (e.g., ``configs/config.yml``):
         dimensions: 384
 
     # General settings
-    similarity_threshold: 0.6
     output_dir: "reports"
 
     # Database settings

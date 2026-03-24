@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0] - 2026-03-24
+
+### Added
+- **Multi-projection support (UMAP / t-SNE / PCA)**: `src/services/visualization_service.py` now exposes `get_or_create_projections`, which computes and caches multiple projection methods (per-method cache keys) and returns a dictionary of projection results with method-specific metadata (e.g. KL divergence, perplexity, iterations, explained variance).
+ - **Heatmap thresholding slider (textual)**: Add a global similarity `threshold` slider to the interactive HTML report that now controls both the scatter plot and the textual similarity heatmap. Chunks with similarity below the threshold are visually dimmed in the heatmap (`.chunk--dimmed`). The slider value defaults to `0.00` and is preserved when switching files/models.
+ - **Floating threshold control**: The similarity threshold control is now available as a draggable vertical floating slider positioned on the left side of the report. The floating control syncs with the scatterplot threshold slider, persists its position in `localStorage`, and dimms low-similarity chunks in the textual heatmap.
+
+### Changed
+- **Frontend reporting**: `src/reporting/templates/main.js` and `src/reporting/templates/template.html` updated to allow selecting between t-SNE, UMAP and PCA from the UI; show projection metadata (KL, perplexity, iterations, explained variance); display chunk counts; handle active projection switching and adapt scatter plotting to different projection payload shapes. Adds `activeProjection` state and helper functions (e.g. `getTSNEColor`) to support multi-projection rendering.
+- **Processing API call**: `src/core/processing.py` updated to call `get_or_create_projections` (generalized multi-method API) instead of the previous t-SNE-only helper.
+
+### Removed
+- **Server-side similarity threshold**: `similarity_threshold` has been removed from the application configuration and server-side processing. Server-side generation of similarity-filtered markdowns has been disabled; visualization thresholding is now handled client-side via the interactive slider in the HTML report.
+- **Environment variable**: `SIMILARITY_THRESHOLD` removed from environment configuration.
+
+### Fixed / Improved
+- **Resilient SentenceTransformer loading**: `src/clients/sentencetransformers_client.py` now retries model instantiation with `trust_remote_code=True` on failure to improve robustness when loading remote models.
+- **Safer projection handling**: visualization service includes fallbacks and stricter type handling to avoid runtime errors for missing metadata or unexpected payload shapes.
+
 ## [1.3.0] - 2026-03-21
 
 ### Fixed
