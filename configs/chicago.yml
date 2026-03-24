@@ -4,8 +4,8 @@
 grid_search_params:
   chunk_size: [10, 20, 50, 100, 250]
   chunk_overlap: [0, 5, 10, 25, 50]
-  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
-  similarity_metrics: ["cosine", "euclidean", "manhattan", "dot_product", "chebyshev"]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk"]
+  similarity_metrics: ["cosine", "euclidean", "dot_product"]
   themes:
     sports: ["ball", "team", "stadium", "game", "player", "match", "competition", "score", "victory", "defeat", "training"]
     architecture: ["building", "structure", "design", "construction", "urbanism", "facade", "materials", "bridge", "tower", "window", "roof"]
@@ -14,20 +14,42 @@ grid_search_params:
 # Models to be tested in the grid search
 models_to_test:
   - type: "sentence_transformers"
+    name: "Qwen/Qwen3-Embedding-0.6B"
+    dimensions: 1024
+    max_tokens: 32768
+    pooling_strategy: "average"
+  - type: "sentence_transformers"
     name: "google/embeddinggemma-300m"
     dimensions: 768
+    max_tokens: 2048
+    pooling_strategy: "average"
   - type: "fastembed"
     name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     dimensions: 384
-  - type: "fastembed"
-    name: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-    dimensions: 768
+    max_tokens: 512
+    pooling_strategy: "average"
   - type: "fastembed"
     name: "jinaai/jina-embeddings-v3"
     dimensions: 1024
+    max_tokens: 8192
+    pooling_strategy: "average"
+  - type: "sentence_transformers"
+    name: "jinaai/jina-embeddings-v5-text-small-retrieval"
+    dimensions: 1024
+    max_tokens: 32768
+    pooling_strategy: "average"
+  - type: "sentence_transformers"
+    name: "KaLM-Embedding/KaLM-embedding-multilingual-mini-instruct-v2.5"
+    dimensions: 896
+    max_tokens: 32768
+    pooling_strategy: "average"
+  - type: "sentence_transformers"
+    name: "voyageai/voyage-4-nano"
+    dimensions: 1024
+    max_tokens: 32000
+    pooling_strategy: "average"
 
 # General settings
-similarity_threshold: 0.6
 output_dir: "reports"
 generate_filtered_markdowns: false
 
