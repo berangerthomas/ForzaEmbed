@@ -13,7 +13,9 @@ It runs a grid search over configurable hyperparameters (embedding model, chunki
 📖 **[Documentation](https://berangerthomas.github.io/ForzaEmbed/)** · 🚀 **[Live Demo](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)** · 📦 **[Releases](https://github.com/berangerthomas/ForzaEmbed/releases)**
 
 <!-- demo video -->
-https://github.com/user-attachments/assets/74e2b6a6-db18-4a25-ba2a-8c6047552942
+https://github.com/user-attachments/assets/845d291e-ad11-48cb-90fa-c2e76c93accd
+
+
 
 ---
 
