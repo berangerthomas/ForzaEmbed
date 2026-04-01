@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0] - 2026-04-01
+
+### Added
+- **Chunk context in scatter plot tooltips**: Added the original chunk text to the interactive HTML scatter plot tooltips (t-SNE, UMAP, PCA), truncated gracefully to keep the visualization clean.
+
+### Fixed
+- **Dynamic projection metadata display**: Fixed the metrics display beneath the scatter plots so that the specific metadata (e.g., explained variance for PCA, n_neighbors for UMAP, iter/perplexity for t-SNE) actually update and cleanly display when switching between different projection algorithms in the UI instead of having hardcoded/mismatched metrics.
+
+### Removed
+- **Image rendering & CSV exports**: Removed `matplotlib`, `seaborn`, and static visualization generation (PNGs/CSVs) entirely to lighten dependencies. All visual analysis is now done via the standalone interactive HTML browser-based report.
+- **Database Simplification**: Removed unused tables (`EvaluationMetric`, `GlobalChart`, `GeneratedFile`) to prevent data duplication and redundant code. Evaluated metrics are kept directly in the `ProcessingResult` blobs.
+
+### Modified
+- **Table renaming**: Changed `TSNECoordinate` table and variables to `ProjectionCoordinate` (`projection_key`), formally acknowledging that it natively caches UMAP and PCA coordinates alongside t-SNE.
+
+
 ## [1.4.0] - 2026-03-24
 
 ### Added

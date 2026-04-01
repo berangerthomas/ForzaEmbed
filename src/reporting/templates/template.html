@@ -261,31 +261,12 @@
                 
                 <!-- Metadata Badges -->
                 <div id="tsne-metadata" style="display: none; gap: 8px;">
-                    <div title="Kullback-Leibler Divergence: Measures how well the 2D projection preserves the original high-dimensional distances. Closer to 0.0 is better." 
-                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
-                        <span style="font-weight: 600; margin-right: 4px;">KL Div:</span>
-                        <span id="tsne-kl-value">N/A</span>
-                    </div>
-                    <div title="Perplexity: The balance between local and global attention in the algorithm. Auto-calculated based on chunk count (max 30)." 
-                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
-                        <span style="font-weight: 600; margin-right: 4px;">Perplexity:</span>
-                        <span id="tsne-perplexity-value">N/A</span>
-                    </div>
-                    <div title="Iterations: The number of optimization steps performed by the t-SNE algorithm before converging." 
-                         style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
-                        <span style="font-weight: 600; margin-right: 4px;">Iter:</span>
-                        <span id="tsne-iter-value">N/A</span>
-                    </div>
                 </div>
 
                 <!-- (Removed) horizontal threshold control — replaced by floating control -->
             </div>
 
             <div id="tsne-static-params" style="display: none; font-size: 0.72em; color: #94a3b8; text-align: center; margin-top: 14px; font-style: italic;">
-                Algorithm Parameters: 
-                <span style="font-weight: 500;">init</span>="<span id="tsne-init-value">pca</span>" &bull; 
-                <span style="font-weight: 500;">learning_rate</span>="<span id="tsne-lr-value">auto</span>" &bull; 
-                <span style="font-weight: 500;">max_iter</span>=<span id="tsne-maxiter-value">1000</span>
             </div>
         </div>
 

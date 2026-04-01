@@ -215,10 +215,10 @@ class Processor:
             all_metrics = self._safe_convert_to_python_types(all_metrics)
 
             # Generate projection coordinates (UMAP, t-SNE, PCA)
-            tsne_key = f"{model_config.name}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
+            projection_key = f"{model_config.name}_cs{chunk_size}_co{chunk_overlap}_{chunking_strategy}"
             scatter_plot_data = self.visualization_service.get_or_create_projections(
                 item_embed_phrases,
-                tsne_key,
+                projection_key,
                 name,
                 similarites,
             )

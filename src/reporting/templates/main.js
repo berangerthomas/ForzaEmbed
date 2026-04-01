@@ -463,7 +463,7 @@ function updateView(fileKey, repopulate = false, highlightedMetric = null) {
     if (hasMetrics && hasHeatmap) {
         updateMetrics(embeddingData.metrics, highlightedMetric);
         updateHeatmap(embeddingData.phrases, embeddingData.similarities);
-        updateScatterPlot(finalHasScatter ? plotDataToPass : null, activeProjection);
+        updateScatterPlot(finalHasScatter ? plotDataToPass : null, activeProjection, embeddingData.phrases);
     } else {
         const missing = [];
         if (!hasMetrics) missing.push('metrics');
@@ -568,19 +568,34 @@ function updateHeatmap(phrases, similarities) {
 
 // Store the current plot data so threshold can be reapplied without rebuilding t-SNE
 let currentPlotData = null;
+let currentPhrases = null;
 let currentThreshold = 0.0;
 
 /**
  * Build single dataset from raw plot data at a given threshold.
  */
-function _buildDatasetsAtThreshold(plotData, threshold) {
+function _buildDatasetsAtThreshold(plotData, threshold, phrases) {
     const dataPoints = [];
     const bgColors = [];
     const borderColors = [];
 
     for (let i = 0; i < plotData.similarities.length; i++) {
         const sim = plotData.similarities[i];
-        dataPoints.push({ x: plotData.x[i], y: plotData.y[i], similarity: sim });
+        const phrase = (phrases && phrases[i]) ? phrases[i] : null;
+        
+        // chunk info: truncated text
+        let truncated = "";
+        if (phrase) {
+            truncated = phrase.substring(0, 300);
+            if (phrase.length > 300) truncated += '...';
+        }
+
+        dataPoints.push({ 
+            x: plotData.x[i], 
+            y: plotData.y[i], 
+            similarity: sim,
+            chunkText: truncated
+        });
         
         if (sim >= threshold) {
             const colorInfo = cmap_heatmap(sim);
@@ -621,7 +636,7 @@ function _buildDatasetsAtThreshold(plotData, threshold) {
  */
 function reapplyThreshold(threshold) {
     if (!scatterChart || !currentPlotData) return;
-    const newDatasets = _buildDatasetsAtThreshold(currentPlotData, threshold);
+    const newDatasets = _buildDatasetsAtThreshold(currentPlotData, threshold, currentPhrases);
     scatterChart.data.datasets[0].backgroundColor = newDatasets[0].backgroundColor;
     scatterChart.data.datasets[0].borderColor = newDatasets[0].borderColor;
     scatterChart.update('none');  // 'none' = no animation
@@ -752,7 +767,7 @@ function initFloatingThreshold() {
     _syncFloatingThresholdUI(currentThreshold || 0.0);
 }
 
-function updateScatterPlot(plotData, projName = "tsne") {
+function updateScatterPlot(plotData, projName = "tsne", phrases = []) {
     if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
     scatterPlotContainer.innerHTML = '';
 
@@ -771,6 +786,7 @@ function updateScatterPlot(plotData, projName = "tsne") {
     }
 
     currentPlotData = plotData;
+    currentPhrases = phrases;
     const threshold = currentThreshold;
 
     const canvas = document.createElement('canvas');
@@ -779,7 +795,7 @@ function updateScatterPlot(plotData, projName = "tsne") {
 
     scatterChart = new Chart(ctx, {
         type: 'scatter',
-        data: { datasets: _buildDatasetsAtThreshold(plotData, threshold) },
+        data: { datasets: _buildDatasetsAtThreshold(plotData, threshold, phrases) },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -791,7 +807,28 @@ function updateScatterPlot(plotData, projName = "tsne") {
                 legend: { display: false, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `Similarity: ${ctx.raw.similarity.toFixed(4)}`
+                        label: function(ctx) {
+                            const raw = ctx.raw;
+                            const lines = [];
+                            if (raw.chunkText) {
+                                const text = `Similarity: ${raw.similarity.toFixed(3)} -> ${raw.chunkText}`;
+                                const maxLineLen = 110;
+                                let currentLine = '';
+                                const words = text.split(' ');
+                                for (let w of words) {
+                                    if ((currentLine + w).length > maxLineLen) {
+                                        if (currentLine) lines.push(currentLine.trim());
+                                        currentLine = w + ' ';
+                                    } else {
+                                        currentLine += w + ' ';
+                                    }
+                                }
+                                if (currentLine) lines.push(currentLine.trim());
+                            } else {
+                                lines.push(`Similarity: ${raw.similarity.toFixed(3)}`);
+                            }
+                            return lines;
+                        }
                     }
                 }
             },
@@ -813,45 +850,83 @@ function updateScatterPlot(plotData, projName = "tsne") {
     // Show and configure threshold slider
     _initThresholdControl(threshold);
 
-    // Update Metadata badges
+    // Update Metadata badges and static parameters
     if (metadata) {
         metadata.style.display = 'flex';
+        metadata.innerHTML = '';
         
-        const klSpan = document.getElementById('tsne-kl-value');
-        const klContainer = klSpan ? klSpan.parentElement : null;
-        if (klSpan && klContainer) {
-            const klValue = typeof plotData.kl_divergence === 'number' ? plotData.kl_divergence : null;
-            klSpan.textContent = klValue !== null ? klValue.toFixed(3) : (plotData.kl_divergence || 'N/A');
+        if (projName === 'tsne') {
+            const klValue = typeof plotData.kl_divergence === 'number' ? plotData.kl_divergence.toFixed(3) : (plotData.kl_divergence || 'N/A');
+            let colorBorder = '#e2e8f0';
+            if (typeof plotData.kl_divergence === 'number') {
+                colorBorder = getTSNEColor('kl_divergence', plotData.kl_divergence).rgb;
+            }
             
-            if (klValue !== null) {
-                const colorInfo = getTSNEColor('kl_divergence', klValue);
-                klContainer.style.borderLeft = `3px solid ${colorInfo.rgb}`;
-            } else {
-                klContainer.style.borderLeft = '1px solid #e2e8f0';
+            metadata.innerHTML = `
+                <div title="Kullback-Leibler Divergence: Measures how well the 2D projection preserves the original high-dimensional distances. Closer to 0.0 is better." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-left: 3px solid ${colorBorder}; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">KL Div:</span>
+                    <span>${klValue}</span>
+                </div>
+                <div title="Perplexity: The balance between local attention in the algorithm." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">Perplexity:</span>
+                    <span>${plotData.perplexity || 'N/A'}</span>
+                </div>
+                <div title="Iterations: The number of optimization steps." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">Iter:</span>
+                    <span>${plotData.n_iter || 'N/A'}</span>
+                </div>
+            `;
+            
+            if (staticParams) {
+                staticParams.style.display = 'block';
+                staticParams.innerHTML = `Algorithm Parameters: 
+                    <span style="font-weight: 500;">init</span>="${plotData.init || 'pca'}" &bull; 
+                    <span style="font-weight: 500;">learning_rate</span>="${plotData.learning_rate || 'auto'}" &bull; 
+                    <span style="font-weight: 500;">max_iter</span>=${plotData.max_iter || '1000'}`;
+            }
+        } else if (projName === 'umap') {
+            metadata.innerHTML = `
+                <div title="Number of Neighbors: The size of local neighborhood used for manifold approximation." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">n_neighbors:</span>
+                    <span>${plotData.n_neighbors || 'N/A'}</span>
+                </div>
+                <div title="Minimum Distance: The effective minimum distance between embedded points." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">min_dist:</span>
+                    <span>${plotData.min_dist || 'N/A'}</span>
+                </div>
+            `;
+            
+            if (staticParams) {
+                staticParams.style.display = 'block';
+                staticParams.innerHTML = `Algorithm Parameters: 
+                    <span style="font-weight: 500;">metric</span>="${plotData.metric || 'cosine'}"`;
+            }
+        } else if (projName === 'pca') {
+            const ev1 = typeof plotData.explained_variance_1 === 'number' ? (plotData.explained_variance_1 * 100).toFixed(2) + '%' : 'N/A';
+            const ev2 = typeof plotData.explained_variance_2 === 'number' ? (plotData.explained_variance_2 * 100).toFixed(2) + '%' : 'N/A';
+            
+            metadata.innerHTML = `
+                <div title="Explained Variance: Amount of variance explained by the first principal component." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">Var C1:</span>
+                    <span>${ev1}</span>
+                </div>
+                <div title="Explained Variance: Amount of variance explained by the second principal component." 
+                    style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 10px; font-size: 0.75em; color: #475569; cursor: help;">
+                    <span style="font-weight: 600; margin-right: 4px;">Var C2:</span>
+                    <span>${ev2}</span>
+                </div>
+            `;
+            
+            if (staticParams) {
+                staticParams.style.display = 'none';
             }
         }
-
-        const perpSpan = document.getElementById('tsne-perplexity-value');
-        if (perpSpan) {
-            perpSpan.textContent = plotData.perplexity || 'N/A';
-        }
-
-        const iterSpan = document.getElementById('tsne-iter-value');
-        if (iterSpan) {
-            iterSpan.textContent = plotData.n_iter || 'N/A';
-        }
-    }
-
-    // Show algorithm static hyperparameters
-    if (staticParams) {
-        staticParams.style.display = 'block';
-        const initEl = document.getElementById('tsne-init-value');
-        const lrEl = document.getElementById('tsne-lr-value');
-        const maxIterEl = document.getElementById('tsne-maxiter-value');
-        
-        if (initEl) initEl.textContent = plotData.init || 'random';
-        if (lrEl) lrEl.textContent = plotData.learning_rate || 'auto';
-        if (maxIterEl) maxIterEl.textContent = plotData.max_iter || 'N/A';
     }
 }
 

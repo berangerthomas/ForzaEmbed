@@ -30,12 +30,9 @@ from ..core.config import AppConfig
 from .models import (
     Base,
     EmbeddingCache,
-    EvaluationMetric,
-    GeneratedFile,
-    GlobalChart,
     Model,
     ProcessingResult,
-    TSNECoordinate,
+    ProjectionCoordinate,
 )
 
 
@@ -126,31 +123,6 @@ class EmbeddingDatabase:
             session.execute(stmt)
             session.commit()
 
-    def add_evaluation_metrics(
-        self, model_name: str, metrics: Dict[str, float]
-    ) -> None:
-        """Add or update evaluation metrics for a model.
-
-        Args:
-            model_name: The model run name.
-            metrics: Dictionary of metric names to values.
-        """
-        with self.Session() as session:
-            # Delete existing metrics for this model
-            session.execute(
-                delete(EvaluationMetric).where(EvaluationMetric.model_name == model_name)
-            )
-
-            # Insert new metrics
-            metric = EvaluationMetric(
-                model_name=model_name,
-                silhouette_score=metrics.get("silhouette_score"),
-                intra_cluster_distance_normalized=metrics.get("intra_cluster_distance_normalized"),
-                inter_cluster_distance_normalized=metrics.get("inter_cluster_distance_normalized"),
-                embedding_computation_time=metrics.get("embedding_computation_time"),
-            )
-            session.add(metric)
-            session.commit()
 
     def add_generated_file(
         self, model_name: str, file_type: str, file_path: str
@@ -328,38 +300,7 @@ class EmbeddingDatabase:
         return all_results
 
     def get_all_models(self) -> List[Dict[str, Any]]:
-        """Retrieve all models with their metrics.
-
-        Returns:
-            List of dictionaries containing model information and metrics.
-        """
-        with self.Session() as session:
-            # Left join Model and EvaluationMetric
-            stmt = select(Model, EvaluationMetric).outerjoin(
-                EvaluationMetric, Model.name == EvaluationMetric.model_name
-            ).order_by(Model.name)
-            
-            results = session.execute(stmt).all()
-            
-            models = []
-            for model, metric in results:
-                models.append(
-                    {
-                        "name": model.name,
-                        "base_model_name": model.base_model_name,
-                        "type": model.type,
-                        "chunk_size": model.chunk_size,
-                        "chunk_overlap": model.chunk_overlap,
-                        "theme_name": model.theme_name,
-                        "chunking_strategy": model.chunking_strategy,
-                        "silhouette_score": metric.silhouette_score if metric else None,
-                        "intra_cluster_distance_normalized": metric.intra_cluster_distance_normalized if metric else None,
-                        "inter_cluster_distance_normalized": metric.inter_cluster_distance_normalized if metric else None,
-                        "embedding_computation_time": metric.embedding_computation_time if metric else None,
-                    }
-                )
-
-            return models
+        return []
 
     def get_model_files(self, model_name: str) -> List[Dict[str, str]]:
         """Retrieve all generated files for a model.
@@ -510,38 +451,38 @@ class EmbeddingDatabase:
             session.execute(stmt, items_to_insert)
             session.commit()
 
-    def save_tsne_coordinates(
-        self, tsne_key: str, file_id: str, coordinates: Dict[str, List[float]]
+    def save_projection_coordinates(
+        self, projection_key: str, file_id: str, coordinates: Dict[str, List[float]]
     ) -> None:
         """Save t-SNE coordinates for a given configuration.
 
         Args:
-            tsne_key: Unique key for the t-SNE configuration.
+            projection_key: Unique key for the t-SNE configuration.
             file_id: Identifier for the file.
             coordinates: Dictionary with 'x' and 'y' coordinate lists.
         """
         coordinates_blob = msgpack.packb(coordinates, use_bin_type=True)
 
         with self.Session() as session:
-            stmt = sqlite_insert(TSNECoordinate).values(
-                tsne_key=tsne_key,
+            stmt = sqlite_insert(ProjectionCoordinate).values(
+                projection_key=projection_key,
                 file_id=file_id,
                 coordinates=coordinates_blob
             )
             stmt = stmt.on_conflict_do_update(
-                index_elements=['tsne_key', 'file_id'],
+                index_elements=['projection_key', 'file_id'],
                 set_=dict(coordinates=coordinates_blob)
             )
             session.execute(stmt)
             session.commit()
 
-    def get_tsne_coordinates(
-        self, tsne_key: str, file_id: str
+    def get_projection_coordinates(
+        self, projection_key: str, file_id: str
     ) -> Optional[Dict[str, List[float]]]:
         """Retrieve t-SNE coordinates for a given configuration.
 
         Args:
-            tsne_key: Unique key for the t-SNE configuration.
+            projection_key: Unique key for the t-SNE configuration.
             file_id: Identifier for the file.
 
         Returns:
@@ -549,9 +490,9 @@ class EmbeddingDatabase:
         """
         with self.Session() as session:
             result = session.execute(
-                select(TSNECoordinate.coordinates)
-                .where(TSNECoordinate.tsne_key == tsne_key)
-                .where(TSNECoordinate.file_id == file_id)
+                select(ProjectionCoordinate.coordinates)
+                .where(ProjectionCoordinate.projection_key == projection_key)
+                .where(ProjectionCoordinate.file_id == file_id)
             ).scalar_one_or_none()
             
             if result:
@@ -561,7 +502,7 @@ class EmbeddingDatabase:
     def clear_tsne_cache(self) -> None:
         """Clear all cached t-SNE coordinates."""
         with self.Session() as session:
-            session.execute(delete(TSNECoordinate))
+            session.execute(delete(ProjectionCoordinate))
             session.commit()
 
     def get_run_details(self, run_name: str) -> Optional[Dict[str, Any]]:

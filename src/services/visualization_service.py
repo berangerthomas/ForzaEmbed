@@ -64,7 +64,7 @@ class VisualizationService:
 
         for method in methods:
             cache_key = f"{base_key}_{method}"
-            cached_data = self.db.get_tsne_coordinates(cache_key, file_id)
+            cached_data = self.db.get_projection_coordinates(cache_key, file_id)
 
             if cached_data is not None:
                 coords = cached_data
@@ -137,7 +137,7 @@ class VisualizationService:
                         "learning_rate": "auto",
                     }
 
-                self.db.save_tsne_coordinates(cache_key, file_id, coords)
+                self.db.save_projection_coordinates(cache_key, file_id, coords)
                 
                 method_result = {
                     "x": coords["x"],

@@ -6,12 +6,9 @@ annotations.
 
 Models:
     Model: Stores model run configurations.
-    EvaluationMetric: Stores evaluation metrics for each model run.
-    GeneratedFile: Tracks generated output files.
-    GlobalChart: Stores paths to global chart images.
     ProcessingResult: Stores detailed processing results per file.
     EmbeddingCache: Caches computed embeddings for reuse.
-    TSNECoordinate: Caches t-SNE coordinate calculations.
+    ProjectionCoordinate: Caches dimensional reduction coordinates.
 """
 
 from datetime import datetime
@@ -50,9 +47,7 @@ class Model(Base):
         chunking_strategy: Chunking strategy used.
         similarity_metric: Similarity metric used.
         created_at: Timestamp of creation.
-        metrics: Related evaluation metrics.
-        generated_files: Related generated files.
-    """
+                    """
 
     __tablename__ = "models"
 
@@ -68,80 +63,6 @@ class Model(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    metrics: Mapped["EvaluationMetric"] = relationship(
-        "EvaluationMetric", back_populates="model", cascade="all, delete-orphan"
-    )
-    generated_files: Mapped[list["GeneratedFile"]] = relationship(
-        "GeneratedFile", back_populates="model", cascade="all, delete-orphan"
-    )
-
-
-class EvaluationMetric(Base):
-    """Stores evaluation metrics for a model run.
-
-    Attributes:
-        id: Primary key.
-        model_name: Foreign key to the model.
-        silhouette_score: Silhouette clustering score.
-        intra_cluster_distance_normalized: Normalized intra-cluster distance.
-        inter_cluster_distance_normalized: Normalized inter-cluster distance.
-        embedding_computation_time: Time taken to compute embeddings.
-        created_at: Timestamp of creation.
-        model: Related model instance.
-    """
-
-    __tablename__ = "evaluation_metrics"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    model_name: Mapped[str] = mapped_column(ForeignKey("models.name"), nullable=False)
-    silhouette_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    intra_cluster_distance_normalized: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    inter_cluster_distance_normalized: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    embedding_computation_time: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    model: Mapped["Model"] = relationship("Model", back_populates="metrics")
-
-
-class GeneratedFile(Base):
-    """Tracks generated output files for a model run.
-
-    Attributes:
-        id: Primary key.
-        model_name: Foreign key to the model.
-        file_type: Type of the generated file.
-        file_path: Path to the generated file.
-        created_at: Timestamp of creation.
-        model: Related model instance.
-    """
-
-    __tablename__ = "generated_files"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    model_name: Mapped[str] = mapped_column(ForeignKey("models.name"), nullable=False)
-    file_type: Mapped[str] = mapped_column(String, nullable=False)
-    file_path: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    model: Mapped["Model"] = relationship("Model", back_populates="generated_files")
-
-
-class GlobalChart(Base):
-    """Stores paths to global chart images.
-
-    Attributes:
-        id: Primary key.
-        chart_type: Type identifier for the chart.
-        file_path: Path to the chart image file.
-        created_at: Timestamp of creation.
-    """
-
-    __tablename__ = "global_charts"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    chart_type: Mapped[str] = mapped_column(String, nullable=False)
-    file_path: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class ProcessingResult(Base):
@@ -186,22 +107,22 @@ class EmbeddingCache(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class TSNECoordinate(Base):
-    """Caches t-SNE coordinate calculations.
+class ProjectionCoordinate(Base):
+    """Caches dimensional reduction coordinate calculations (t-SNE, UMAP, PCA).
 
     Attributes:
         id: Primary key.
-        tsne_key: Unique key for the t-SNE configuration.
+        projection_key: Unique key for the projection configuration.
         file_id: Identifier for the file.
         coordinates: Serialized coordinate data.
         created_at: Timestamp of creation.
     """
 
-    __tablename__ = "tsne_coordinates"
-    __table_args__ = (UniqueConstraint("tsne_key", "file_id", name="uq_tsne_file"),)
+    __tablename__ = "projection_coordinates"
+    __table_args__ = (UniqueConstraint("projection_key", "file_id", name="uq_projection_file"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tsne_key: Mapped[str] = mapped_column(String, nullable=False)
+    projection_key: Mapped[str] = mapped_column(String, nullable=False)
     file_id: Mapped[str] = mapped_column(String, nullable=False)
     coordinates: Mapped[bytes] = mapped_column(BLOB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

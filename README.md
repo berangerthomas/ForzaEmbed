@@ -8,7 +8,7 @@
 
 ForzaEmbed is a Python framework for **benchmarking text embedding models** and processing strategies.
 
-It runs a grid search over configurable hyperparameters (embedding model, chunking strategy, chunk size, similarity metric, etc.) and produces a **textual heatmap** highlighting theme-relevant text regions, alongside **t-SNE, UMAP, and PCA visualizations** to analyze embedding structure. The generated standalone HTML report is interactive: you can switch between projection methods and use a draggable floating vertical similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
+It runs a grid search over configurable hyperparameters (embedding model, chunking strategy, chunk size, similarity metric, etc.) and produces a **textual heatmap** highlighting theme-relevant text regions, alongside **t-SNE, UMAP, and PCA visualizations** to analyze embedding structure. The generated standalone HTML report is interactive: you can switch between projection methods, view text excerpts directly within scatter plot tooltips, and use a draggable floating vertical similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
 
 📖 **[Documentation](https://berangerthomas.github.io/ForzaEmbed/)** · 🚀 **[Live Demo](https://huggingface.co/spaces/berangerthomas/forzaembeddemo)** · 📦 **[Releases](https://github.com/berangerthomas/ForzaEmbed/releases)**
 
@@ -28,7 +28,7 @@ You drop your `.md` documents into `markdowns/`, define the parameter space in a
 3. for each combination: chunks the text, generates embeddings, and scores chunks against your defined themes;
 4. evaluates each configuration using silhouette score (with intra/inter-cluster decomposition) and embedding computation time;
 5. caches all results and embeddings in a SQLite database — completed combinations are skipped on subsequent runs;
-6. generates a standalone interactive HTML report (heatmaps, t-SNE/UMAP/PCA visualizations, CSV exports) in `reports/`. The report includes UI controls for selecting projection method and a draggable floating similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
+6. generates a standalone interactive HTML report (heatmaps, t-SNE/UMAP/PCA visualizations with original text tooltips) in `reports/`. The report includes UI controls for selecting projection method, displaying relevant algorithm metadata, and a draggable floating similarity-threshold slider; chunks and scatter points below the threshold are dimmed.
 
 > **Note on chunking strategies**: `langchain`, `raw`, and `semchunk` are parameter-sensitive (they use `chunk_size` and `chunk_overlap`). `nltk` and `spacy` are sentence-based and ignore those parameters — ForzaEmbed avoids generating redundant combinations for them, which can reduce the total number of runs by up to 40%.
 

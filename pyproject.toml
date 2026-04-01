@@ -1,6 +1,6 @@
 [project]
 name = "forzaembed"
-version = "1.1.0"
+version = "1.5.0"
 description = "A Python framework for text embedding model evaluation and comparison"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -8,8 +8,6 @@ dependencies = [
     "numpy",
     "tqdm",
     "scikit-learn",
-    "matplotlib",
-    "seaborn",
     "msgpack",
     "requests",
     "uvicorn",
