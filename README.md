@@ -179,15 +179,15 @@ multiprocessing:
 
 ---
 
-## Visual Examples
+## Screenshots
 
-### Textual similarity heatmap (full width)
+### Textual similarity heatmap
 
 <p align="center">
   <img src="docs/assets/textual_heatmap.png" alt="Textual similarity heatmap" style="width:100%;height:auto;border:1px solid #ddd" />
 </p>
 
-This view shows the textual similarity heatmap for a single input file. Key points:
+This view shows the textual similarity heatmap. Key points:
 
 - **What it shows:** each highlighted span is a chunk; color encodes similarity to the selected theme (blue/green → low, yellow → mid, red → high). The color bar above the heatmap shows the mapping from similarity values to color.
 - **Controls visible:** the top bar contains run parameters (model, `chunk_size`, `chunking_strategy`, similarity metric) and metric cards (silhouette score, intra/inter cluster distances, embedding computation time), which help compare runs.
@@ -203,11 +203,8 @@ This view shows the textual similarity heatmap for a single input file. Key poin
 This projection visualizes chunk embeddings in 2D using UMAP (points = chunks). Key points:
 
 - **What it shows:** spatial clusters of semantically similar chunks; point color follows similarity to the selected theme (same color scale as the heatmap).
-- **Controls visible:** projection selector (t-SNE / UMAP / PCA), similarity colorbar, and the same similarity threshold slider. A tooltip (shown in the screenshot) displays the matched phrase and similarity value for individual points.
-- **Interpretation tips:** nearby points are semantically related; dense red/orange regions identify clusters strongly associated with the theme; isolated points or mixed-color clusters highlight ambiguous chunks or potential preprocessing issues.
-- **Tuning hints:** `n_neighbors` and `min_dist` (shown at the bottom of the plot) control UMAP granularity — increase `n_neighbors` to preserve larger-scale structure, decrease `min_dist` for tighter clusters.
-
-Images are embedded from `docs/assets/UMAP.png` and `docs/assets/textual_heatmap.png`. Use the interactive HTML report in `reports/` to explore the actual data behind these screenshots.
+- **Controls visible:** projection selector (t-SNE / UMAP / PCA), similarity colorbar, and the similarity threshold slider. A tooltip displays the matched phrase and similarity value for individual points.
+- **Interpretation tips:** nearby points are semantically related; dense red/orange regions identify clusters strongly associated with the theme; isolated points or mixed-color clusters highlight ambiguous chunks.
 
 ---
 
