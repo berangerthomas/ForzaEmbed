@@ -18,7 +18,7 @@ import logging
 from typing import Dict, List
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GridSearchParams(BaseModel):
@@ -119,13 +119,15 @@ class MultiprocessingSettings(BaseModel):
         api_batch_sizes: Mapping of provider names to their specific batch sizes.
     """
 
-    max_workers_api: int
+    max_workers_api: int = 16
     max_workers_local: int | None = None
-    maxtasksperchild: int
-    embedding_batch_size_api: int
-    embedding_batch_size_local: int
-    file_batch_size: int
-    api_batch_sizes: Dict[str, int]
+    maxtasksperchild: int = 10
+    embedding_batch_size_api: int = 100
+    embedding_batch_size_local: int = 500
+    file_batch_size: int = 50
+    api_batch_sizes: Dict[str, int] = Field(
+        default_factory=lambda: {"mistral": 50, "voyage": 100, "openai": 100, "default": 100}
+    )
 
 
 class AppConfig(BaseModel):
@@ -142,7 +144,7 @@ class AppConfig(BaseModel):
 
     grid_search_params: GridSearchParams
     models_to_test: List[ModelConfig]
-    output_dir: str
+    output_dir: str = "reports"
     generate_filtered_markdowns: bool = False
     database: DatabaseSettings
     multiprocessing: MultiprocessingSettings

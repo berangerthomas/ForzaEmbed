@@ -114,46 +114,100 @@ python main.py --generate-reports --config-path configs/config.yml
 
 ## Configuration Guide
 
-Below is an annotated example. For the full parameter reference, see the [documentation](https://berangerthomas.github.io/ForzaEmbed/).
+Below is a minimal, annotated example configuration (based on `configs/chicago_demo_inf_10_Mo.yml`). The application validates YAML against the `AppConfig` Pydantic model found in `src/core/config.py`.
 
 ```yaml
 grid_search_params:
-  chunk_size: [50, 100, 250, 500]
-  chunk_overlap: [10, 25, 50]
-  chunking_strategy: ["langchain", "raw", "semchunk", "nltk", "spacy"]
+  chunk_size: [10, 20, 50, 100, 250]
+  chunk_overlap: [0, 5, 10, 25, 50]
+  chunking_strategy: ["langchain", "raw", "semchunk", "nltk"]
   similarity_metrics: ["cosine", "euclidean", "dot_product"]
   themes:
-    opening_hours: ["opening hours", "public reception hours"]
-    closing_days: ["closing day", "exceptional closure", "public holidays"]
-    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    sports: ["ball", "team", "stadium", "game", "player"]
+    architecture: ["building", "structure", "design", "bridge", "tower"]
+    cuisine: ["food", "restaurant", "recipe", "chef", "taste"]
 
 models_to_test:
-  - type: "fastembed"
-    name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    dimensions: 384
-  - type: "huggingface"
+  - type: "sentence_transformers"
     name: "Qwen/Qwen3-Embedding-0.6B"
     dimensions: 1024
-  - type: "api"
-    name: "nomic-embed-text"
-    base_url: "https://api.nomic.ai/v1"  # replace with your provider
-    dimensions: 768
-    timeout: 240
+    max_tokens: 32768
+    pooling_strategy: "average"
 
-output_dir: "reports"
+generate_filtered_markdowns: false
 
 database:
-  intelligent_quantization: true  # stores embeddings as float16 to reduce DB size
+  intelligent_quantization: true
 
 multiprocessing:
-  max_workers_api: 16
-  max_workers_local: null  # null = all available cores
   embedding_batch_size_api: 100
   embedding_batch_size_local: 500
+  api_batch_sizes:
+    mistral: 50
+    voyage: 100
+    openai: 100
+    default: 100
 ```
 
-Supported model types: `fastembed`, `huggingface`, `sentence_transformers`, `api`.  
-Supported similarity metrics: `cosine`, `euclidean`, `manhattan`, `dot_product`, `chebyshev`.
+### Configuration Fields Explanation
+
+- **`grid_search_params`**: Grid search parameter space.
+  - **`chunk_size`**: List of candidate chunk sizes (in characters) used by `chunk_text()` (affects `langchain`, `raw`, `semchunk`).
+  - **`chunk_overlap`**: List of overlap sizes (in characters) between consecutive chunks.
+  - **`chunking_strategy`**: One or more of `langchain`, `raw`, `semchunk`, `nltk`, `spacy`. Note: `nltk` and `spacy` are sentence-based and ignore `chunk_size`/`chunk_overlap`.
+  - **`similarity_metrics`**: Supported metrics are `cosine`, `dot_product`, `euclidean`, `manhattan`, `chebyshev`. Normalized limits are handled in `src/services/similarity_service.py`.
+  - **`themes`**: Named sets of theme keywords used to compute similarity metrics against the document texts.
+
+- **`models_to_test`**: List of embedding backend configurations to test. Fields:
+  - **`type`**: `fastembed`, `huggingface`, `sentence_transformers`, or `api`.
+  - **`name`**: The model's identifier/path, also used for caching.
+  - **`dimensions`**: Embedding vector size.
+  - **`base_url`** (optional): Needed for HTTP-based `api` providers.
+  - **`timeout`** (optional): Timeout in seconds for `api` requests.
+  - **`max_tokens`** (optional): Token limit for inference before intra-document fallback handling.
+  - **`pooling_strategy`** (optional): `max`, `average`, `weighted`, or `last`.
+
+- **`generate_filtered_markdowns`**: Legacy setting. Server-side filtered generation has been removed from `src/reporting/markdown_filter.py`. Use the client-side interactive sliders on the HTML report instead. Keep this as `false`.
+
+- **`database`**:
+  - **`intelligent_quantization`**: If enabled, reduces database footprint by quantizing values (e.g., embeddings normalized bounds to `float16`, explicit float similarities mapped to `uint16`). See `src/utils/database.py` details.
+  - **`quantize_metrics`** (optional: defaults to `true`).
+
+- **`multiprocessing`**: Tuning settings holding sensible defaults behind the scenes (`max_workers_api`, `file_batch_size`, etc.).
+  - **`embedding_batch_size_api`** / **`embedding_batch_size_local`**: Inference processing batch limits.
+  - **`api_batch_sizes`**: Adaptive limit based on provider names dynamically resolving from the model name (returns specific batches or `default`). Default overrides simplify YAML generation.
+
+---
+
+## Visual Examples
+
+### Textual similarity heatmap (full width)
+
+<p align="center">
+  <img src="docs/assets/textual_heatmap.png" alt="Textual similarity heatmap" style="width:100%;height:auto;border:1px solid #ddd" />
+</p>
+
+This view shows the textual similarity heatmap for a single input file. Key points:
+
+- **What it shows:** each highlighted span is a chunk; color encodes similarity to the selected theme (blue/green → low, yellow → mid, red → high). The color bar above the heatmap shows the mapping from similarity values to color.
+- **Controls visible:** the top bar contains run parameters (model, `chunk_size`, `chunking_strategy`, similarity metric) and metric cards (silhouette score, intra/inter cluster distances, embedding computation time), which help compare runs.
+- **Interaction:** the floating *similarity threshold* slider (right) dims chunks below the threshold so you can focus on the most relevant passages.
+- **When to use:** inspect where theme-relevant phrases occur in a document, verify highlighting quality, and spot false positives or unexpected emphasis.
+
+### UMAP projection (full width)
+
+<p align="center">
+  <img src="docs/assets/UMAP.png" alt="UMAP projection of chunk embeddings" style="width:100%;height:auto;border:1px solid #ddd" />
+</p>
+
+This projection visualizes chunk embeddings in 2D using UMAP (points = chunks). Key points:
+
+- **What it shows:** spatial clusters of semantically similar chunks; point color follows similarity to the selected theme (same color scale as the heatmap).
+- **Controls visible:** projection selector (t-SNE / UMAP / PCA), similarity colorbar, and the same similarity threshold slider. A tooltip (shown in the screenshot) displays the matched phrase and similarity value for individual points.
+- **Interpretation tips:** nearby points are semantically related; dense red/orange regions identify clusters strongly associated with the theme; isolated points or mixed-color clusters highlight ambiguous chunks or potential preprocessing issues.
+- **Tuning hints:** `n_neighbors` and `min_dist` (shown at the bottom of the plot) control UMAP granularity — increase `n_neighbors` to preserve larger-scale structure, decrease `min_dist` for tighter clusters.
+
+Images are embedded from `docs/assets/UMAP.png` and `docs/assets/textual_heatmap.png`. Use the interactive HTML report in `reports/` to explore the actual data behind these screenshots.
 
 ---
 
