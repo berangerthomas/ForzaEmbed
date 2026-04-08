@@ -192,7 +192,7 @@ This view shows the textual similarity heatmap. Key points:
 - **Interaction:** the floating *similarity threshold* slider (right) dims chunks below the threshold so you can focus on the most relevant passages.
 - **When to use:** inspect where theme-relevant phrases occur in a document, verify highlighting quality, and spot false positives or unexpected emphasis.
 
-### UMAP projection (full width)
+### UMAP projection
 
 <p align="center">
   <img src="docs/assets/UMAP.png" alt="UMAP projection of chunk embeddings" style="width:100%;height:auto;border:1px solid #ddd" />
