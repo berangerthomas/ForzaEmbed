@@ -102,7 +102,7 @@ Re-run the same command. Completed combinations are detected and skipped automat
 
 ### Regenerating reports only
 
-To rebuild reports from existing database data (e.g. to change `--top-n`) without rerunning computations:
+To rebuild reports from existing database data without rerunning computations:
 
 ```bash
 python main.py --generate-reports --config-path configs/config.yml
