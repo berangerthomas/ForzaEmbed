@@ -1,0 +1,840 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grid Search Optimization &mdash; ForzaEmbed 1.1.0</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fc837d61"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Core Module" href="api/core.html" />
+    <link rel="prev" title="Example 1: Finding Opening Hours" href="examples.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ForzaEmbed
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#id1">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#verifying-installation">Verifying Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#spacy-models">spaCy Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#nltk-data">NLTK Data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-workflow">Basic Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#step-1-prepare-your-data">Step 1: Prepare Your Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#step-2-create-configuration">Step 2: Create Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#step-3-run-the-analysis">Step 3: Run the Analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#using-python-api">Using Python API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#using-command-line">Using Command Line</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#step-4-explore-results">Step 4: Explore Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#understanding-the-heatmap">Understanding the Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#example-output">Example Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#configuration-file-structure">Configuration File Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#grid-search-parameters">Grid Search Parameters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#chunk-size">chunk_size</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#chunk-overlap">chunk_overlap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#chunking-strategy">chunking_strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#similarity-metrics">similarity_metrics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#themes">themes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#models-configuration">Models Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#fastembed-models">FastEmbed Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#sentence-transformers">Sentence Transformers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#hugging-face-transformers">Hugging Face Transformers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#api-based-models">API-based Models</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#general-settings">General Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#output-dir">output_dir</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#note">Note</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#generate-filtered-markdowns">generate_filtered_markdowns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#database-settings">Database Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#intelligent-quantization">intelligent_quantization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#performance-settings">Performance Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#complete-example">Complete Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Example 1: Finding Opening Hours</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#python-code">Python Code</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html#example-2-comparing-multiple-models">Example 2: Comparing Multiple Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#id1">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#id2">Python Code</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html#example-3-resume-from-interrupted-run">Example 3: Resume from Interrupted Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html#example-4-generate-reports-from-existing-database">Example 4: Generate Reports from Existing Database</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html#command-line-examples">Command Line Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html#performance-optimization-tips">Performance Optimization Tips</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#smart-grid-search-optimization">Smart Grid Search Optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#for-large-datasets">For Large Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#for-api-based-models">For API-Based Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#for-memory-constraints">For Memory Constraints</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Grid Search Optimization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#problem-statement">Problem Statement</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chunking-strategy-classification">Chunking Strategy Classification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#parameter-sensitive-strategies">Parameter-Sensitive Strategies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#parameter-insensitive-strategies">Parameter-Insensitive Strategies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#optimization-strategy">Optimization Strategy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-impact">Performance Impact</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#example-configuration">Example Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results">Results</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#per-strategy-savings">Per-Strategy Savings</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation-details">Implementation Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#automatic-detection">Automatic Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#transparency-and-verification">Transparency and Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#maximize-optimization-benefits">Maximize Optimization Benefits</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#when-to-use-each-strategy-type">When to Use Each Strategy Type</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#technical-references">Technical References</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sentence-tokenization">Sentence Tokenization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#character-based-chunking">Character-Based Chunking</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/core.html">Core Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#forzaembed-class">ForzaEmbed Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#processor-class">Processor Class</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.processing.Processor"><code class="docutils literal notranslate"><span class="pre">Processor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.db"><code class="docutils literal notranslate"><span class="pre">Processor.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.config"><code class="docutils literal notranslate"><span class="pre">Processor.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.embedding_service"><code class="docutils literal notranslate"><span class="pre">Processor.embedding_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.similarity_service"><code class="docutils literal notranslate"><span class="pre">Processor.similarity_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.visualization_service"><code class="docutils literal notranslate"><span class="pre">Processor.visualization_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.__init__"><code class="docutils literal notranslate"><span class="pre">Processor.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.processing.Processor.run_test"><code class="docutils literal notranslate"><span class="pre">Processor.run_test()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#module-src.core.config">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams"><code class="docutils literal notranslate"><span class="pre">GridSearchParams</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.chunk_size"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.chunk_overlap"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.chunking_strategy"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.similarity_metrics"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.similarity_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.themes"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.themes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id0"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id1"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id2"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id3"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.similarity_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id4"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.themes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.GridSearchParams.model_config"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig"><code class="docutils literal notranslate"><span class="pre">ModelConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.type"><code class="docutils literal notranslate"><span class="pre">ModelConfig.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.name"><code class="docutils literal notranslate"><span class="pre">ModelConfig.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.dimensions"><code class="docutils literal notranslate"><span class="pre">ModelConfig.dimensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.base_url"><code class="docutils literal notranslate"><span class="pre">ModelConfig.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.timeout"><code class="docutils literal notranslate"><span class="pre">ModelConfig.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.max_tokens"><code class="docutils literal notranslate"><span class="pre">ModelConfig.max_tokens</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.pooling_strategy"><code class="docutils literal notranslate"><span class="pre">ModelConfig.pooling_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id5"><code class="docutils literal notranslate"><span class="pre">ModelConfig.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id6"><code class="docutils literal notranslate"><span class="pre">ModelConfig.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id7"><code class="docutils literal notranslate"><span class="pre">ModelConfig.dimensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id8"><code class="docutils literal notranslate"><span class="pre">ModelConfig.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id9"><code class="docutils literal notranslate"><span class="pre">ModelConfig.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id10"><code class="docutils literal notranslate"><span class="pre">ModelConfig.max_tokens</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id11"><code class="docutils literal notranslate"><span class="pre">ModelConfig.pooling_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.ModelConfig.model_config"><code class="docutils literal notranslate"><span class="pre">ModelConfig.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.DatabaseSettings"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.DatabaseSettings.intelligent_quantization"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.intelligent_quantization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.DatabaseSettings.quantize_metrics"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.quantize_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id12"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.intelligent_quantization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id13"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.quantize_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.DatabaseSettings.model_config"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.EmbeddingPoolingStrategy"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.EmbeddingPoolingStrategy.MAX"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.MAX</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.EmbeddingPoolingStrategy.AVERAGE"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.AVERAGE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.EmbeddingPoolingStrategy.WEIGHTED"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.WEIGHTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.EmbeddingPoolingStrategy.LAST"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.LAST</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.max_workers_api"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.max_workers_local"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.maxtasksperchild"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.maxtasksperchild</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.embedding_batch_size_api"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.embedding_batch_size_local"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.file_batch_size"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.file_batch_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.api_batch_sizes"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.api_batch_sizes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id14"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id15"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id16"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.maxtasksperchild</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id17"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id18"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id19"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.file_batch_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id20"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.api_batch_sizes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.MultiprocessingSettings.model_config"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.AppConfig"><code class="docutils literal notranslate"><span class="pre">AppConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.grid_search_params"><code class="docutils literal notranslate"><span class="pre">AppConfig.grid_search_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.models_to_test"><code class="docutils literal notranslate"><span class="pre">AppConfig.models_to_test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.output_dir"><code class="docutils literal notranslate"><span class="pre">AppConfig.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.generate_filtered_markdowns"><code class="docutils literal notranslate"><span class="pre">AppConfig.generate_filtered_markdowns</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.database"><code class="docutils literal notranslate"><span class="pre">AppConfig.database</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.multiprocessing"><code class="docutils literal notranslate"><span class="pre">AppConfig.multiprocessing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id21"><code class="docutils literal notranslate"><span class="pre">AppConfig.grid_search_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id22"><code class="docutils literal notranslate"><span class="pre">AppConfig.models_to_test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id23"><code class="docutils literal notranslate"><span class="pre">AppConfig.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id24"><code class="docutils literal notranslate"><span class="pre">AppConfig.generate_filtered_markdowns</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id25"><code class="docutils literal notranslate"><span class="pre">AppConfig.database</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#id26"><code class="docutils literal notranslate"><span class="pre">AppConfig.multiprocessing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/core.html#src.core.config.AppConfig.model_config"><code class="docutils literal notranslate"><span class="pre">AppConfig.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/core.html#src.core.config.load_config"><code class="docutils literal notranslate"><span class="pre">load_config()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/clients.html">Embedding Clients</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/clients.html#module-src.clients.fastembed_client">FastEmbed Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.fastembed_client.FastEmbedClient"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.fastembed_client.FastEmbedClient._instances"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.fastembed_client.FastEmbedClient.get_instance"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.fastembed_client.FastEmbedClient.reset_instance"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.reset_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.fastembed_client.FastEmbedClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/clients.html#module-src.clients.sentencetransformers_client">Sentence Transformers Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient._instances"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient.get_instance"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/clients.html#module-src.clients.transformers_client">Transformers Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.transformers_client.mean_pooling"><code class="docutils literal notranslate"><span class="pre">mean_pooling()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.transformers_client.TransformersClient"><code class="docutils literal notranslate"><span class="pre">TransformersClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.transformers_client.TransformersClient._instances"><code class="docutils literal notranslate"><span class="pre">TransformersClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.transformers_client.TransformersClient.get_instance"><code class="docutils literal notranslate"><span class="pre">TransformersClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.transformers_client.TransformersClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">TransformersClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/clients.html#module-src.clients.huggingface_client">Hugging Face Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.huggingface_client.mean_pooling"><code class="docutils literal notranslate"><span class="pre">mean_pooling()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.huggingface_client.get_huggingface_embeddings"><code class="docutils literal notranslate"><span class="pre">get_huggingface_embeddings()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/clients.html#module-src.clients.api_client">API Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.base_url"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.model"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.expected_dimension"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.expected_dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.timeout"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.session"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.session</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.__init__"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/clients.html#src.clients.api_client.ProductionEmbeddingClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/services.html#module-src.services.embedding_service">Embedding Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService"><code class="docutils literal notranslate"><span class="pre">EmbeddingService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.db"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.config"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.multiprocessing_config"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.multiprocessing_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.get_embedding_function"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_embedding_function()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.get_or_create_embeddings"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_or_create_embeddings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.embedding_service.EmbeddingService.get_text_hash"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_text_hash()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/services.html#module-src.services.similarity_service">Similarity Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/services.html#src.services.similarity_service.SimilarityService"><code class="docutils literal notranslate"><span class="pre">SimilarityService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.similarity_service.SimilarityService.calculate_similarity"><code class="docutils literal notranslate"><span class="pre">SimilarityService.calculate_similarity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.similarity_service.SimilarityService.validate_similarities"><code class="docutils literal notranslate"><span class="pre">SimilarityService.validate_similarities()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/services.html#module-src.services.visualization_service">Visualization Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/services.html#src.services.visualization_service.VisualizationService"><code class="docutils literal notranslate"><span class="pre">VisualizationService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.visualization_service.VisualizationService.db"><code class="docutils literal notranslate"><span class="pre">VisualizationService.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.visualization_service.VisualizationService.__init__"><code class="docutils literal notranslate"><span class="pre">VisualizationService.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/services.html#src.services.visualization_service.VisualizationService.get_or_create_projections"><code class="docutils literal notranslate"><span class="pre">VisualizationService.get_or_create_projections()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/metrics.html">Evaluation Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#module-src.metrics.evaluation_metrics">Main Metrics Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#src.metrics.evaluation_metrics.calculate_silhouette_metrics"><code class="docutils literal notranslate"><span class="pre">calculate_silhouette_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#src.metrics.evaluation_metrics.calculate_all_metrics"><code class="docutils literal notranslate"><span class="pre">calculate_all_metrics()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#module-src.metrics.silhouette_decomposition">Silhouette Analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#src.metrics.silhouette_decomposition.decompose_silhouette_score"><code class="docutils literal notranslate"><span class="pre">decompose_silhouette_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#src.metrics.silhouette_decomposition.analyze_silhouette_by_cluster"><code class="docutils literal notranslate"><span class="pre">analyze_silhouette_by_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#src.metrics.silhouette_decomposition.enhanced_silhouette_analysis"><code class="docutils literal notranslate"><span class="pre">enhanced_silhouette_analysis()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#metric-descriptions">Metric Descriptions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#silhouette-score">Silhouette Score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#intra-cluster-distance-normalized">Intra-Cluster Distance (Normalized)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#inter-cluster-distance-normalized">Inter-Cluster Distance (Normalized)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#embedding-computation-time">Embedding Computation Time</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#interpretation-guide">Interpretation Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#good-configuration">Good Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#poor-configuration">Poor Configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/reporting.html">Reporting Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/reporting.html#report-generator">Report Generator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/reporting.html#module-src.reporting.aggregator">Data Aggregator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator"><code class="docutils literal notranslate"><span class="pre">DataAggregator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.db"><code class="docutils literal notranslate"><span class="pre">DataAggregator.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.output_dir"><code class="docutils literal notranslate"><span class="pre">DataAggregator.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.cache_path"><code class="docutils literal notranslate"><span class="pre">DataAggregator.cache_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.__init__"><code class="docutils literal notranslate"><span class="pre">DataAggregator.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.get_aggregated_data"><code class="docutils literal notranslate"><span class="pre">DataAggregator.get_aggregated_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.aggregator.DataAggregator.touch_cache"><code class="docutils literal notranslate"><span class="pre">DataAggregator.touch_cache()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/reporting.html#module-src.reporting.web_generator">Web Generator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/reporting.html#src.reporting.web_generator.safe_numpy_converter"><code class="docutils literal notranslate"><span class="pre">safe_numpy_converter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/reporting.html#src.reporting.web_generator.generate_main_page"><code class="docutils literal notranslate"><span class="pre">generate_main_page()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/reporting.html#module-src.reporting.markdown_filter">Markdown Filter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.db"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.config"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.output_dir"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.config_name"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.config_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.similarity_threshold"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.similarity_threshold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.__init__"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/reporting.html#src.reporting.markdown_filter.MarkdownFilter.generate_filtered_markdowns"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.generate_filtered_markdowns()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/utils.html">Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html#module-src.utils.database">Database</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.db_path"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.db_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.config"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.quantization_enabled"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.quantization_enabled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.engine"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.engine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.Session"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.Session</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.add_model"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.add_generated_file"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_generated_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.add_global_chart"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_global_chart()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.model_exists"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.model_exists()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.save_processing_result"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_processing_result()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.save_processing_results_batch"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_processing_results_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_processed_files"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_processed_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_model_info"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_model_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_all_processing_results"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_processing_results()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_all_models"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_models()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_model_files"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_model_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_global_charts"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_global_charts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.vacuum_database"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.vacuum_database()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_all_run_names"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_run_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_processed_files_with_similarities"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_processed_files_with_similarities()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_embeddings_by_hashes"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_embeddings_by_hashes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.save_embeddings_batch"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_embeddings_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.save_projection_coordinates"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_projection_coordinates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_projection_coordinates"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_projection_coordinates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.clear_tsne_cache"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.clear_tsne_cache()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_run_details"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_run_details()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_all_processing_results_for_run"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_processing_results_for_run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.update_metrics_for_file"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.update_metrics_for_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.database.EmbeddingDatabase.get_db_modification_time"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_db_modification_time()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html#module-src.utils.data_loader">Data Loader</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.data_loader.load_markdown_files"><code class="docutils literal notranslate"><span class="pre">load_markdown_files()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html#module-src.utils.utils">Text Processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.utils.get_spacy_model"><code class="docutils literal notranslate"><span class="pre">get_spacy_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.utils.chunk_text"><code class="docutils literal notranslate"><span class="pre">chunk_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.utils.contains_horaire_pattern"><code class="docutils literal notranslate"><span class="pre">contains_horaire_pattern()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.utils.extract_context_around_phrase"><code class="docutils literal notranslate"><span class="pre">extract_context_around_phrase()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/utils.html#module-src.utils.models">Database Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.models.Base"><code class="docutils literal notranslate"><span class="pre">Base</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Base.__init__"><code class="docutils literal notranslate"><span class="pre">Base.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Base.metadata"><code class="docutils literal notranslate"><span class="pre">Base.metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Base.registry"><code class="docutils literal notranslate"><span class="pre">Base.registry</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.models.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.id"><code class="docutils literal notranslate"><span class="pre">Model.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.name"><code class="docutils literal notranslate"><span class="pre">Model.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.base_model_name"><code class="docutils literal notranslate"><span class="pre">Model.base_model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.type"><code class="docutils literal notranslate"><span class="pre">Model.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.chunk_size"><code class="docutils literal notranslate"><span class="pre">Model.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.chunk_overlap"><code class="docutils literal notranslate"><span class="pre">Model.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.theme_name"><code class="docutils literal notranslate"><span class="pre">Model.theme_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.chunking_strategy"><code class="docutils literal notranslate"><span class="pre">Model.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.similarity_metric"><code class="docutils literal notranslate"><span class="pre">Model.similarity_metric</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.created_at"><code class="docutils literal notranslate"><span class="pre">Model.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id0"><code class="docutils literal notranslate"><span class="pre">Model.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id1"><code class="docutils literal notranslate"><span class="pre">Model.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id2"><code class="docutils literal notranslate"><span class="pre">Model.base_model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id3"><code class="docutils literal notranslate"><span class="pre">Model.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id4"><code class="docutils literal notranslate"><span class="pre">Model.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id5"><code class="docutils literal notranslate"><span class="pre">Model.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id6"><code class="docutils literal notranslate"><span class="pre">Model.theme_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id7"><code class="docutils literal notranslate"><span class="pre">Model.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id8"><code class="docutils literal notranslate"><span class="pre">Model.similarity_metric</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id9"><code class="docutils literal notranslate"><span class="pre">Model.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.Model.__init__"><code class="docutils literal notranslate"><span class="pre">Model.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult"><code class="docutils literal notranslate"><span class="pre">ProcessingResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.id"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.model_name"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.file_id"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.results_blob"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.results_blob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.created_at"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id10"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id11"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id12"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id13"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.results_blob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id14"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProcessingResult.__init__"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.model_name"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.text_hash"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.text_hash</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.vector"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.vector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.dimension"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.created_at"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id15"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id16"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.text_hash</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id17"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.vector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id18"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id19"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.EmbeddingCache.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.id"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.projection_key"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.projection_key</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.file_id"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.coordinates"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.coordinates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.created_at"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id20"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id21"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.projection_key</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id22"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id23"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.coordinates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#id24"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/utils.html#src.utils.models.ProjectionCoordinate.__init__"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="license.html#attribution">Attribution</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ForzaEmbed</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Grid Search Optimization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/optimization.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="grid-search-optimization">
+<h1>Grid Search Optimization<a class="headerlink" href="#grid-search-optimization" title="Link to this heading"></a></h1>
+<p>ForzaEmbed implements a grid search optimization that reduces computation time by avoiding redundant calculations.</p>
+<section id="problem-statement">
+<h2>Problem Statement<a class="headerlink" href="#problem-statement" title="Link to this heading"></a></h2>
+<p>In a naive grid search approach, all chunking strategies would be tested with all combinations of chunk_size and chunk_overlap parameters. However, some chunking strategies completely ignore these parameters because they use linguistic sentence boundaries instead of fixed sizes.</p>
+<p>Testing these parameter-insensitive strategies with different chunk sizes produces <strong>identical results</strong>, wasting valuable computation time and storage space.</p>
+</section>
+<section id="chunking-strategy-classification">
+<h2>Chunking Strategy Classification<a class="headerlink" href="#chunking-strategy-classification" title="Link to this heading"></a></h2>
+<p>ForzaEmbed classifies chunking strategies into two categories:</p>
+<section id="parameter-sensitive-strategies">
+<h3>Parameter-Sensitive Strategies<a class="headerlink" href="#parameter-sensitive-strategies" title="Link to this heading"></a></h3>
+<p>These strategies use chunk_size and chunk_overlap parameters:</p>
+<dl class="simple">
+<dt><strong>langchain</strong></dt><dd><p>Uses <code class="docutils literal notranslate"><span class="pre">RecursiveCharacterTextSplitter</span></code> with precise size control</p>
+<ul class="simple">
+<li><p>Respects exact chunk_size limits</p></li>
+<li><p>Implements chunk_overlap for context preservation</p></li>
+<li><p>Splits recursively on separators while maintaining size constraints</p></li>
+</ul>
+</dd>
+<dt><strong>semchunk</strong></dt><dd><p>Semantic chunking with size limits</p>
+<ul class="simple">
+<li><p>Uses chunk_size as maximum limit</p></li>
+<li><p>Maintains semantic coherence within size constraints</p></li>
+<li><p>Produces different results with different sizes</p></li>
+</ul>
+</dd>
+<dt><strong>raw</strong></dt><dd><p>Character-based chunking with overlap</p>
+<ul class="simple">
+<li><p>Pure character-based splitting at chunk_size</p></li>
+<li><p>Implements sliding window with chunk_overlap</p></li>
+<li><p>Produces exact-sized chunks</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="parameter-insensitive-strategies">
+<h3>Parameter-Insensitive Strategies<a class="headerlink" href="#parameter-insensitive-strategies" title="Link to this heading"></a></h3>
+<p>These strategies ignore chunk_size and chunk_overlap:</p>
+<dl class="simple">
+<dt><strong>nltk</strong></dt><dd><p>Uses <code class="docutils literal notranslate"><span class="pre">nltk.sent_tokenize()</span></code> for sentence segmentation</p>
+<ul class="simple">
+<li><p>Splits on sentence boundaries using linguistic rules</p></li>
+<li><p>Ignores chunk_size and chunk_overlap completely</p></li>
+<li><p>Results depend only on text content and language</p></li>
+</ul>
+</dd>
+<dt><strong>spacy</strong></dt><dd><p>Uses spaCy’s sentence segmentation (<code class="docutils literal notranslate"><span class="pre">doc.sents</span></code>)</p>
+<ul class="simple">
+<li><p>Splits using machine learning-based sentence detection</p></li>
+<li><p>Ignores chunk_size and chunk_overlap completely</p></li>
+<li><p>Results depend on linguistic model, not size parameters</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+</section>
+<section id="optimization-strategy">
+<h2>Optimization Strategy<a class="headerlink" href="#optimization-strategy" title="Link to this heading"></a></h2>
+<p>The smart grid search optimization works as follows:</p>
+<ol class="arabic">
+<li><p><strong>Strategy Classification</strong></p>
+<p>Separates chunking strategies into sensitive and insensitive groups</p>
+</li>
+<li><p><strong>Combination Generation</strong></p>
+<ul class="simple">
+<li><p>For <strong>parameter-sensitive</strong> strategies: Generate all valid combinations of chunk_size × chunk_overlap</p></li>
+<li><p>For <strong>parameter-insensitive</strong> strategies: Generate only <strong>one</strong> combination using dummy values (first chunk_size and chunk_overlap)</p></li>
+</ul>
+</li>
+<li><p><strong>Validation</strong></p>
+<p>Ensures chunk_size &gt; chunk_overlap for all sensitive strategy combinations</p>
+</li>
+</ol>
+</section>
+<section id="performance-impact">
+<h2>Performance Impact<a class="headerlink" href="#performance-impact" title="Link to this heading"></a></h2>
+<section id="example-configuration">
+<h3>Example Configuration<a class="headerlink" href="#example-configuration" title="Link to this heading"></a></h3>
+<p>Consider a typical configuration:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">grid_search_params</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">chunk_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">10</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">20</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">250</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1000</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 7 values</span>
+<span class="w">  </span><span class="nt">chunk_overlap</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">25</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">200</span><span class="p p-Indicator">]</span><span class="w">     </span><span class="c1"># 7 values</span>
+<span class="w">  </span><span class="nt">chunking_strategy</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;langchain&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;raw&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;semchunk&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;nltk&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;spacy&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">similarity_metrics</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;cosine&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;euclidean&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;manhattan&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;dot_product&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;chebyshev&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">themes</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">horaires</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;opening</span><span class="nv"> </span><span class="s">hours&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;schedule&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;timetable&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">closures</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;closed</span><span class="nv"> </span><span class="s">on&quot;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">models_to_test</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;fastembed&quot;</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;BAAI/bge-small-en-v1.5&quot;</span>
+<span class="w">    </span><span class="nt">dimensions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">384</span>
+<span class="w">  </span><span class="c1"># ... 5 more models</span>
+</pre></div>
+</div>
+</section>
+<section id="results">
+<h3>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h3>
+<p><strong>Naive Approach (without optimization)</strong>:</p>
+<ul class="simple">
+<li><p>Valid chunk pairs: 35 (from 7 × 7, filtered for size &gt; overlap)</p></li>
+<li><p>Total combinations: 6 models × 35 pairs × 5 strategies × 5 metrics × 3 themes</p></li>
+<li><p><strong>Result: 15,750 combinations</strong></p></li>
+</ul>
+<p><strong>Smart Approach (with optimization)</strong>:</p>
+<ul class="simple">
+<li><p>Parameter-sensitive (langchain, raw, semchunk):</p>
+<ul>
+<li><p>6 models × 35 pairs × 3 strategies × 5 metrics × 3 themes = 9,450</p></li>
+</ul>
+</li>
+<li><p>Parameter-insensitive (nltk, spacy):</p>
+<ul>
+<li><p>6 models × <strong>1 pair</strong> × 2 strategies × 5 metrics × 3 themes = 180</p></li>
+</ul>
+</li>
+<li><p><strong>Total: 9,630 combinations</strong></p></li>
+</ul>
+<p><strong>Optimization Results</strong>:</p>
+<ul class="simple">
+<li><p>Combinations eliminated: <strong>6,120</strong></p></li>
+<li><p>Reduction: <strong>38.9%</strong></p></li>
+<li><p>Speedup: <strong>1.64x</strong></p></li>
+</ul>
+</section>
+<section id="per-strategy-savings">
+<h3>Per-Strategy Savings<a class="headerlink" href="#per-strategy-savings" title="Link to this heading"></a></h3>
+<p>For each parameter-insensitive strategy:</p>
+<ul class="simple">
+<li><p>Without optimization: 35 chunk configurations tested</p></li>
+<li><p>With optimization: 1 chunk configuration tested</p></li>
+<li><p>Savings: 34 configurations per strategy</p></li>
+</ul>
+<p>With 6 models, 5 metrics, and 3 themes:</p>
+<ul class="simple">
+<li><p>Savings per insensitive strategy: (35 - 1) × 6 × 5 × 3 = <strong>3,060 combinations</strong></p></li>
+</ul>
+</section>
+</section>
+<section id="implementation-details">
+<h2>Implementation Details<a class="headerlink" href="#implementation-details" title="Link to this heading"></a></h2>
+<p>The optimization is implemented in <code class="docutils literal notranslate"><span class="pre">src/core/core.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define parameter-insensitive strategies</span>
+<span class="n">PARAMETER_INSENSITIVE_STRATEGIES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;nltk&quot;</span><span class="p">,</span> <span class="s2">&quot;spacy&quot;</span><span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_generate_smart_combinations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_grid</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates parameter combinations intelligently by avoiding</span>
+<span class="sd">    redundant combinations for chunking strategies that don&#39;t</span>
+<span class="sd">    use chunk_size/chunk_overlap.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Separate strategies</span>
+    <span class="n">sensitive_strategies</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">strategies</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">PARAMETER_INSENSITIVE_STRATEGIES</span>
+    <span class="p">]</span>
+    <span class="n">insensitive_strategies</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">strategies</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">PARAMETER_INSENSITIVE_STRATEGIES</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Generate all combinations for sensitive strategies</span>
+    <span class="c1"># Generate only one combination for insensitive strategies</span>
+    <span class="c1"># ...</span>
+</pre></div>
+</div>
+</section>
+<section id="automatic-detection">
+<h2>Automatic Detection<a class="headerlink" href="#automatic-detection" title="Link to this heading"></a></h2>
+<p>The optimization is <strong>completely automatic</strong>. No changes to your configuration files or API calls are required.</p>
+<p>When running a grid search, you’ll see logging output like:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Smart combination generation:
+  3 parameter-sensitive strategies (langchain, raw, semchunk),
+  2 parameter-insensitive strategies (nltk, spacy)
+</pre></div>
+</div>
+</section>
+<section id="transparency-and-verification">
+<h2>Transparency and Verification<a class="headerlink" href="#transparency-and-verification" title="Link to this heading"></a></h2>
+<p>To verify the optimization and understand the savings for your specific configuration, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>demo_smart_optimization.py
+</pre></div>
+</div>
+<p>This script displays:</p>
+<ul class="simple">
+<li><p>Strategy classification</p></li>
+<li><p>Combination counts (naive vs optimized)</p></li>
+<li><p>Reduction percentage and speedup factor</p></li>
+<li><p>Detailed per-strategy breakdown</p></li>
+</ul>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<section id="maximize-optimization-benefits">
+<h3>Maximize Optimization Benefits<a class="headerlink" href="#maximize-optimization-benefits" title="Link to this heading"></a></h3>
+<p>To maximize the benefits of this optimization:</p>
+<ol class="arabic">
+<li><p><strong>Include both types of strategies</strong> in your configuration</p>
+<p>Mix parameter-sensitive (langchain, semchunk, raw) with parameter-insensitive (nltk, spacy)</p>
+</li>
+<li><p><strong>Use multiple chunk_size and chunk_overlap values</strong></p>
+<p>The more values you test, the greater the savings for insensitive strategies</p>
+</li>
+<li><p><strong>Test many configurations</strong></p>
+<p>With multiple models, metrics, and themes, the multiplicative effect increases savings</p>
+</li>
+</ol>
+</section>
+<section id="when-to-use-each-strategy-type">
+<h3>When to Use Each Strategy Type<a class="headerlink" href="#when-to-use-each-strategy-type" title="Link to this heading"></a></h3>
+<p><strong>Use parameter-sensitive strategies</strong> when:</p>
+<ul class="simple">
+<li><p>You need precise control over chunk size</p></li>
+<li><p>Working with structured data or code</p></li>
+<li><p>Chunk size significantly impacts your use case</p></li>
+<li><p>You want to test different granularities</p></li>
+</ul>
+<p><strong>Use parameter-insensitive strategies</strong> when:</p>
+<ul class="simple">
+<li><p>Natural sentence boundaries are important</p></li>
+<li><p>Working with narrative or conversational text</p></li>
+<li><p>Linguistic coherence is a priority</p></li>
+<li><p>You want grammatically complete chunks</p></li>
+</ul>
+</section>
+</section>
+<section id="technical-references">
+<h2>Technical References<a class="headerlink" href="#technical-references" title="Link to this heading"></a></h2>
+<section id="sentence-tokenization">
+<h3>Sentence Tokenization<a class="headerlink" href="#sentence-tokenization" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>NLTK</strong>: <a class="reference external" href="https://www.nltk.org/api/nltk.tokenize.html#nltk.tokenize.sent_tokenize">https://www.nltk.org/api/nltk.tokenize.html#nltk.tokenize.sent_tokenize</a></p></li>
+<li><p><strong>spaCy</strong>: <a class="reference external" href="https://spacy.io/usage/linguistic-features#sbd">https://spacy.io/usage/linguistic-features#sbd</a></p></li>
+</ul>
+</section>
+<section id="character-based-chunking">
+<h3>Character-Based Chunking<a class="headerlink" href="#character-based-chunking" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>LangChain</strong>: <a class="reference external" href="https://python.langchain.com/docs/modules/data_connection/document_transformers/text_splitters/recursive_text_splitter">https://python.langchain.com/docs/modules/data_connection/document_transformers/text_splitters/recursive_text_splitter</a></p></li>
+<li><p><strong>SemChunk</strong>: <a class="reference external" href="https://github.com/umarbutler/semchunk">https://github.com/umarbutler/semchunk</a></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="examples.html" class="btn btn-neutral float-left" title="Example 1: Finding Opening Hours" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api/core.html" class="btn btn-neutral float-right" title="Core Module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Béranger Thomas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

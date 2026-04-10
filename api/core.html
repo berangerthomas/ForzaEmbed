@@ -1,0 +1,1299 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Core Module &mdash; ForzaEmbed 1.1.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=fc837d61"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Embedding Clients" href="clients.html" />
+    <link rel="prev" title="Grid Search Optimization" href="../optimization.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ForzaEmbed
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#id1">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#verifying-installation">Verifying Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../installation.html#spacy-models">spaCy Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../installation.html#nltk-data">NLTK Data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quick Start Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#basic-workflow">Basic Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#step-1-prepare-your-data">Step 1: Prepare Your Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#step-2-create-configuration">Step 2: Create Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#step-3-run-the-analysis">Step 3: Run the Analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../quickstart.html#using-python-api">Using Python API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../quickstart.html#using-command-line">Using Command Line</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#step-4-explore-results">Step 4: Explore Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#understanding-the-heatmap">Understanding the Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#example-output">Example Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#configuration-file-structure">Configuration File Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#grid-search-parameters">Grid Search Parameters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#chunk-size">chunk_size</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#chunk-overlap">chunk_overlap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#chunking-strategy">chunking_strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#similarity-metrics">similarity_metrics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#themes">themes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#models-configuration">Models Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#fastembed-models">FastEmbed Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#sentence-transformers">Sentence Transformers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#hugging-face-transformers">Hugging Face Transformers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#api-based-models">API-based Models</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#general-settings">General Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#output-dir">output_dir</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#note">Note</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#generate-filtered-markdowns">generate_filtered_markdowns</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#database-settings">Database Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../configuration.html#intelligent-quantization">intelligent_quantization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#performance-settings">Performance Settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuration.html#complete-example">Complete Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html">Example 1: Finding Opening Hours</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#python-code">Python Code</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html#example-2-comparing-multiple-models">Example 2: Comparing Multiple Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#id1">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#id2">Python Code</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html#example-3-resume-from-interrupted-run">Example 3: Resume from Interrupted Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html#example-4-generate-reports-from-existing-database">Example 4: Generate Reports from Existing Database</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html#command-line-examples">Command Line Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples.html#performance-optimization-tips">Performance Optimization Tips</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#smart-grid-search-optimization">Smart Grid Search Optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#for-large-datasets">For Large Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#for-api-based-models">For API-Based Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples.html#for-memory-constraints">For Memory Constraints</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../optimization.html">Grid Search Optimization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#problem-statement">Problem Statement</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#chunking-strategy-classification">Chunking Strategy Classification</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#parameter-sensitive-strategies">Parameter-Sensitive Strategies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#parameter-insensitive-strategies">Parameter-Insensitive Strategies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#optimization-strategy">Optimization Strategy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#performance-impact">Performance Impact</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#example-configuration">Example Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#results">Results</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#per-strategy-savings">Per-Strategy Savings</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#implementation-details">Implementation Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#automatic-detection">Automatic Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#transparency-and-verification">Transparency and Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#best-practices">Best Practices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#maximize-optimization-benefits">Maximize Optimization Benefits</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#when-to-use-each-strategy-type">When to Use Each Strategy Type</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../optimization.html#technical-references">Technical References</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#sentence-tokenization">Sentence Tokenization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../optimization.html#character-based-chunking">Character-Based Chunking</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Core Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#forzaembed-class">ForzaEmbed Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#processor-class">Processor Class</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.processing.Processor"><code class="docutils literal notranslate"><span class="pre">Processor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.db"><code class="docutils literal notranslate"><span class="pre">Processor.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.config"><code class="docutils literal notranslate"><span class="pre">Processor.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.embedding_service"><code class="docutils literal notranslate"><span class="pre">Processor.embedding_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.similarity_service"><code class="docutils literal notranslate"><span class="pre">Processor.similarity_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.visualization_service"><code class="docutils literal notranslate"><span class="pre">Processor.visualization_service</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.__init__"><code class="docutils literal notranslate"><span class="pre">Processor.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.processing.Processor.run_test"><code class="docutils literal notranslate"><span class="pre">Processor.run_test()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-src.core.config">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.GridSearchParams"><code class="docutils literal notranslate"><span class="pre">GridSearchParams</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.chunk_size"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.chunk_overlap"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.chunking_strategy"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.similarity_metrics"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.similarity_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.themes"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.themes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.similarity_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.themes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.GridSearchParams.model_config"><code class="docutils literal notranslate"><span class="pre">GridSearchParams.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.ModelConfig"><code class="docutils literal notranslate"><span class="pre">ModelConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.type"><code class="docutils literal notranslate"><span class="pre">ModelConfig.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.name"><code class="docutils literal notranslate"><span class="pre">ModelConfig.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.dimensions"><code class="docutils literal notranslate"><span class="pre">ModelConfig.dimensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.base_url"><code class="docutils literal notranslate"><span class="pre">ModelConfig.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.timeout"><code class="docutils literal notranslate"><span class="pre">ModelConfig.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.max_tokens"><code class="docutils literal notranslate"><span class="pre">ModelConfig.max_tokens</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.pooling_strategy"><code class="docutils literal notranslate"><span class="pre">ModelConfig.pooling_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">ModelConfig.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">ModelConfig.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">ModelConfig.dimensions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8"><code class="docutils literal notranslate"><span class="pre">ModelConfig.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id9"><code class="docutils literal notranslate"><span class="pre">ModelConfig.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id10"><code class="docutils literal notranslate"><span class="pre">ModelConfig.max_tokens</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11"><code class="docutils literal notranslate"><span class="pre">ModelConfig.pooling_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.ModelConfig.model_config"><code class="docutils literal notranslate"><span class="pre">ModelConfig.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.DatabaseSettings"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.DatabaseSettings.intelligent_quantization"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.intelligent_quantization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.DatabaseSettings.quantize_metrics"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.quantize_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id12"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.intelligent_quantization</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id13"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.quantize_metrics</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.DatabaseSettings.model_config"><code class="docutils literal notranslate"><span class="pre">DatabaseSettings.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.EmbeddingPoolingStrategy"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.EmbeddingPoolingStrategy.MAX"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.MAX</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.EmbeddingPoolingStrategy.AVERAGE"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.AVERAGE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.EmbeddingPoolingStrategy.WEIGHTED"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.WEIGHTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.EmbeddingPoolingStrategy.LAST"><code class="docutils literal notranslate"><span class="pre">EmbeddingPoolingStrategy.LAST</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.MultiprocessingSettings"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.max_workers_api"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.max_workers_local"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.maxtasksperchild"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.maxtasksperchild</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.embedding_batch_size_api"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.embedding_batch_size_local"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.file_batch_size"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.file_batch_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.api_batch_sizes"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.api_batch_sizes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id14"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id15"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.max_workers_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id16"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.maxtasksperchild</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id17"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_api</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id18"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.embedding_batch_size_local</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id19"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.file_batch_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id20"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.api_batch_sizes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.MultiprocessingSettings.model_config"><code class="docutils literal notranslate"><span class="pre">MultiprocessingSettings.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.AppConfig"><code class="docutils literal notranslate"><span class="pre">AppConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.grid_search_params"><code class="docutils literal notranslate"><span class="pre">AppConfig.grid_search_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.models_to_test"><code class="docutils literal notranslate"><span class="pre">AppConfig.models_to_test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.output_dir"><code class="docutils literal notranslate"><span class="pre">AppConfig.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.generate_filtered_markdowns"><code class="docutils literal notranslate"><span class="pre">AppConfig.generate_filtered_markdowns</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.database"><code class="docutils literal notranslate"><span class="pre">AppConfig.database</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.multiprocessing"><code class="docutils literal notranslate"><span class="pre">AppConfig.multiprocessing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id21"><code class="docutils literal notranslate"><span class="pre">AppConfig.grid_search_params</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id22"><code class="docutils literal notranslate"><span class="pre">AppConfig.models_to_test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id23"><code class="docutils literal notranslate"><span class="pre">AppConfig.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id24"><code class="docutils literal notranslate"><span class="pre">AppConfig.generate_filtered_markdowns</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id25"><code class="docutils literal notranslate"><span class="pre">AppConfig.database</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id26"><code class="docutils literal notranslate"><span class="pre">AppConfig.multiprocessing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#src.core.config.AppConfig.model_config"><code class="docutils literal notranslate"><span class="pre">AppConfig.model_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#src.core.config.load_config"><code class="docutils literal notranslate"><span class="pre">load_config()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="clients.html">Embedding Clients</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="clients.html#module-src.clients.fastembed_client">FastEmbed Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.fastembed_client.FastEmbedClient"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.fastembed_client.FastEmbedClient._instances"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.fastembed_client.FastEmbedClient.get_instance"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.fastembed_client.FastEmbedClient.reset_instance"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.reset_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.fastembed_client.FastEmbedClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">FastEmbedClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="clients.html#module-src.clients.sentencetransformers_client">Sentence Transformers Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient._instances"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient.get_instance"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.sentencetransformers_client.SentenceTransformersClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">SentenceTransformersClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="clients.html#module-src.clients.transformers_client">Transformers Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.transformers_client.mean_pooling"><code class="docutils literal notranslate"><span class="pre">mean_pooling()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.transformers_client.TransformersClient"><code class="docutils literal notranslate"><span class="pre">TransformersClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.transformers_client.TransformersClient._instances"><code class="docutils literal notranslate"><span class="pre">TransformersClient._instances</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.transformers_client.TransformersClient.get_instance"><code class="docutils literal notranslate"><span class="pre">TransformersClient.get_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.transformers_client.TransformersClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">TransformersClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="clients.html#module-src.clients.huggingface_client">Hugging Face Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.huggingface_client.mean_pooling"><code class="docutils literal notranslate"><span class="pre">mean_pooling()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.huggingface_client.get_huggingface_embeddings"><code class="docutils literal notranslate"><span class="pre">get_huggingface_embeddings()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="clients.html#module-src.clients.api_client">API Client</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.base_url"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.base_url</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.model"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.expected_dimension"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.expected_dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.timeout"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.timeout</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.session"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.session</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.__init__"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="clients.html#src.clients.api_client.ProductionEmbeddingClient.get_embeddings"><code class="docutils literal notranslate"><span class="pre">ProductionEmbeddingClient.get_embeddings()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="services.html#module-src.services.embedding_service">Embedding Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService"><code class="docutils literal notranslate"><span class="pre">EmbeddingService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.db"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.config"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.multiprocessing_config"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.multiprocessing_config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.get_embedding_function"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_embedding_function()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.get_or_create_embeddings"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_or_create_embeddings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.embedding_service.EmbeddingService.get_text_hash"><code class="docutils literal notranslate"><span class="pre">EmbeddingService.get_text_hash()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="services.html#module-src.services.similarity_service">Similarity Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="services.html#src.services.similarity_service.SimilarityService"><code class="docutils literal notranslate"><span class="pre">SimilarityService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.similarity_service.SimilarityService.calculate_similarity"><code class="docutils literal notranslate"><span class="pre">SimilarityService.calculate_similarity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.similarity_service.SimilarityService.validate_similarities"><code class="docutils literal notranslate"><span class="pre">SimilarityService.validate_similarities()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="services.html#module-src.services.visualization_service">Visualization Service</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="services.html#src.services.visualization_service.VisualizationService"><code class="docutils literal notranslate"><span class="pre">VisualizationService</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.visualization_service.VisualizationService.db"><code class="docutils literal notranslate"><span class="pre">VisualizationService.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.visualization_service.VisualizationService.__init__"><code class="docutils literal notranslate"><span class="pre">VisualizationService.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="services.html#src.services.visualization_service.VisualizationService.get_or_create_projections"><code class="docutils literal notranslate"><span class="pre">VisualizationService.get_or_create_projections()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Evaluation Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#module-src.metrics.evaluation_metrics">Main Metrics Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#src.metrics.evaluation_metrics.calculate_silhouette_metrics"><code class="docutils literal notranslate"><span class="pre">calculate_silhouette_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#src.metrics.evaluation_metrics.calculate_all_metrics"><code class="docutils literal notranslate"><span class="pre">calculate_all_metrics()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#module-src.metrics.silhouette_decomposition">Silhouette Analysis</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#src.metrics.silhouette_decomposition.decompose_silhouette_score"><code class="docutils literal notranslate"><span class="pre">decompose_silhouette_score()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#src.metrics.silhouette_decomposition.analyze_silhouette_by_cluster"><code class="docutils literal notranslate"><span class="pre">analyze_silhouette_by_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#src.metrics.silhouette_decomposition.enhanced_silhouette_analysis"><code class="docutils literal notranslate"><span class="pre">enhanced_silhouette_analysis()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#metric-descriptions">Metric Descriptions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#silhouette-score">Silhouette Score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#intra-cluster-distance-normalized">Intra-Cluster Distance (Normalized)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#inter-cluster-distance-normalized">Inter-Cluster Distance (Normalized)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#embedding-computation-time">Embedding Computation Time</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#interpretation-guide">Interpretation Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#good-configuration">Good Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#poor-configuration">Poor Configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reporting.html">Reporting Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reporting.html#report-generator">Report Generator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reporting.html#module-src.reporting.aggregator">Data Aggregator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator"><code class="docutils literal notranslate"><span class="pre">DataAggregator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.db"><code class="docutils literal notranslate"><span class="pre">DataAggregator.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.output_dir"><code class="docutils literal notranslate"><span class="pre">DataAggregator.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.cache_path"><code class="docutils literal notranslate"><span class="pre">DataAggregator.cache_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.__init__"><code class="docutils literal notranslate"><span class="pre">DataAggregator.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.get_aggregated_data"><code class="docutils literal notranslate"><span class="pre">DataAggregator.get_aggregated_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.aggregator.DataAggregator.touch_cache"><code class="docutils literal notranslate"><span class="pre">DataAggregator.touch_cache()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="reporting.html#module-src.reporting.web_generator">Web Generator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reporting.html#src.reporting.web_generator.safe_numpy_converter"><code class="docutils literal notranslate"><span class="pre">safe_numpy_converter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="reporting.html#src.reporting.web_generator.generate_main_page"><code class="docutils literal notranslate"><span class="pre">generate_main_page()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="reporting.html#module-src.reporting.markdown_filter">Markdown Filter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.db"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.db</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.config"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.output_dir"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.output_dir</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.config_name"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.config_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.similarity_threshold"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.similarity_threshold</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.__init__"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="reporting.html#src.reporting.markdown_filter.MarkdownFilter.generate_filtered_markdowns"><code class="docutils literal notranslate"><span class="pre">MarkdownFilter.generate_filtered_markdowns()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-src.utils.database">Database</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.db_path"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.db_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.config"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.quantization_enabled"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.quantization_enabled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.engine"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.engine</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.Session"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.Session</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.add_model"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.add_generated_file"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_generated_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.add_global_chart"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.add_global_chart()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.model_exists"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.model_exists()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.save_processing_result"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_processing_result()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.save_processing_results_batch"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_processing_results_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_processed_files"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_processed_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_model_info"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_model_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_all_processing_results"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_processing_results()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_all_models"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_models()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_model_files"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_model_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_global_charts"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_global_charts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.vacuum_database"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.vacuum_database()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_all_run_names"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_run_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_processed_files_with_similarities"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_processed_files_with_similarities()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_embeddings_by_hashes"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_embeddings_by_hashes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.save_embeddings_batch"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_embeddings_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.save_projection_coordinates"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.save_projection_coordinates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_projection_coordinates"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_projection_coordinates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.clear_tsne_cache"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.clear_tsne_cache()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_run_details"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_run_details()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_all_processing_results_for_run"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_all_processing_results_for_run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.update_metrics_for_file"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.update_metrics_for_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase.get_db_modification_time"><code class="docutils literal notranslate"><span class="pre">EmbeddingDatabase.get_db_modification_time()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-src.utils.data_loader">Data Loader</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.data_loader.load_markdown_files"><code class="docutils literal notranslate"><span class="pre">load_markdown_files()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-src.utils.utils">Text Processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.utils.get_spacy_model"><code class="docutils literal notranslate"><span class="pre">get_spacy_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.utils.chunk_text"><code class="docutils literal notranslate"><span class="pre">chunk_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.utils.contains_horaire_pattern"><code class="docutils literal notranslate"><span class="pre">contains_horaire_pattern()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.utils.extract_context_around_phrase"><code class="docutils literal notranslate"><span class="pre">extract_context_around_phrase()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-src.utils.models">Database Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.models.Base"><code class="docutils literal notranslate"><span class="pre">Base</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Base.__init__"><code class="docutils literal notranslate"><span class="pre">Base.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Base.metadata"><code class="docutils literal notranslate"><span class="pre">Base.metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Base.registry"><code class="docutils literal notranslate"><span class="pre">Base.registry</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.models.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.id"><code class="docutils literal notranslate"><span class="pre">Model.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.name"><code class="docutils literal notranslate"><span class="pre">Model.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.base_model_name"><code class="docutils literal notranslate"><span class="pre">Model.base_model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.type"><code class="docutils literal notranslate"><span class="pre">Model.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.chunk_size"><code class="docutils literal notranslate"><span class="pre">Model.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.chunk_overlap"><code class="docutils literal notranslate"><span class="pre">Model.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.theme_name"><code class="docutils literal notranslate"><span class="pre">Model.theme_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.chunking_strategy"><code class="docutils literal notranslate"><span class="pre">Model.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.similarity_metric"><code class="docutils literal notranslate"><span class="pre">Model.similarity_metric</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.created_at"><code class="docutils literal notranslate"><span class="pre">Model.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id0"><code class="docutils literal notranslate"><span class="pre">Model.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id1"><code class="docutils literal notranslate"><span class="pre">Model.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id2"><code class="docutils literal notranslate"><span class="pre">Model.base_model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id3"><code class="docutils literal notranslate"><span class="pre">Model.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id4"><code class="docutils literal notranslate"><span class="pre">Model.chunk_size</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id5"><code class="docutils literal notranslate"><span class="pre">Model.chunk_overlap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id6"><code class="docutils literal notranslate"><span class="pre">Model.theme_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id7"><code class="docutils literal notranslate"><span class="pre">Model.chunking_strategy</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id8"><code class="docutils literal notranslate"><span class="pre">Model.similarity_metric</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id9"><code class="docutils literal notranslate"><span class="pre">Model.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.Model.__init__"><code class="docutils literal notranslate"><span class="pre">Model.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult"><code class="docutils literal notranslate"><span class="pre">ProcessingResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.id"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.model_name"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.file_id"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.results_blob"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.results_blob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.created_at"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id10"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id11"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id12"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id13"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.results_blob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id14"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProcessingResult.__init__"><code class="docutils literal notranslate"><span class="pre">ProcessingResult.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.model_name"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.text_hash"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.text_hash</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.vector"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.vector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.dimension"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.created_at"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id15"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.model_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id16"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.text_hash</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id17"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.vector</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id18"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.dimension</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id19"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.EmbeddingCache.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingCache.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.id"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.projection_key"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.projection_key</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.file_id"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.coordinates"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.coordinates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.created_at"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id20"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id21"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.projection_key</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id22"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.file_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id23"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.coordinates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#id24"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="utils.html#src.utils.models.ProjectionCoordinate.__init__"><code class="docutils literal notranslate"><span class="pre">ProjectionCoordinate.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#attribution">Attribution</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ForzaEmbed</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Core Module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/core.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="core-module">
+<h1>Core Module<a class="headerlink" href="#core-module" title="Link to this heading"></a></h1>
+<p>The core module contains the main orchestration logic for ForzaEmbed.</p>
+<section id="forzaembed-class">
+<h2>ForzaEmbed Class<a class="headerlink" href="#forzaembed-class" title="Link to this heading"></a></h2>
+</section>
+<section id="processor-class">
+<h2>Processor Class<a class="headerlink" href="#processor-class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.processing.Processor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.processing.</span></span><span class="sig-name descname"><span class="pre">Processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/processing.html#Processor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.processing.Processor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Handle core data processing logic for embedding analysis.</p>
+<p>This class orchestrates the processing pipeline for a single test run,
+delegating specific tasks to specialized services for embedding generation,
+similarity calculation, and visualization.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.processing.Processor.db">
+<span class="sig-name descname"><span class="pre">db</span></span><a class="headerlink" href="#src.core.processing.Processor.db" title="Link to this definition"></a></dt>
+<dd><p>The embedding database instance.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.processing.Processor.config">
+<span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#src.core.processing.Processor.config" title="Link to this definition"></a></dt>
+<dd><p>The application configuration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.processing.Processor.embedding_service">
+<span class="sig-name descname"><span class="pre">embedding_service</span></span><a class="headerlink" href="#src.core.processing.Processor.embedding_service" title="Link to this definition"></a></dt>
+<dd><p>Service for embedding generation and caching.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.processing.Processor.similarity_service">
+<span class="sig-name descname"><span class="pre">similarity_service</span></span><a class="headerlink" href="#src.core.processing.Processor.similarity_service" title="Link to this definition"></a></dt>
+<dd><p>Service for similarity calculations.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.processing.Processor.visualization_service">
+<span class="sig-name descname"><span class="pre">visualization_service</span></span><a class="headerlink" href="#src.core.processing.Processor.visualization_service" title="Link to this definition"></a></dt>
+<dd><p>Service for t-SNE visualization.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.core.processing.Processor.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/processing.html#Processor.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.processing.Processor.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize the Processor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>db</strong> (<a class="reference internal" href="utils.html#src.utils.database.EmbeddingDatabase" title="src.utils.database.EmbeddingDatabase"><em>EmbeddingDatabase</em></a>) – The embedding database instance for storing results.</p></li>
+<li><p><strong>config</strong> (<a class="reference internal" href="#src.core.config.AppConfig" title="src.core.config.AppConfig"><em>AppConfig</em></a>) – The application configuration.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.core.processing.Processor.run_test">
+<span class="sig-name descname"><span class="pre">run_test</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rows</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_overlap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">themes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theme_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunking_strategy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">similarity_metric</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processed_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pbar</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/processing.html#Processor.run_test"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.processing.Processor.run_test" title="Link to this definition"></a></dt>
+<dd><p>Process a test run for a specific parameter combination.</p>
+<p>Handles the complete workflow for processing files including embedding
+generation, similarity calculation, and metric evaluation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rows</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>) – List of (name, content) tuples for files to process.</p></li>
+<li><p><strong>model_config</strong> (<a class="reference internal" href="#src.core.config.ModelConfig" title="src.core.config.ModelConfig"><em>ModelConfig</em></a>) – The model configuration to use.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of text chunks in characters.</p></li>
+<li><p><strong>chunk_overlap</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Overlap between chunks in characters.</p></li>
+<li><p><strong>themes</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of theme keywords to compare against.</p></li>
+<li><p><strong>theme_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name identifier for the theme set.</p></li>
+<li><p><strong>chunking_strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The chunking strategy to use.</p></li>
+<li><p><strong>similarity_metric</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The similarity metric to use.</p></li>
+<li><p><strong>processed_files</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of file names already processed.</p></li>
+<li><p><strong>pbar</strong> (<em>tqdm</em>) – Progress bar object for status updates.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary containing processing results with file data and metrics.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-src.core.config">
+<span id="configuration"></span><h2>Configuration<a class="headerlink" href="#module-src.core.config" title="Link to this heading"></a></h2>
+<p>Configuration management for ForzaEmbed.</p>
+<p>This module defines Pydantic models for application configuration and provides
+functions to load and validate YAML configuration files. It handles all
+configuration aspects including grid search parameters, model settings,
+database options, and multiprocessing settings.</p>
+<div class="admonition-example admonition">
+<p class="admonition-title">Example</p>
+<p>Load a configuration file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">src.core.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;configs/config.yml&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">models_to_test</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">GridSearchParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_overlap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunking_strategy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">similarity_metrics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">themes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#GridSearchParams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.GridSearchParams" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Configuration for grid search parameters.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.chunk_size">
+<span class="sig-name descname"><span class="pre">chunk_size</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.chunk_size" title="Link to this definition"></a></dt>
+<dd><p>List of chunk sizes to test (in characters).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.chunk_overlap">
+<span class="sig-name descname"><span class="pre">chunk_overlap</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.chunk_overlap" title="Link to this definition"></a></dt>
+<dd><p>List of chunk overlaps to test (in characters).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.chunking_strategy">
+<span class="sig-name descname"><span class="pre">chunking_strategy</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.chunking_strategy" title="Link to this definition"></a></dt>
+<dd><p>List of chunking strategies to evaluate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.similarity_metrics">
+<span class="sig-name descname"><span class="pre">similarity_metrics</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.similarity_metrics" title="Link to this definition"></a></dt>
+<dd><p>List of similarity metrics to use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.themes">
+<span class="sig-name descname"><span class="pre">themes</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.themes" title="Link to this definition"></a></dt>
+<dd><p>Mapping of theme names to lists of theme keywords.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, List[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">chunk_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">chunk_overlap</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">chunking_strategy</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">similarity_metrics</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">themes</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.GridSearchParams.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></span><a class="headerlink" href="#src.core.config.GridSearchParams.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">ModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dimensions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pooling_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'max'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#ModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.ModelConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Configuration for an embedding model.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.type">
+<span class="sig-name descname"><span class="pre">type</span></span><a class="headerlink" href="#src.core.config.ModelConfig.type" title="Link to this definition"></a></dt>
+<dd><p>The type of model (e.g., ‘api’, ‘fastembed’, ‘sentence_transformers’).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#src.core.config.ModelConfig.name" title="Link to this definition"></a></dt>
+<dd><p>The model name or identifier.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.dimensions">
+<span class="sig-name descname"><span class="pre">dimensions</span></span><a class="headerlink" href="#src.core.config.ModelConfig.dimensions" title="Link to this definition"></a></dt>
+<dd><p>The embedding dimension of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.base_url">
+<span class="sig-name descname"><span class="pre">base_url</span></span><a class="headerlink" href="#src.core.config.ModelConfig.base_url" title="Link to this definition"></a></dt>
+<dd><p>Optional base URL for API-based models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.timeout">
+<span class="sig-name descname"><span class="pre">timeout</span></span><a class="headerlink" href="#src.core.config.ModelConfig.timeout" title="Link to this definition"></a></dt>
+<dd><p>Optional request timeout in seconds for API models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.max_tokens">
+<span class="sig-name descname"><span class="pre">max_tokens</span></span><a class="headerlink" href="#src.core.config.ModelConfig.max_tokens" title="Link to this definition"></a></dt>
+<dd><p>Optional maximum number of tokens per text. When a text exceeds
+this limit, it will be split into smaller chunks and recombined.
+If None, uses model default (typically 512).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.pooling_strategy">
+<span class="sig-name descname"><span class="pre">pooling_strategy</span></span><a class="headerlink" href="#src.core.config.ModelConfig.pooling_strategy" title="Link to this definition"></a></dt>
+<dd><p>Optional strategy for combining chunk embeddings when text
+exceeds max_tokens. Options: “max” (default), “average”, “weighted”, “last”.
+- “max”: Max pooling - captures most salient features
+- “average”: Mean of all chunks - preserves overall semantics
+- “weighted”: First chunks weighted more - useful for structured documents
+- “last”: Uses only last chunk - useful for summaries/conclusions</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">type</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#id5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#id6" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">dimensions</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id7" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">base_url</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><a class="headerlink" href="#id8" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id9">
+<span class="sig-name descname"><span class="pre">timeout</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><a class="headerlink" href="#id9" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id10">
+<span class="sig-name descname"><span class="pre">max_tokens</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><a class="headerlink" href="#id10" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id11">
+<span class="sig-name descname"><span class="pre">pooling_strategy</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#id11" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.ModelConfig.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></span><a class="headerlink" href="#src.core.config.ModelConfig.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.DatabaseSettings">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">DatabaseSettings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">intelligent_quantization</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantize_metrics</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#DatabaseSettings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.DatabaseSettings" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Configuration for database settings.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.DatabaseSettings.intelligent_quantization">
+<span class="sig-name descname"><span class="pre">intelligent_quantization</span></span><a class="headerlink" href="#src.core.config.DatabaseSettings.intelligent_quantization" title="Link to this definition"></a></dt>
+<dd><p>Whether to enable intelligent quantization
+for reducing storage size.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.DatabaseSettings.quantize_metrics">
+<span class="sig-name descname"><span class="pre">quantize_metrics</span></span><a class="headerlink" href="#src.core.config.DatabaseSettings.quantize_metrics" title="Link to this definition"></a></dt>
+<dd><p>Whether to quantize metrics (similarities, scores).
+If True, metrics are stored with reduced precision (uint16) to save space.
+If False, metrics are stored in full float32 precision.
+Set to False if you need exact metric values without any quantization loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id12">
+<span class="sig-name descname"><span class="pre">intelligent_quantization</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><a class="headerlink" href="#id12" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id13">
+<span class="sig-name descname"><span class="pre">quantize_metrics</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><a class="headerlink" href="#id13" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.DatabaseSettings.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></span><a class="headerlink" href="#src.core.config.DatabaseSettings.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.EmbeddingPoolingStrategy">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">EmbeddingPoolingStrategy</span></span><a class="reference internal" href="../_modules/src/core/config.html#EmbeddingPoolingStrategy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.EmbeddingPoolingStrategy" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+<p>Strategy for combining embeddings when text exceeds model token limit.</p>
+<p>When a text is too long for the embedding model, it’s split into smaller
+chunks and their embeddings are combined using one of these strategies:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>“max”: Max pooling - takes the maximum value across all chunks for each</dt><dd><p>dimension. Best for capturing the most salient features.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>“average”: Average pooling - computes the mean of all chunk embeddings.</dt><dd><p>Preserves overall semantic content but may dilute important features.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>“weighted”: Weighted pooling - gives more importance to the first chunks.</dt><dd><p>Useful when the beginning of text is more informative.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>“last”: Uses only the last chunk embedding. Useful when the end of text</dt><dd><p>contains summaries or conclusions.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.EmbeddingPoolingStrategy.MAX">
+<span class="sig-name descname"><span class="pre">MAX</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'max'</span></span><a class="headerlink" href="#src.core.config.EmbeddingPoolingStrategy.MAX" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.EmbeddingPoolingStrategy.AVERAGE">
+<span class="sig-name descname"><span class="pre">AVERAGE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'average'</span></span><a class="headerlink" href="#src.core.config.EmbeddingPoolingStrategy.AVERAGE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.EmbeddingPoolingStrategy.WEIGHTED">
+<span class="sig-name descname"><span class="pre">WEIGHTED</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'weighted'</span></span><a class="headerlink" href="#src.core.config.EmbeddingPoolingStrategy.WEIGHTED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.EmbeddingPoolingStrategy.LAST">
+<span class="sig-name descname"><span class="pre">LAST</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'last'</span></span><a class="headerlink" href="#src.core.config.EmbeddingPoolingStrategy.LAST" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">MultiprocessingSettings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers_local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxtasksperchild</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_batch_size_api</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_batch_size_local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">api_batch_sizes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#MultiprocessingSettings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.MultiprocessingSettings" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Configuration for multiprocessing settings.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.max_workers_api">
+<span class="sig-name descname"><span class="pre">max_workers_api</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.max_workers_api" title="Link to this definition"></a></dt>
+<dd><p>Maximum number of workers for API-based embedding calls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.max_workers_local">
+<span class="sig-name descname"><span class="pre">max_workers_local</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.max_workers_local" title="Link to this definition"></a></dt>
+<dd><p>Optional maximum workers for local model inference.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.maxtasksperchild">
+<span class="sig-name descname"><span class="pre">maxtasksperchild</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.maxtasksperchild" title="Link to this definition"></a></dt>
+<dd><p>Maximum tasks per worker child before respawning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.embedding_batch_size_api">
+<span class="sig-name descname"><span class="pre">embedding_batch_size_api</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.embedding_batch_size_api" title="Link to this definition"></a></dt>
+<dd><p>Batch size for API embedding requests.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.embedding_batch_size_local">
+<span class="sig-name descname"><span class="pre">embedding_batch_size_local</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.embedding_batch_size_local" title="Link to this definition"></a></dt>
+<dd><p>Batch size for local model embedding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.file_batch_size">
+<span class="sig-name descname"><span class="pre">file_batch_size</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.file_batch_size" title="Link to this definition"></a></dt>
+<dd><p>Number of files to process per batch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.api_batch_sizes">
+<span class="sig-name descname"><span class="pre">api_batch_sizes</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.api_batch_sizes" title="Link to this definition"></a></dt>
+<dd><p>Mapping of provider names to their specific batch sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id14">
+<span class="sig-name descname"><span class="pre">max_workers_api</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id14" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">max_workers_local</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">maxtasksperchild</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id17">
+<span class="sig-name descname"><span class="pre">embedding_batch_size_api</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id17" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">embedding_batch_size_local</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id18" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id19">
+<span class="sig-name descname"><span class="pre">file_batch_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#id19" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id20">
+<span class="sig-name descname"><span class="pre">api_batch_sizes</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id20" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.MultiprocessingSettings.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></span><a class="headerlink" href="#src.core.config.MultiprocessingSettings.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="src.core.config.AppConfig">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">AppConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_search_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">models_to_test</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reports'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generate_filtered_markdowns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">database</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multiprocessing</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#AppConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.AppConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Main application configuration.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.grid_search_params">
+<span class="sig-name descname"><span class="pre">grid_search_params</span></span><a class="headerlink" href="#src.core.config.AppConfig.grid_search_params" title="Link to this definition"></a></dt>
+<dd><p>Configuration for grid search parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#src.core.config.GridSearchParams" title="src.core.config.GridSearchParams">src.core.config.GridSearchParams</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.models_to_test">
+<span class="sig-name descname"><span class="pre">models_to_test</span></span><a class="headerlink" href="#src.core.config.AppConfig.models_to_test" title="Link to this definition"></a></dt>
+<dd><p>List of model configurations to evaluate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference internal" href="#src.core.config.ModelConfig" title="src.core.config.ModelConfig">src.core.config.ModelConfig</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.output_dir">
+<span class="sig-name descname"><span class="pre">output_dir</span></span><a class="headerlink" href="#src.core.config.AppConfig.output_dir" title="Link to this definition"></a></dt>
+<dd><p>Directory path for output files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.generate_filtered_markdowns">
+<span class="sig-name descname"><span class="pre">generate_filtered_markdowns</span></span><a class="headerlink" href="#src.core.config.AppConfig.generate_filtered_markdowns" title="Link to this definition"></a></dt>
+<dd><p>Whether to generate filtered markdown files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.database">
+<span class="sig-name descname"><span class="pre">database</span></span><a class="headerlink" href="#src.core.config.AppConfig.database" title="Link to this definition"></a></dt>
+<dd><p>Database-related settings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#src.core.config.DatabaseSettings" title="src.core.config.DatabaseSettings">src.core.config.DatabaseSettings</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.multiprocessing">
+<span class="sig-name descname"><span class="pre">multiprocessing</span></span><a class="headerlink" href="#src.core.config.AppConfig.multiprocessing" title="Link to this definition"></a></dt>
+<dd><p>Multiprocessing-related settings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#src.core.config.MultiprocessingSettings" title="src.core.config.MultiprocessingSettings">src.core.config.MultiprocessingSettings</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id21">
+<span class="sig-name descname"><span class="pre">grid_search_params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#src.core.config.GridSearchParams" title="src.core.config.GridSearchParams"><span class="pre">GridSearchParams</span></a></span><a class="headerlink" href="#id21" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id22">
+<span class="sig-name descname"><span class="pre">models_to_test</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#src.core.config.ModelConfig" title="src.core.config.ModelConfig"><span class="pre">ModelConfig</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#id22" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id23">
+<span class="sig-name descname"><span class="pre">output_dir</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#id23" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id24">
+<span class="sig-name descname"><span class="pre">generate_filtered_markdowns</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><a class="headerlink" href="#id24" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id25">
+<span class="sig-name descname"><span class="pre">database</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#src.core.config.DatabaseSettings" title="src.core.config.DatabaseSettings"><span class="pre">DatabaseSettings</span></a></span><a class="headerlink" href="#id25" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id26">
+<span class="sig-name descname"><span class="pre">multiprocessing</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#src.core.config.MultiprocessingSettings" title="src.core.config.MultiprocessingSettings"><span class="pre">MultiprocessingSettings</span></a></span><a class="headerlink" href="#id26" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="src.core.config.AppConfig.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></span><a class="headerlink" href="#src.core.config.AppConfig.model_config" title="Link to this definition"></a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="src.core.config.load_config">
+<span class="sig-prename descclassname"><span class="pre">src.core.config.</span></span><span class="sig-name descname"><span class="pre">load_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/core/config.html#load_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.core.config.load_config" title="Link to this definition"></a></dt>
+<dd><p>Load and validate a YAML configuration file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the YAML configuration file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A validated AppConfig instance.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#FileNotFoundError" title="(in Python v3.14)"><strong>FileNotFoundError</strong></a> – If the configuration file does not exist.</p></li>
+<li><p><strong>yaml.YAMLError</strong> – If the YAML file is malformed.</p></li>
+<li><p><strong>pydantic.ValidationError</strong> – If the configuration fails validation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#src.core.config.AppConfig" title="src.core.config.AppConfig"><em>AppConfig</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../optimization.html" class="btn btn-neutral float-left" title="Grid Search Optimization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="clients.html" class="btn btn-neutral float-right" title="Embedding Clients" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Béranger Thomas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
